@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { ThemeModeToggle } from "../theme/ThemeContext";
 import { meshBackground } from "../components/glass/glassStyles";
 
 const screens = [
@@ -59,11 +58,6 @@ export function DemoIndex() {
         position: "relative",
       }}
     >
-      {/* Top-right theme mode toggle */}
-      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 1000 }}>
-        <ThemeModeToggle />
-      </div>
-
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div
           style={{

@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { IOSFrame } from "./components/IOSFrame";
-import { ThemeProvider } from "./theme/ThemeContext";
 import { DemoIndex } from "./screens/DemoIndex";
 import { Phase3Home } from "./screens/Phase3Home";
 import { Phase3Wallet } from "./screens/Phase3Wallet";
@@ -86,35 +85,33 @@ function BackToIndex() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<DemoIndex />} />
-          <Route path="/walkthrough" element={<Walkthrough />} />
-          <Route path="/landing" element={<Landing />} />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<DemoIndex />} />
+        <Route path="/walkthrough" element={<Walkthrough />} />
+        <Route path="/landing" element={<Landing />} />
 
-          {/* Mobile screens */}
-          <Route path="/p3/trip" element={<MobileRoute><Phase3Trip /></MobileRoute>} />
-          <Route path="/p3/home" element={<MobileRoute><Phase3Home /></MobileRoute>} />
-          <Route path="/p3/wallet" element={<MobileRoute><Phase3Wallet /></MobileRoute>} />
-          <Route path="/p3/pay" element={<MobileRoute><Phase3Pay /></MobileRoute>} />
-          <Route path="/p3/map" element={<MobileRoute><Phase3Map /></MobileRoute>} />
+        {/* Mobile screens */}
+        <Route path="/p3/trip" element={<MobileRoute><Phase3Trip /></MobileRoute>} />
+        <Route path="/p3/home" element={<MobileRoute><Phase3Home /></MobileRoute>} />
+        <Route path="/p3/wallet" element={<MobileRoute><Phase3Wallet /></MobileRoute>} />
+        <Route path="/p3/pay" element={<MobileRoute><Phase3Pay /></MobileRoute>} />
+        <Route path="/p3/map" element={<MobileRoute><Phase3Map /></MobileRoute>} />
 
-          <Route path="/p2/onboarding" element={<MobileRoute><Phase2Onboarding /></MobileRoute>} />
-          <Route path="/p2/home" element={<MobileRoute><Phase2EstimatedQCash /></MobileRoute>} />
-          <Route path="/p2/prebook" element={<MobileRoute><Phase2PreBook /></MobileRoute>} />
+        <Route path="/p2/onboarding" element={<MobileRoute><Phase2Onboarding /></MobileRoute>} />
+        <Route path="/p2/home" element={<MobileRoute><Phase2EstimatedQCash /></MobileRoute>} />
+        <Route path="/p2/prebook" element={<MobileRoute><Phase2PreBook /></MobileRoute>} />
 
-          <Route path="/p4/summary" element={<MobileRoute><Phase4TripSummary /></MobileRoute>} />
-          <Route path="/p4/memory" element={<MobileRoute><Phase4Memory /></MobileRoute>} />
-          <Route path="/p4/comeback" element={<MobileRoute><Phase4ComeBack /></MobileRoute>} />
+        <Route path="/p4/summary" element={<MobileRoute><Phase4TripSummary /></MobileRoute>} />
+        <Route path="/p4/memory" element={<MobileRoute><Phase4Memory /></MobileRoute>} />
+        <Route path="/p4/comeback" element={<MobileRoute><Phase4ComeBack /></MobileRoute>} />
 
-          <Route path="/takecontrol" element={<MobileRoute><TakeControlHome /></MobileRoute>} />
+        <Route path="/takecontrol" element={<MobileRoute><TakeControlHome /></MobileRoute>} />
 
-          {/* Desktop screens */}
-          <Route path="/p1/landing" element={<DesktopRoute><Phase1Landing /></DesktopRoute>} />
-          <Route path="/p1/checkout" element={<DesktopRoute><Phase1ExternalSite /></DesktopRoute>} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+        {/* Desktop screens */}
+        <Route path="/p1/landing" element={<DesktopRoute><Phase1Landing /></DesktopRoute>} />
+        <Route path="/p1/checkout" element={<DesktopRoute><Phase1ExternalSite /></DesktopRoute>} />
+      </Routes>
+    </BrowserRouter>
   );
 }

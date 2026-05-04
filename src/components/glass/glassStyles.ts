@@ -1,8 +1,6 @@
 import type { CSSProperties } from "react";
 
-/** Shared glass aesthetic tokens — themed via CSS variables in index.css.
- *  The same objects work in both light and dark mode; switching is done by
- *  toggling [data-mode="light"] on the document element. */
+/** Shared glass aesthetic tokens — driven by CSS variables in index.css. */
 
 export const meshBackground: CSSProperties = {
   background: `
@@ -11,7 +9,6 @@ export const meshBackground: CSSProperties = {
     radial-gradient(ellipse 50% 60% at 50% 50%, var(--gx-bloom-3), transparent 70%),
     linear-gradient(180deg, var(--gx-bg-1) 0%, var(--gx-bg-2) 45%, var(--gx-bg-3) 100%)
   `,
-  transition: "background 320ms ease",
 };
 
 export const glassSurface: CSSProperties = {

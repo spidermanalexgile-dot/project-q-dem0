@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { ThemeModeToggle } from "../theme/ThemeContext";
 
 /* ------------------------------------------------------------- */
 /*  Layout tokens                                                 */
@@ -192,11 +191,6 @@ export function Walkthrough() {
         position: "relative",
       }}
     >
-      {/* Top-right theme mode toggle, fixed */}
-      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 1000 }}>
-        <ThemeModeToggle />
-      </div>
-
       {/* Header */}
       <div
         style={{

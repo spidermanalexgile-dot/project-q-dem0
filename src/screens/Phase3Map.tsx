@@ -66,33 +66,49 @@ function clusterIconHtml(count: number) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Curved route generation                                                    */
+/*  Walking-route fetcher (OSRM public demo, /foot/ profile).                  */
+/*  Falls back to a straight line if the network call fails — UI shows it     */
+/*  as a dashed gold "route preview" so it's clear it's an approximation.     */
 /* -------------------------------------------------------------------------- */
 
-function curvedRoute(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-  steps = 36
-): L.LatLngExpression[] {
-  // Quadratic bezier with a perpendicular offset midpoint for a gentle arc
-  const mid = { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 };
-  const dLat = b.lat - a.lat;
-  const dLng = b.lng - a.lng;
-  // perpendicular offset, scaled by distance for nicer arc
-  const dist = Math.hypot(dLat, dLng);
-  const offsetScale = 0.18 * dist;
-  const ctrl = { lat: mid.lat - dLng * offsetScale, lng: mid.lng + dLat * offsetScale };
-  const out: [number, number][] = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const oneT = 1 - t;
-    const lat =
-      oneT * oneT * a.lat + 2 * oneT * t * ctrl.lat + t * t * b.lat;
-    const lng =
-      oneT * oneT * a.lng + 2 * oneT * t * ctrl.lng + t * t * b.lng;
-    out.push([lat, lng]);
+type LatLng = { lat: number; lng: number };
+type RouteResult = { coords: [number, number][]; fallback: boolean };
+
+const routeCache = new Map<string, RouteResult>();
+
+function routeKey(a: LatLng, b: LatLng): string {
+  return `${a.lat.toFixed(5)},${a.lng.toFixed(5)};${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
+}
+
+async function fetchWalkingRoute(a: LatLng, b: LatLng): Promise<RouteResult> {
+  const cached = routeCache.get(routeKey(a, b));
+  if (cached) return cached;
+
+  const url =
+    `https://router.project-osrm.org/route/v1/foot/` +
+    `${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`OSRM ${res.status}`);
+    const json = await res.json();
+    const raw = json?.routes?.[0]?.geometry?.coordinates;
+    if (!Array.isArray(raw) || raw.length < 2) throw new Error("OSRM no route");
+    // OSRM returns [lng, lat] pairs — flip for Leaflet's [lat, lng].
+    const coords = raw.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]);
+    const result: RouteResult = { coords, fallback: false };
+    routeCache.set(routeKey(a, b), result);
+    return result;
+  } catch (err) {
+    // Fallback: straight line, marked so the UI can label it.
+    console.warn("[Phase3Map] OSRM route failed, falling back to straight line:", err);
+    const straight: [number, number][] = [
+      [a.lat, a.lng],
+      [b.lat, b.lng],
+    ];
+    const result: RouteResult = { coords: straight, fallback: true };
+    routeCache.set(routeKey(a, b), result);
+    return result;
   }
-  return out;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -108,10 +124,11 @@ export function Phase3Map() {
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
-  const routeRef = useRef<L.Polyline | null>(null);
+  const routeRef = useRef<L.LayerGroup | null>(null);
 
   const [selected, setSelected] = useState<Pin | null>(null);
   const [showRoute, setShowRoute] = useState(false);
+  const [routeStatus, setRouteStatus] = useState<"idle" | "loading" | "ready" | "fallback">("idle");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [chipFilter, setChipFilter] = useState<PinChip | null>(null);
@@ -301,27 +318,64 @@ export function Phase3Map() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
+    // Always tear down the previous route layer first.
     if (routeRef.current) {
       map.removeLayer(routeRef.current);
       routeRef.current = null;
     }
-    if (showRoute && selected) {
-      const poly = L.polyline(curvedRoute(userLocation, { lat: selected.lat, lng: selected.lng }), {
-        color: "#f1d896",
-        weight: 4,
-        opacity: 0.95,
+
+    if (!showRoute || !selected) {
+      setRouteStatus("idle");
+      return;
+    }
+
+    const from = userLocation;
+    const to = { lat: selected.lat, lng: selected.lng };
+    const cached = routeCache.get(routeKey(from, to));
+    let cancelled = false;
+
+    function draw(result: RouteResult) {
+      if (cancelled || !map) return;
+      const layer = L.layerGroup();
+
+      // Shadow underlay for legibility on satellite tiles
+      L.polyline(result.coords, {
+        color: "#000",
+        weight: 8,
+        opacity: result.fallback ? 0.35 : 0.45,
         lineCap: "round",
         lineJoin: "round",
-        dashArray: "1, 12",
-        className: "qroute",
-      }).addTo(map);
-      routeRef.current = poly;
-      const bounds = L.latLngBounds([
-        [userLocation.lat, userLocation.lng],
-        [selected.lat, selected.lng],
-      ]).pad(0.5);
+      }).addTo(layer);
+
+      // Main stroke — solid blue for road-followed, dashed gold for fallback
+      L.polyline(result.coords, {
+        color: result.fallback ? "#f1d896" : "#2196F3",
+        weight: 4,
+        opacity: 1,
+        lineCap: "round",
+        lineJoin: "round",
+        dashArray: result.fallback ? "8, 8" : undefined,
+      }).addTo(layer);
+
+      layer.addTo(map);
+      routeRef.current = layer;
+
+      const bounds = L.latLngBounds(result.coords).pad(0.4);
       map.flyToBounds(bounds, { duration: 0.9 });
+      setRouteStatus(result.fallback ? "fallback" : "ready");
     }
+
+    if (cached) {
+      draw(cached);
+    } else {
+      setRouteStatus("loading");
+      fetchWalkingRoute(from, to).then(draw);
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [showRoute, selected]);
 
   /* ---------- Helpers ---------- */
@@ -430,6 +484,66 @@ export function Phase3Map() {
           setQuery("");
         }}
       />
+
+      {/* Route status pill (loading / preview-fallback) */}
+      {(routeStatus === "loading" || routeStatus === "fallback") && (
+        <div
+          style={{
+            position: "absolute",
+            top: 108,
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "7px 14px",
+            borderRadius: 999,
+            border: "1px solid var(--gx-border)",
+            background: "rgba(3,16,12,0.7)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            WebkitBackdropFilter: "blur(20px) saturate(180%)",
+            color: glassText.primary,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+            boxShadow: "inset 0 1px 0 var(--gx-highlight), 0 6px 16px rgba(0,0,0,0.35)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            zIndex: 35,
+          }}
+        >
+          {routeStatus === "loading" ? (
+            <>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  border: "2px solid rgba(241,216,150,0.35)",
+                  borderTopColor: glassText.gold,
+                  animation: "qspin 0.85s linear infinite",
+                  display: "inline-block",
+                }}
+              />
+              Routing…
+            </>
+          ) : (
+            <>
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: 999,
+                  background: glassText.gold,
+                  boxShadow: "0 0 8px rgba(241,216,150,0.85)",
+                }}
+              />
+              Route preview · approximate
+            </>
+          )}
+          <style>{`@keyframes qspin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
 
       {/* Recenter pill — sits above the in-map toolbar, which is above the BottomNav */}
       <button

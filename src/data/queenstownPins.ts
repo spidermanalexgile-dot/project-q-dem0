@@ -1,6 +1,11 @@
 /**
  * Real Queenstown, NZ locations with real coordinates.
  * Hardcoded for the demo — no API.
+ *
+ * Coordinates were chosen from each business's real address. Where a
+ * business has multiple Queenstown locations (e.g. AJ Hackett operates
+ * out of The Station in town and the Kawarau Bridge site out of town)
+ * the most-visited tourist endpoint is used.
  */
 
 export type PinCategory = "food" | "activity" | "scenic" | "stay" | "wellness";
@@ -17,11 +22,14 @@ export type Pin = {
   qcash?: number;
   rating: number; // 0–5
   reviews: number;
-  imgLabel: string; // text used inside the .scenic placeholder
+  imgLabel: string;
 };
 
-export const userLocation = { lat: -45.0335, lng: 168.6608 };
-export const defaultCenter = { lat: -45.0312, lng: 168.6626, zoom: 15 };
+/** User location — Steamer Wharf / Main Town Pier area, where Joe is "right now". */
+export const userLocation = { lat: -45.0331, lng: 168.6580 };
+
+/** Map default center — town centre, slight offset so pins fan out evenly. */
+export const defaultCenter = { lat: -45.0322, lng: 168.6605, zoom: 15 };
 
 export const queenstownPins: Pin[] = [
   // — Food / cafés / restaurants ----------------------------------------------
@@ -30,8 +38,8 @@ export const queenstownPins: Pin[] = [
     name: "Fergburger",
     category: "food",
     chip: "eat",
-    lat: -45.0317,
-    lng: 168.6620,
+    lat: -45.03187,
+    lng: 168.66063,
     description: "The famous burger queue. 47-min wait right now — Q will reroute you.",
     qcash: 18,
     rating: 4.6,
@@ -43,21 +51,21 @@ export const queenstownPins: Pin[] = [
     name: "Vudu Café & Larder",
     category: "food",
     chip: "eat",
-    lat: -45.0306,
-    lng: 168.6618,
-    description: "All-day brunch on Rees St. Locals' pick — fast in & out.",
+    lat: -45.03224,
+    lng: 168.66124,
+    description: "All-day brunch on Beach St. Locals' pick — fast in & out.",
     qcash: 22,
     rating: 4.7,
     reviews: 1900,
-    imgLabel: "VUDU · REES ST",
+    imgLabel: "VUDU · BEACH ST",
   },
   {
     id: "bunker",
     name: "The Bunker",
     category: "food",
     chip: "eat",
-    lat: -45.0314,
-    lng: 168.6610,
+    lat: -45.03217,
+    lng: 168.66023,
     description: "Tucked off Cow Lane. Fireplace, short menu, your dinner spot at 18:30.",
     qcash: 60,
     rating: 4.8,
@@ -69,8 +77,8 @@ export const queenstownPins: Pin[] = [
     name: "Botswana Butchery",
     category: "food",
     chip: "eat",
-    lat: -45.0335,
-    lng: 168.6611,
+    lat: -45.03363,
+    lng: 168.66037,
     description: "Lakefront fine dining. Big-night-out energy with views over Wakatipu.",
     qcash: 90,
     rating: 4.5,
@@ -82,21 +90,21 @@ export const queenstownPins: Pin[] = [
     name: "Joe's Garage",
     category: "food",
     chip: "eat",
-    lat: -45.0312,
-    lng: 168.6623,
+    lat: -45.03194,
+    lng: 168.65970,
     description: "Coffee + breakfast institution. Searle Lane.",
     qcash: 16,
     rating: 4.4,
     reviews: 2400,
-    imgLabel: "JOE'S GARAGE",
+    imgLabel: "JOE'S GARAGE · SEARLE LN",
   },
   {
     id: "yonder",
     name: "Yonder",
     category: "food",
     chip: "eat",
-    lat: -45.0301,
-    lng: 168.6628,
+    lat: -45.03220,
+    lng: 168.66180,
     description: "Healthy bowls, gluten-free options, mountain-view roof terrace.",
     qcash: 24,
     rating: 4.6,
@@ -108,8 +116,8 @@ export const queenstownPins: Pin[] = [
     name: "Patagonia Chocolates",
     category: "food",
     chip: "eat",
-    lat: -45.0321,
-    lng: 168.6613,
+    lat: -45.03268,
+    lng: 168.66113,
     description: "Hot chocolate the kids will fight over. No queue right now.",
     qcash: 8,
     rating: 4.7,
@@ -121,8 +129,8 @@ export const queenstownPins: Pin[] = [
     name: "Bespoke Kitchen",
     category: "food",
     chip: "eat",
-    lat: -45.0285,
-    lng: 168.6584,
+    lat: -45.03012,
+    lng: 168.65730,
     description: "Up the hill at the Skyline base. Brunch fuel before the gondola.",
     qcash: 22,
     rating: 4.7,
@@ -130,19 +138,19 @@ export const queenstownPins: Pin[] = [
     imgLabel: "BESPOKE · ISLE ST",
   },
 
-  // — Drink ----------------------------------------------------------------
+  // — Drink ------------------------------------------------------------------
   {
     id: "atlas",
     name: "Atlas Beer Café",
     category: "food",
     chip: "drink",
-    lat: -45.0328,
-    lng: 168.6614,
+    lat: -45.03252,
+    lng: 168.65820,
     description: "20+ taps right on Steamer Wharf. Dog-friendly deck.",
     qcash: 18,
     rating: 4.5,
     reviews: 880,
-    imgLabel: "ATLAS BEER · WHARF",
+    imgLabel: "ATLAS BEER · STEAMER WHARF",
   },
 
   // — Activities / providers --------------------------------------------------
@@ -151,60 +159,60 @@ export const queenstownPins: Pin[] = [
     name: "Skyline Gondola",
     category: "activity",
     chip: "adventure",
-    lat: -45.0287,
-    lng: 168.6593,
+    lat: -45.02875,
+    lng: 168.65395,
     description: "Bob's Peak gondola + luge. Family-rated, 1.5× QCash today.",
     qcash: 60,
     rating: 4.7,
     reviews: 12100,
-    imgLabel: "SKYLINE GONDOLA",
+    imgLabel: "SKYLINE GONDOLA · BRECON ST",
   },
   {
     id: "ajhackett",
-    name: "AJ Hackett Bungy",
+    name: "AJ Hackett Bungy · The Station",
     category: "activity",
     chip: "adventure",
-    lat: -45.029,
-    lng: 168.6603,
-    description: "The original bungy. Kawarau Bridge shuttle leaves on the hour.",
+    lat: -45.03145,
+    lng: 168.65843,
+    description: "The Station hub on Camp St. Shuttle leaves on the hour for Kawarau Bridge & The Nevis.",
     qcash: 120,
     rating: 4.8,
     reviews: 5400,
-    imgLabel: "AJ HACKETT · KAWARAU",
+    imgLabel: "AJ HACKETT · THE STATION",
   },
   {
     id: "shotover-jet",
     name: "Shotover Jet",
     category: "activity",
     chip: "adventure",
-    lat: -45.0086,
-    lng: 168.7286,
-    description: "Big red boats through the canyons. 20% off via QCash this week.",
+    lat: -44.99949,
+    lng: 168.67708,
+    description: "Big red boats through the canyons at Arthur's Point. 20% off via QCash this week.",
     qcash: 80,
     rating: 4.7,
     reviews: 7600,
-    imgLabel: "SHOTOVER JET",
+    imgLabel: "SHOTOVER JET · ARTHURS POINT",
   },
   {
     id: "kjet",
     name: "KJet",
     category: "activity",
     chip: "adventure",
-    lat: -45.0323,
-    lng: 168.6603,
+    lat: -45.03309,
+    lng: 168.65594,
     description: "1-hour jet through 3 lakes. Departs from the Main Town Pier.",
     qcash: 70,
     rating: 4.6,
     reviews: 1800,
-    imgLabel: "KJET · MAIN PIER",
+    imgLabel: "KJET · MAIN TOWN PIER",
   },
   {
     id: "ice-arena",
     name: "Queenstown Ice Arena",
     category: "activity",
     chip: "adventure",
-    lat: -45.0349,
-    lng: 168.658,
+    lat: -45.03677,
+    lng: 168.66339,
     description: "Indoor rink in the Gardens. Public sessions afternoons.",
     qcash: 14,
     rating: 4.3,
@@ -216,13 +224,13 @@ export const queenstownPins: Pin[] = [
     name: "Kiwi Birdlife Park",
     category: "activity",
     chip: "adventure",
-    lat: -45.0285,
-    lng: 168.6580,
+    lat: -45.02975,
+    lng: 168.65478,
     description: "Native birds and tuatara under bush canopy — sheltered family afternoon.",
     qcash: 16,
     rating: 4.5,
     reviews: 2200,
-    imgLabel: "KIWI BIRDLIFE PARK",
+    imgLabel: "KIWI BIRDLIFE · BRECON ST",
   },
 
   // — Wellness (folded under Adventure for the chip filter) ------------------
@@ -231,9 +239,9 @@ export const queenstownPins: Pin[] = [
     name: "Onsen Hot Pools",
     category: "wellness",
     chip: "adventure",
-    lat: -44.987,
-    lng: 168.6925,
-    description: "Cedar tubs above Shotover River. You went this morning.",
+    lat: -44.99275,
+    lng: 168.67196,
+    description: "Cedar tubs above Shotover River, Arthur's Point. You went this morning.",
     qcash: 18,
     rating: 4.8,
     reviews: 3300,
@@ -246,20 +254,20 @@ export const queenstownPins: Pin[] = [
     name: "Lake Wakatipu Waterfront",
     category: "scenic",
     chip: "scenic",
-    lat: -45.034,
-    lng: 168.6601,
+    lat: -45.03340,
+    lng: 168.65730,
     description: "Steamer Wharf to Marine Pde. The 1.6 km loop everyone walks.",
     rating: 4.9,
     reviews: 9100,
-    imgLabel: "LAKE WAKATIPU",
+    imgLabel: "LAKE WAKATIPU · MARINE PDE",
   },
   {
     id: "gardens",
     name: "Queenstown Gardens",
     category: "scenic",
     chip: "scenic",
-    lat: -45.0354,
-    lng: 168.6594,
+    lat: -45.03667,
+    lng: 168.66428,
     description: "Pine peninsula sticking into the lake. Disc golf, big trees.",
     rating: 4.7,
     reviews: 2800,
@@ -270,8 +278,8 @@ export const queenstownPins: Pin[] = [
     name: "Bob's Peak Lookout",
     category: "scenic",
     chip: "scenic",
-    lat: -45.0252,
-    lng: 168.6553,
+    lat: -45.02601,
+    lng: 168.64998,
     description: "The view at the top of the gondola. Best at sunset.",
     rating: 4.8,
     reviews: 4500,
@@ -284,24 +292,24 @@ export const queenstownPins: Pin[] = [
     name: "Eichardt's Private Hotel",
     category: "stay",
     chip: "stay",
-    lat: -45.0327,
-    lng: 168.6619,
-    description: "Your hotel. Lake-suite check-out at 11:00 on the 21st.",
+    lat: -45.03346,
+    lng: 168.65938,
+    description: "Your hotel. Marine Parade lakefront. Lake-suite check-out at 11:00 on the 21st.",
     rating: 4.7,
     reviews: 690,
-    imgLabel: "EICHARDT'S",
+    imgLabel: "EICHARDT'S · MARINE PDE",
   },
   {
     id: "hilton",
     name: "Hilton Queenstown",
     category: "stay",
     chip: "stay",
-    lat: -45.0469,
-    lng: 168.6839,
-    description: "Across the bay at Kawarau Village. Ferry runs every 30 min.",
+    lat: -45.04540,
+    lng: 168.72650,
+    description: "Across the bay at Kawarau Village, Frankton. Ferry runs every 30 min.",
     rating: 4.4,
     reviews: 2100,
-    imgLabel: "HILTON · KAWARAU",
+    imgLabel: "HILTON · KAWARAU VILLAGE",
   },
 ];
 
@@ -309,7 +317,7 @@ export const queenstownPins: Pin[] = [
 
 export type PlannedStop = {
   pinId: string;
-  day: string; // "Today", "Tomorrow", etc.
+  day: string;
   time: string;
   status: "done" | "next" | "later";
 };
