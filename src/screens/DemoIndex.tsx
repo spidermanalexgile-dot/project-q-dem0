@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { meshBackground } from "../components/glass/glassStyles";
+import { useDemoData } from "../data/demoData";
+import { DestinationToggle } from "../components/DestinationToggle";
 
 const screens = [
   {
@@ -48,6 +50,7 @@ const screens = [
 ];
 
 export function DemoIndex() {
+  const { demoIndexSubtitle } = useDemoData();
   return (
     <div
       style={{
@@ -58,6 +61,11 @@ export function DemoIndex() {
         position: "relative",
       }}
     >
+      {/* Top-right destination toggle */}
+      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 1000 }}>
+        <DestinationToggle />
+      </div>
+
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div
           style={{
@@ -102,7 +110,7 @@ export function DemoIndex() {
                 margin: 0,
               }}
             >
-              Joe, family of 4 · Eichardt's Private Hotel · 16–21 March 2027. Hardcoded demo data — every interaction is mocked but feels live.
+              {demoIndexSubtitle}
             </p>
           </div>
           <Link

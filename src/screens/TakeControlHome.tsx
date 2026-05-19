@@ -1,40 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { StatusBar } from "../components/StatusBar";
+import { useDemoData } from "../data/demoData";
 
-const personas = {
-  joe: {
-    name: "Joe",
-    q: "42",
-    trip: "Queenstown · Day 3",
-    action: "Lunch",
-    advice: "Patagonia Chocolates is a 3-min walk. Use Q$8 — your full lunch is covered.",
-    targetPin: "patagonia",
-  },
-  cruise: {
-    name: "Margaret",
-    q: "28",
-    trip: "Day-pass · 6h left",
-    action: "Lunch",
-    advice: "You have 6 hours before your ship leaves. Ferg Burger has a 47-min queue — Patagonia is ready right now.",
-    targetPin: "patagonia",
-  },
-  retiree: {
-    name: "Eleanor",
-    q: "56",
-    trip: "Queenstown · Day 2",
-    action: "Lunch",
-    advice: "It's lunchtime. The hotel is 8 minutes away. Or use Q$8 at Patagonia Chocolates around the corner.",
-    targetPin: "patagonia",
-  },
-} as const;
-
-type PersonaKey = keyof typeof personas;
+type PersonaKey = "primary" | "cruise" | "retiree";
 
 export function TakeControlHome() {
   const navigate = useNavigate();
-  const [persona, setPersona] = useState<PersonaKey>("joe");
-  const p = personas[persona];
+  const { takeControlPersonas } = useDemoData();
+  const [persona, setPersona] = useState<PersonaKey>("primary");
+  const p = takeControlPersonas[persona];
 
   function exit() {
     navigate(-1);
@@ -189,7 +164,7 @@ export function TakeControlHome() {
 
         {/* Persona switcher (demo only) */}
         <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "center" }}>
-          {(Object.keys(personas) as PersonaKey[]).map((k) => (
+          {(Object.keys(takeControlPersonas) as PersonaKey[]).map((k) => (
             <button
               key={k}
               onClick={() => setPersona(k)}
@@ -206,7 +181,7 @@ export function TakeControlHome() {
                 textTransform: "uppercase",
               }}
             >
-              {personas[k].name}
+              {takeControlPersonas[k].name}
             </button>
           ))}
         </div>

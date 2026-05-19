@@ -15,9 +15,7 @@ import {
   glassText,
 } from "../components/glass/glassStyles";
 import {
-  queenstownPins,
-  userLocation,
-  defaultCenter,
+  usePinData,
   haversineKm,
   formatDistance,
   formatReviews,
@@ -25,12 +23,11 @@ import {
   categoryGlyph,
   chipLabels,
   chipOrder,
-  plannedTrip,
-  topFiveIds,
   findPin,
   type Pin,
   type PinChip,
-} from "../data/queenstownPins";
+} from "../data/pins";
+import { useDemoData } from "../data/demoData";
 
 /* -------------------------------------------------------------------------- */
 /*  Pin / cluster icon HTML                                                    */
@@ -120,6 +117,8 @@ type ToolbarMode = "search" | "saved" | "trip";
 export function Phase3Map() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { pins, userLocation, defaultCenter, plannedTrip } = usePinData();
+  const { destinationName } = useDemoData();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -137,7 +136,7 @@ export function Phase3Map() {
   /* ---------- Filtered pin list (for the search sheet) ---------- */
 
   const visiblePins = useMemo(() => {
-    let list = queenstownPins;
+    let list: Pin[] = pins;
     if (mode === "trip") {
       const tripIds = new Set(plannedTrip.map((s) => s.pinId));
       list = list.filter((p) => tripIds.has(p.id));
@@ -150,13 +149,23 @@ export function Phase3Map() {
       );
     }
     return list;
-  }, [query, chipFilter, mode]);
+  }, [pins, plannedTrip, query, chipFilter, mode]);
 
   /* ---------- Map init ---------- */
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || mapRef.current) return;
+    if (!container) return;
+
+    // If a map already exists (e.g. destination just switched), tear it down
+    // and rebuild with the new center/pins. Also clear marker refs.
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+      clusterRef.current = null;
+      markersRef.current = {};
+      routeRef.current = null;
+    }
 
     // StrictMode guard: in React 18+ dev, effects run twice. If a prior
     // Leaflet instance left its `_leaflet_id` on the DOM, re-init throws
@@ -168,7 +177,7 @@ export function Phase3Map() {
 
     const map = L.map(container, {
       center: [defaultCenter.lat, defaultCenter.lng],
-      zoom: 14,
+      zoom: defaultCenter.zoom ?? 14,
       zoomControl: false,
       attributionControl: false,
     });
@@ -242,7 +251,7 @@ export function Phase3Map() {
     map.addLayer(cluster);
 
     // Pin markers (we keep references so we can swap their icons)
-    queenstownPins.forEach((pin) => {
+    pins.forEach((pin) => {
       const m = L.marker([pin.lat, pin.lng], {
         icon: L.divIcon({
           className: "qpin-wrapper",
@@ -268,14 +277,17 @@ export function Phase3Map() {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+    // Re-run when destination changes (pins / center / userLocation are
+    // stable per-destination slice references).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pins, defaultCenter, userLocation]);
 
   /* ---------- Deep-link via ?pin=<id> — auto-select on arrival -------------- */
 
   useEffect(() => {
     const pinId = searchParams.get("pin");
     if (!pinId || !mapRef.current) return;
-    const pin = findPin(pinId);
+    const pin = findPin(pins, pinId);
     if (!pin) return;
     // Wait one tick so the map's initial layout is settled, then select.
     const id = setTimeout(() => {
@@ -283,7 +295,7 @@ export function Phase3Map() {
       mapRef.current?.flyTo([pin.lat, pin.lng], 17, { duration: 1.4 });
     }, 250);
     return () => clearTimeout(id);
-  }, [searchParams]);
+  }, [searchParams, pins]);
 
   /* ---------- Apply mode/chip/query filter to which markers are visible ---------- */
 
@@ -301,7 +313,7 @@ export function Phase3Map() {
 
   useEffect(() => {
     Object.entries(markersRef.current).forEach(([id, marker]) => {
-      const pin = findPin(id);
+      const pin = findPin(pins, id);
       if (!pin) return;
       const isSelected = selected?.id === id;
       marker.setIcon(
@@ -376,7 +388,7 @@ export function Phase3Map() {
     return () => {
       cancelled = true;
     };
-  }, [showRoute, selected]);
+  }, [showRoute, selected, userLocation]);
 
   /* ---------- Helpers ---------- */
 
@@ -407,7 +419,7 @@ export function Phase3Map() {
     if (m === "trip") {
       // Fit to trip bounds
       const tripPins = plannedTrip
-        .map((s) => findPin(s.pinId))
+        .map((s) => findPin(pins, s.pinId))
         .filter((p): p is Pin => !!p);
       if (tripPins.length > 1 && mapRef.current) {
         const bounds = L.latLngBounds(tripPins.map((p) => [p.lat, p.lng] as [number, number])).pad(0.4);
@@ -483,6 +495,7 @@ export function Phase3Map() {
         onClear={() => {
           setQuery("");
         }}
+        destinationName={destinationName}
       />
 
       {/* Route status pill (loading / preview-fallback) */}
@@ -641,11 +654,13 @@ function SearchBar({
   onFocus,
   onChange,
   onClear,
+  destinationName,
 }: {
   query: string;
   onFocus: () => void;
   onChange: (v: string) => void;
   onClear: () => void;
+  destinationName: string;
 }) {
   return (
     <div
@@ -672,7 +687,7 @@ function SearchBar({
         value={query}
         onFocus={onFocus}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search Queenstown"
+        placeholder={`Search ${destinationName}`}
         style={{
           flex: 1,
           background: "transparent",
@@ -903,7 +918,7 @@ function SheetBody({
             label={
               trimmed
                 ? `Results for "${trimmed}"`
-                : `${chipLabels[chipFilter as PinChip]} in Queenstown`
+                : `${chipLabels[chipFilter as PinChip]}`
             }
             pins={visiblePins}
             onSelectPin={onSelectPin}
@@ -916,8 +931,9 @@ function SheetBody({
 }
 
 function YourTripSection({ onSelectPin }: { onSelectPin: (p: Pin) => void }) {
+  const { pins, plannedTrip } = usePinData();
   const stops = plannedTrip
-    .map((s) => ({ stop: s, pin: findPin(s.pinId) }))
+    .map((s) => ({ stop: s, pin: findPin(pins, s.pinId) }))
     .filter((x): x is { stop: typeof plannedTrip[number]; pin: Pin } => !!x.pin);
 
   return (
@@ -1005,10 +1021,12 @@ function YourTripSection({ onSelectPin }: { onSelectPin: (p: Pin) => void }) {
 }
 
 function TopFiveSection({ onSelectPin }: { onSelectPin: (p: Pin) => void }) {
-  const top = topFiveIds.map((id) => findPin(id)).filter((p): p is Pin => !!p);
+  const { pins, topFiveIds } = usePinData();
+  const { destinationName } = useDemoData();
+  const top = topFiveIds.map((id: string) => findPin(pins, id)).filter((p): p is Pin => !!p);
   return (
     <section style={{ marginBottom: 22 }}>
-      <SectionHead label="Top 5 in Queenstown" sub="Highest-rated places" />
+      <SectionHead label={`Top 5 in ${destinationName}`} sub="Highest-rated places" />
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {top.map((pin) => (
           <PlaceRow key={pin.id} pin={pin} onSelect={() => onSelectPin(pin)} />
@@ -1108,6 +1126,7 @@ function PlaceRow({
   onSelect: () => void;
   highlight?: string;
 }) {
+  const { userLocation } = usePinData();
   const dist = formatDistance(haversineKm(userLocation, { lat: pin.lat, lng: pin.lng }));
   return (
     <button
@@ -1274,6 +1293,7 @@ function PinCard({
   onAsk: () => void;
   onDirections: () => void;
 }) {
+  const { userLocation } = usePinData();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { StatusBar } from "../components/StatusBar";
-import { tripSummary } from "../data/demoData";
+import { useDemoData } from "../data/demoData";
 import {
   meshBackground,
   glassSurface,
@@ -11,6 +11,7 @@ import {
 
 export function Phase4TripSummary() {
   const navigate = useNavigate();
+  const { tripSummary, destinationName, donationCauses } = useDemoData();
   const [photoBookOrdered, setPhotoBookOrdered] = useState(false);
   const [donated, setDonated] = useState(false);
 
@@ -42,7 +43,7 @@ export function Phase4TripSummary() {
             fontWeight: 600,
           }}
         >
-          Your Queenstown, in numbers.
+          Your {destinationName}, in numbers.
         </h1>
         <div style={{ fontSize: 13, color: glassText.secondary }}>
           {tripSummary.nights} nights · {tripSummary.vendors} vendors · {tripSummary.km}km walked
@@ -217,7 +218,7 @@ export function Phase4TripSummary() {
               fontWeight: 600,
             }}
           >
-            Turn your 47 photos into a Queenstown memory film.
+            Turn your 47 photos into a {destinationName} memory film.
           </div>
           <div
             style={{
@@ -318,7 +319,7 @@ export function Phase4TripSummary() {
                   lineHeight: 1.4,
                 }}
               >
-                Wakatipu Reforestation · Lake clean-up · Trail maintenance
+                {donationCauses}
               </div>
             </div>
             <span

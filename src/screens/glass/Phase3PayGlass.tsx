@@ -3,33 +3,40 @@ import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { StatusBar } from "../../components/StatusBar";
 import { Icon } from "../../components/Icon";
-import { payTransaction, qcash } from "../../data/demoData";
+import { useDemoData } from "../../data/demoData";
 import { meshBackground, glassSurface, glassSurfaceMuted, glassText } from "../../components/glass/glassStyles";
 
-function makeToken() {
+function tokenFor(vendor: string, amount: number) {
   const r = Math.random().toString(36).slice(2, 10).toUpperCase();
-  return `qcash:${payTransaction.vendor.toLowerCase().replace(/\s+/g, "-")}:${payTransaction.amount.toFixed(2)}:${r}`;
+  return `qcash:${vendor.toLowerCase().replace(/\s+/g, "-")}:${amount.toFixed(2)}:${r}`;
 }
 
 export function Phase3PayGlass() {
   const navigate = useNavigate();
-  const [token, setToken] = useState(() => makeToken());
+  const { payTransaction, qcash } = useDemoData();
+  const [token, setToken] = useState(() => tokenFor(payTransaction.vendor, payTransaction.amount));
   const [ttl, setTtl] = useState(payTransaction.ttlSeconds);
   const [status, setStatus] = useState<"idle" | "confirming" | "done">("idle");
+
+  // Reset the QR + countdown when the destination (and thus the vendor) changes.
+  useEffect(() => {
+    setToken(tokenFor(payTransaction.vendor, payTransaction.amount));
+    setTtl(payTransaction.ttlSeconds);
+  }, [payTransaction.vendor, payTransaction.amount, payTransaction.ttlSeconds]);
 
   useEffect(() => {
     if (status !== "idle") return;
     const id = setInterval(() => {
       setTtl((t) => {
         if (t <= 1) {
-          setToken(makeToken());
+          setToken(tokenFor(payTransaction.vendor, payTransaction.amount));
           return payTransaction.ttlSeconds;
         }
         return t - 1;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [status]);
+  }, [status, payTransaction.vendor, payTransaction.amount, payTransaction.ttlSeconds]);
 
   function confirm() {
     setStatus("confirming");

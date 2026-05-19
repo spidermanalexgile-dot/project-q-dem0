@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { StatusBar } from "../components/StatusBar";
 import { Icon } from "../components/Icon";
+import { useDemoData } from "../data/demoData";
 import {
   meshBackground,
   glassSurface,
@@ -13,6 +14,7 @@ const SEGMENTS = 9;
 
 export function Phase4Memory() {
   const navigate = useNavigate();
+  const { memoryCaption } = useDemoData();
   const [segment, setSegment] = useState(2);
   const [progress, setProgress] = useState(0);
   const [shared, setShared] = useState(false);
@@ -171,7 +173,7 @@ export function Phase4Memory() {
                 fontWeight: 600,
               }}
             >
-              0{segment + 1} / 09 · Lake Wakatipu
+              0{segment + 1} / 09 · {memoryCaption.location}
             </span>
             <span
               className="mono tnum"
@@ -200,7 +202,7 @@ export function Phase4Memory() {
                 fontWeight: 600,
               }}
             >
-              17 Mar · 8°C · Mist
+              {memoryCaption.date}
             </div>
             <div
               className="serif"
@@ -214,7 +216,7 @@ export function Phase4Memory() {
                 textShadow: "0 1px 0 rgba(0,0,0,0.4)",
               }}
             >
-              "The lake was completely glass that morning."
+              {memoryCaption.quote}
             </div>
           </div>
         </div>

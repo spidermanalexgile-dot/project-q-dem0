@@ -2,10 +2,11 @@ import { Link } from "react-router-dom";
 import { StatusBar } from "../components/StatusBar";
 import { BottomNav } from "./Phase3Home";
 import { useCountUp } from "../components/useCountUp";
-import { qcash, ledger, type LedgerEntry } from "../data/demoData";
+import { useDemoData, type LedgerEntry } from "../data/demoData";
 import { meshBackground, glassText } from "../components/glass/glassStyles";
 
 export function Phase3Wallet() {
+  const { qcash, ledger } = useDemoData();
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
@@ -89,7 +90,7 @@ export function Phase3Wallet() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {ledger.map((t, i) => (
+            {ledger.map((t: LedgerEntry, i: number) => (
               <LedgerRow entry={t} isFirst={i === 0} key={t.id} />
             ))}
           </div>

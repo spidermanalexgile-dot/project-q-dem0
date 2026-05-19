@@ -1,5 +1,6 @@
 import { StatusBar } from "../components/StatusBar";
 import { Icon } from "../components/Icon";
+import { useDemoData } from "../data/demoData";
 import {
   meshBackground,
   glassSurface,
@@ -8,6 +9,7 @@ import {
 } from "../components/glass/glassStyles";
 
 export function Phase4ComeBack() {
+  const { destinationName } = useDemoData();
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
@@ -37,7 +39,7 @@ export function Phase4ComeBack() {
             fontWeight: 600,
           }}
         >
-          Queenstown is empty next month.{" "}
+          {destinationName} is empty next month.{" "}
           <span style={{ color: glassText.gold }}>We saved you a deal.</span>
         </h1>
 

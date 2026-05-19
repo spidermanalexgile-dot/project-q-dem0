@@ -1,6 +1,8 @@
 import { QCash } from "../components/QCash";
+import { useDemoData } from "../data/demoData";
 
 export function Phase1ExternalSite() {
+  const { trip, bookingLineItem } = useDemoData();
   return (
     <div
       style={{
@@ -46,7 +48,7 @@ export function Phase1ExternalSite() {
             color: "#8a948f",
           }}
         >
-          booking-platform.com / queenstown / checkout
+          booking-platform.com / {trip.destination.toLowerCase()} / checkout
         </div>
       </div>
 
@@ -55,17 +57,19 @@ export function Phase1ExternalSite() {
           Step 3 of 3 · Confirm & pay
         </div>
         <h1 className="serif" style={{ fontSize: 30, margin: "10px 0 4px", letterSpacing: "-0.02em" }}>
-          Eichardt's Private Hotel
+          {trip.hotel}
         </h1>
-        <div style={{ color: "#4d5a55", fontSize: 14 }}>Queenstown, New Zealand · Lake Wakatipu suite · 5 nights</div>
-        <div style={{ color: "#4d5a55", fontSize: 14, marginTop: 2 }}>Tue 16 Mar — Sun 21 Mar 2027 · 2 guests</div>
+        <div style={{ color: "#4d5a55", fontSize: 14 }}>{bookingLineItem.breadcrumb}</div>
+        <div style={{ color: "#4d5a55", fontSize: 14, marginTop: 2 }}>
+          {trip.dates.in} — {trip.dates.out} · {trip.guest.partySize} guest{trip.guest.partySize === 1 ? "" : "s"}
+        </div>
 
         <div style={{ marginTop: 22, border: "1px solid #e7e0cf", borderRadius: 14, overflow: "hidden" }}>
           {[
-            { label: "Lake suite × 5 nights", amt: "$3,250.00", muted: false },
-            { label: "Cleaning fee", amt: "$75.00", muted: true },
-            { label: "Service fee", amt: "$240.00", muted: true },
-            { label: "GST", amt: "$520.00", muted: true },
+            { label: bookingLineItem.suiteLine, amt: bookingLineItem.suiteAmount, muted: false },
+            { label: "Cleaning fee", amt: bookingLineItem.cleaningAmount, muted: true },
+            { label: "Service fee", amt: bookingLineItem.serviceAmount, muted: true },
+            { label: bookingLineItem.taxLabel, amt: bookingLineItem.taxAmount, muted: true },
           ].map((row) => (
             <div
               key={row.label}
@@ -107,11 +111,11 @@ export function Phase1ExternalSite() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Sustainability Fee · Project Q</div>
                   <div style={{ fontSize: 12, color: "#7a6a40", marginTop: 2 }}>
-                    $28/night × 5 nights · funds Queenstown's regenerative tourism
+                    {bookingLineItem.sustainabilityLine}
                   </div>
                 </div>
               </div>
-              <span className="mono tnum" style={{ fontSize: 14, fontWeight: 600 }}>$140.00</span>
+              <span className="mono tnum" style={{ fontSize: 14, fontWeight: 600 }}>${trip.feePaid}.00</span>
             </div>
             <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 12, color: "#7a6a40" }}>Estimated QCash bonus you'll receive:</span>
@@ -133,7 +137,7 @@ export function Phase1ExternalSite() {
 
           <div style={{ padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{ fontSize: 16, fontWeight: 600 }}>Total</span>
-            <span className="mono tnum serif" style={{ fontSize: 22, fontWeight: 700 }}>$4,225.00</span>
+            <span className="mono tnum serif" style={{ fontSize: 22, fontWeight: 700 }}>{bookingLineItem.totalAmount}</span>
           </div>
         </div>
 

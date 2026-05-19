@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { useDemoData } from "../data/demoData";
+import { DestinationToggle } from "../components/DestinationToggle";
 
 /* ------------------------------------------------------------- */
 /*  Layout tokens                                                 */
@@ -182,6 +184,7 @@ const sections: Section[] = [
 /* ------------------------------------------------------------- */
 
 export function Walkthrough() {
+  const { walkthroughSubtitle } = useDemoData();
   return (
     <div
       style={{
@@ -191,6 +194,11 @@ export function Walkthrough() {
         position: "relative",
       }}
     >
+      {/* Top-right destination toggle, fixed */}
+      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 1000 }}>
+        <DestinationToggle />
+      </div>
+
       {/* Header */}
       <div
         style={{
@@ -233,7 +241,7 @@ export function Walkthrough() {
             lineHeight: 1.5,
           }}
         >
-          Joe books a Queenstown trip 6 months out. The fee becomes QCash. He uses it. He goes home. We invite him back. <b>Each phone is a live, isolated mini-app</b> — click around inside any one without losing the others.
+          {walkthroughSubtitle} <b>Each phone is a live, isolated mini-app</b> — click around inside any one without losing the others.
         </p>
         <div style={{ marginTop: 22, display: "inline-flex", gap: 8 }}>
           <Link

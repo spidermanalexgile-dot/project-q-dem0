@@ -1,4 +1,7 @@
+import { useDemoData } from "../data/demoData";
+
 export function Phase1Landing() {
+  const { trip, qcash, bookingWelcome } = useDemoData();
   return (
     <div
       style={{
@@ -47,7 +50,7 @@ export function Phase1Landing() {
 
       <div style={{ position: "relative", padding: "60px 40px 0", maxWidth: 720 }}>
         <div className="mono" style={{ fontSize: 11, letterSpacing: "0.18em", color: "#d4b87a", textTransform: "uppercase" }}>
-          Welcome, Joe — your trip to Queenstown
+          {bookingWelcome.eyebrow}
         </div>
         <h1
           className="serif"
@@ -59,12 +62,12 @@ export function Phase1Landing() {
             fontWeight: 600,
           }}
         >
-          Your $140 isn't a tax.
+          Your ${trip.feePaid} isn't a tax.
           <br />
           <span style={{ color: "#d4b87a" }}>It's seed money for your trip.</span>
         </h1>
         <p style={{ fontSize: 16, color: "#c8d6cf", lineHeight: 1.5, maxWidth: 560 }}>
-          You're the 2,847th visitor to opt in for the week of 16 March. That puts you under Queenstown's daily capacity — your sustainability fee is 32% below the seasonal average, and we're projecting a strong QCash rebate.
+          {bookingWelcome.rationale}
         </p>
 
         <div style={{ marginTop: 28, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
@@ -79,8 +82,8 @@ export function Phase1Landing() {
             <div className="mono" style={{ fontSize: 11, color: "#a8b8af", textTransform: "uppercase", letterSpacing: "0.1em" }}>
               Projected QCash
             </div>
-            <div className="serif" style={{ fontSize: 36, fontWeight: 600, color: "#f1d896", marginTop: 4 }}>Q$95</div>
-            <div style={{ fontSize: 11, color: "#a8b8af" }}>You'll effectively pay $45</div>
+            <div className="serif" style={{ fontSize: 36, fontWeight: 600, color: "#f1d896", marginTop: 4 }}>Q${qcash.projection.current}</div>
+            <div style={{ fontSize: 11, color: "#a8b8af" }}>{bookingWelcome.effectiveLine}</div>
           </div>
           <button
             style={{
@@ -100,7 +103,7 @@ export function Phase1Landing() {
       </div>
 
       <div style={{ position: "absolute", bottom: 24, left: 40, right: 40, display: "flex", gap: 32, fontSize: 12, color: "#8aa097" }}>
-        <span>● Live · Queenstown capacity 71% · 2,847 / 4,000</span>
+        <span>{bookingWelcome.liveCapacity}</span>
         <span style={{ marginLeft: "auto" }}>FAQ · Why is my fee this much? · How is QCash calculated?</span>
       </div>
     </div>

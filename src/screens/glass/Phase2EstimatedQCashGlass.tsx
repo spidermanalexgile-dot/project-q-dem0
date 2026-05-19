@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { StatusBar } from "../../components/StatusBar";
 import { Icon } from "../../components/Icon";
-import { trip, qcash, vendors } from "../../data/demoData";
+import { useDemoData, type Vendor } from "../../data/demoData";
 import { meshBackground, glassSurface, glassSurfaceMuted, glassText } from "../../components/glass/glassStyles";
 
 export function Phase2EstimatedQCashGlass() {
+  const { trip, qcash, vendors } = useDemoData();
   const projectionPct = (qcash.projection.current / qcash.projection.ceiling) * 100;
 
   return (
@@ -165,10 +166,10 @@ export function Phase2EstimatedQCashGlass() {
             </span>
           </div>
           <div style={{ fontSize: 13, color: glassText.secondary, marginTop: 6, lineHeight: 1.45 }}>
-            Spend up to <b>Q$71</b> early on Skyline, Bungy, K-Jet & 27 more vendors. Some are running pre-arrival multipliers right now.
+            Spend up to <b>Q$71</b> early on {vendors.slice(0, 3).map((v) => v.name.split(" ")[0]).join(", ")} & 27 more vendors. Some are running pre-arrival multipliers right now.
           </div>
           <div className="no-scrollbar" style={{ marginTop: 12, display: "flex", gap: 8, overflowX: "auto" }}>
-            {vendors.slice(0, 4).map((v) => (
+            {vendors.slice(0, 4).map((v: Vendor) => (
               <Link
                 key={v.id}
                 to="/p2/prebook"

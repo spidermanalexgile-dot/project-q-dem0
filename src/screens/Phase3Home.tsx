@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { StatusBar } from "../components/StatusBar";
 import { Icon } from "../components/Icon";
 import { QCash } from "../components/QCash";
-import { initialChat, cannedReplies, qcash, type ChatMessage } from "../data/demoData";
+import { useDemoData, type ChatMessage } from "../data/demoData";
 
 export function Phase3Home() {
   const navigate = useNavigate();
+  const { initialChat, cannedReplies, qcash, destinationName } = useDemoData();
   const [messages, setMessages] = useState<ChatMessage[]>(initialChat);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -15,6 +16,11 @@ export function Phase3Home() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Reset chat when destination switches so the persona/copy stays consistent.
+  useEffect(() => {
+    setMessages(initialChat);
+  }, [initialChat]);
 
   function send() {
     if (!input.trim()) return;
@@ -54,7 +60,7 @@ export function Phase3Home() {
             Q
           </span>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Ask Q · Queenstown</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Ask Q · {destinationName}</div>
             <div style={{ fontSize: 10, color: "#3d7a5a", display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 6, height: 6, borderRadius: 999, background: "#3d7a5a" }} />
               Live · knows your trip

@@ -10,15 +10,7 @@ import {
   glassSurfaceMuted,
   glassText,
 } from "../components/glass/glassStyles";
-import {
-  todayPlan,
-  tomorrowPreview,
-  tripProgress,
-  nowSnapshot,
-  qcash,
-  payTransaction,
-  type TripDayItem,
-} from "../data/demoData";
+import { useDemoData, type TripDayItem } from "../data/demoData";
 
 /* ---------- Trip page ---------- */
 
@@ -54,6 +46,7 @@ export function Phase3Trip() {
 /* ---------- Eyebrow ---------- */
 
 function Eyebrow() {
+  const { tripProgress, destinationName } = useDemoData();
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div
@@ -72,7 +65,7 @@ function Eyebrow() {
         style={{ fontSize: 10, letterSpacing: "0.14em", color: glassText.gold, display: "flex", alignItems: "center", gap: 6 }}
       >
         <span style={{ width: 6, height: 6, borderRadius: 999, background: glassText.gold, boxShadow: "0 0 8px rgba(241,216,150,0.8)" }} />
-        QUEENSTOWN
+        {destinationName.toUpperCase()}
       </div>
     </div>
   );
@@ -83,6 +76,7 @@ function Eyebrow() {
 function NowCard() {
   const { ref, style: fade } = useFadeUpOnView<HTMLDivElement>();
   const navigate = useNavigate();
+  const { nowSnapshot } = useDemoData();
   return (
     <div ref={ref} style={fade}>
       <div
@@ -215,8 +209,9 @@ function NowCard() {
 
 function TodaySection() {
   const { ref, style: fade } = useFadeUpOnView<HTMLDivElement>();
+  const { todayPlan } = useDemoData();
   // Auto-expand the "next" item by default for a guided feel.
-  const initialExpanded = todayPlan.find((i) => i.status === "next")?.id ?? null;
+  const initialExpanded = todayPlan.find((i: TripDayItem) => i.status === "next")?.id ?? null;
   const [expandedId, setExpandedId] = useState<string | null>(initialExpanded);
 
   return (
@@ -229,7 +224,7 @@ function TodaySection() {
           borderRadius: 18,
         }}
       >
-        {todayPlan.map((item, i) => (
+        {todayPlan.map((item: TripDayItem, i: number) => (
           <TimelineRow
             key={item.id}
             item={item}
@@ -430,6 +425,7 @@ function TimelineRow({
 function QCashTodayCard({ onShowPay }: { onShowPay: () => void }) {
   const { ref, style: fade } = useFadeUpOnView<HTMLDivElement>();
   const navigate = useNavigate();
+  const { qcash } = useDemoData();
   return (
     <div ref={ref} style={fade}>
       <SectionHeading label="Your QCash today" />
@@ -552,6 +548,7 @@ function QCashTodayCard({ onShowPay }: { onShowPay: () => void }) {
 function TomorrowAccordion() {
   const { ref, style: fade } = useFadeUpOnView<HTMLDivElement>();
   const [open, setOpen] = useState(false);
+  const { tomorrowPreview } = useDemoData();
   return (
     <div ref={ref} style={fade}>
       <Accordion
@@ -590,13 +587,14 @@ function TomorrowAccordion() {
 function TripProgressAccordion() {
   const { ref, style: fade } = useFadeUpOnView<HTMLDivElement>();
   const [open, setOpen] = useState(false);
+  const { tripProgress, destinationName } = useDemoData();
   const segments = Array.from({ length: tripProgress.totalDays }, (_, i) => i + 1);
   return (
     <div ref={ref} style={fade}>
       <Accordion
         eyebrow="The rest of your trip"
         title={`Day ${tripProgress.dayNumber} of ${tripProgress.totalDays}`}
-        sub={`${tripProgress.daysLeft} days left in Queenstown`}
+        sub={`${tripProgress.daysLeft} days left in ${destinationName}`}
         open={open}
         onToggle={() => setOpen((o) => !o)}
       >
@@ -953,13 +951,14 @@ function FloatingAskQ() {
 
 /* ---------- Pay sheet (modal) ---------- */
 
-function makeToken() {
+function makeToken(vendor: string, amount: number) {
   const r = Math.random().toString(36).slice(2, 10).toUpperCase();
-  return `qcash:${payTransaction.vendor.toLowerCase().replace(/\s+/g, "-")}:${payTransaction.amount.toFixed(2)}:${r}`;
+  return `qcash:${vendor.toLowerCase().replace(/\s+/g, "-")}:${amount.toFixed(2)}:${r}`;
 }
 
 function PaySheet({ onClose }: { onClose: () => void }) {
-  const [token, setToken] = useState(() => makeToken());
+  const { qcash, payTransaction } = useDemoData();
+  const [token, setToken] = useState(() => makeToken(payTransaction.vendor, payTransaction.amount));
   const [ttl, setTtl] = useState(payTransaction.ttlSeconds);
   const [status, setStatus] = useState<"idle" | "confirming" | "done">("idle");
   const [mounted, setMounted] = useState(false);
@@ -976,14 +975,14 @@ function PaySheet({ onClose }: { onClose: () => void }) {
     const id = setInterval(() => {
       setTtl((t) => {
         if (t <= 1) {
-          setToken(makeToken());
+          setToken(makeToken(payTransaction.vendor, payTransaction.amount));
           return payTransaction.ttlSeconds;
         }
         return t - 1;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [status]);
+  }, [status, payTransaction.vendor, payTransaction.amount, payTransaction.ttlSeconds]);
 
   function dismiss() {
     setMounted(false);

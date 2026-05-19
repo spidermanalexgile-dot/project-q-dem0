@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { ReactNode, CSSProperties } from "react";
+import { useDemoData } from "../data/demoData";
 
 /* ----------------------- Tokens (Heritage palette) ----------------------- */
 
@@ -36,7 +37,7 @@ export function Landing() {
       <HowItWorks />
       <PartnerWall />
       <SocialProof />
-      <ForQueenstown />
+      <ForCity />
       <FinalCTA />
       <Footer />
     </div>
@@ -46,6 +47,7 @@ export function Landing() {
 /* ----------------------- Nav --------------------------------------------- */
 
 function Nav() {
+  const { destinationName } = useDemoData();
   return (
     <header
       style={{
@@ -64,7 +66,7 @@ function Nav() {
           <a href="#how" style={navLink}>How it works</a>
           <a href="#what" style={navLink}>What you get</a>
           <a href="#vendors" style={navLink}>Vendors</a>
-          <a href="#queenstown" style={navLink}>For Queenstown</a>
+          <a href="#queenstown" style={navLink}>For {destinationName}</a>
         </nav>
         <div style={{ display: "flex", gap: 10 }}>
           <Link to="/" style={navGhost}>← Demo index</Link>
@@ -129,6 +131,7 @@ function Wordmark({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
 /* ----------------------- Hero -------------------------------------------- */
 
 function Hero() {
+  const { destinationName, trip, landing } = useDemoData();
   return (
     <Section
       style={{
@@ -166,7 +169,7 @@ function Hero() {
 
       <Container style={{ position: "relative", padding: "100px 40px" }}>
         <div className="mono" style={{ fontSize: 11, color: T.gold, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 18 }}>
-          Now live in Queenstown · Venice & Dubrovnik 2027
+          Now live in {destinationName} · expanding through 2027
         </div>
         <h1
           className="serif"
@@ -179,7 +182,7 @@ function Hero() {
             maxWidth: 900,
           }}
         >
-          Your $140 isn't a tax.
+          Your ${trip.feePaid} isn't a tax.
           <br />
           <span style={{ color: T.goldLight }}>It's seed money for your trip.</span>
         </h1>
@@ -192,7 +195,7 @@ function Hero() {
             lineHeight: 1.55,
           }}
         >
-          Project Q turns the Queenstown visitor levy into <b style={{ color: T.textPrimary }}>spendable QCash</b>, an AI trip guide, and a smarter way to travel — connected to every booking platform you already use.
+          Project Q turns the {destinationName} visitor levy into <b style={{ color: T.textPrimary }}>spendable QCash</b>, an AI trip guide, and a smarter way to travel — connected to every booking platform you already use.
         </p>
 
         <div style={{ marginTop: 38, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -212,7 +215,7 @@ function Hero() {
           }}
         >
           {[
-            { k: "200+", v: "Queenstown vendors" },
+            { k: "200+", v: `${destinationName} vendors` },
             { k: "$2.4M", v: "fees returned to visitors YTD" },
             { k: "94%", v: "vendor adoption" },
             { k: "4.9", v: "average traveller rating" },
@@ -242,7 +245,7 @@ function Hero() {
           letterSpacing: "0.06em",
         }}
       >
-        <span>● Live · Queenstown capacity 71% · 2,847 / 4,000</span>
+        <span>{landing.capacityLine}</span>
         <span>v0.9 · projectq.travel</span>
       </div>
     </Section>
@@ -326,6 +329,7 @@ function Badge({ label, sub }: { label: string; sub: string }) {
 /* ----------------------- Booking moment ---------------------------------- */
 
 function BookingMoment() {
+  const { destinationName } = useDemoData();
   return (
     <Section
       style={{
@@ -365,7 +369,7 @@ function BookingMoment() {
           <span style={{ color: T.goldLight }}>Now claim what's yours.</span>
         </h2>
         <p style={{ fontSize: 17, color: T.textMuted, lineHeight: 1.55, maxWidth: 640 }}>
-          Book a Queenstown trip on Booking.com, Airbnb, Expedia or any partner site. The visitor levy line-item is added at checkout — and the moment your booking confirms, we send a one-tap install link by email, SMS, and QR code.
+          Book a {destinationName} trip on Booking.com, Airbnb, Expedia or any partner site. The visitor levy line-item is added at checkout — and the moment your booking confirms, we send a one-tap install link by email, SMS, and QR code.
         </p>
 
         {/* Split panel diagram */}
@@ -431,6 +435,7 @@ function PulseDot() {
 }
 
 function CheckoutMockup() {
+  const { trip, qcash, bookingLineItem } = useDemoData();
   return (
     <div
       style={{
@@ -445,13 +450,13 @@ function CheckoutMockup() {
         Step 3 of 3 · Confirm & pay
       </div>
       <div className="serif" style={{ fontSize: 22, marginTop: 6, letterSpacing: "-0.02em", color: T.textInk, fontWeight: 600 }}>
-        Eichardt's Private Hotel · 5 nights
+        {trip.hotel} · {trip.dates.nights} nights
       </div>
       <div style={{ marginTop: 16, border: "1px solid #e7e0cf", borderRadius: 10 }}>
         {[
-          { l: "Lake suite × 5 nights", v: "$3,250.00", muted: false },
-          { l: "Service fee", v: "$240.00", muted: true },
-          { l: "GST", v: "$520.00", muted: true },
+          { l: bookingLineItem.suiteLine, v: bookingLineItem.suiteAmount, muted: false },
+          { l: "Service fee", v: bookingLineItem.serviceAmount, muted: true },
+          { l: bookingLineItem.taxLabel, v: bookingLineItem.taxAmount, muted: true },
         ].map((row) => (
           <div
             key={row.l}
@@ -497,14 +502,14 @@ function CheckoutMockup() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Sustainability fee · Project Q</div>
-              <div style={{ fontSize: 11, color: "#7a6a40", marginTop: 2 }}>$28 × 5 · returned as Q$95 in QCash</div>
+              <div style={{ fontSize: 11, color: "#7a6a40", marginTop: 2 }}>$28 × {trip.dates.nights} · returned as Q${qcash.projection.current} in QCash</div>
             </div>
-            <span className="mono tnum" style={{ fontSize: 13, fontWeight: 600 }}>$140.00</span>
+            <span className="mono tnum" style={{ fontSize: 13, fontWeight: 600 }}>${trip.feePaid}.00</span>
           </div>
         </div>
         <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>Total</span>
-          <span className="serif tnum" style={{ fontSize: 22, fontWeight: 700 }}>$4,225.00</span>
+          <span className="serif tnum" style={{ fontSize: 22, fontWeight: 700 }}>{bookingLineItem.totalAmount}</span>
         </div>
       </div>
       <button
@@ -557,6 +562,7 @@ function Arrow() {
 }
 
 function PhoneDownloadMockup() {
+  const { trip, qcash } = useDemoData();
   return (
     <div
       style={{
@@ -607,8 +613,8 @@ function PhoneDownloadMockup() {
             Booking confirmed
           </div>
           <div className="serif" style={{ fontSize: 20, marginTop: 8, letterSpacing: "-0.02em", lineHeight: 1.15, fontWeight: 600 }}>
-            Welcome, Joe. <br />
-            <span style={{ color: T.goldLight }}>Q$95 is waiting.</span>
+            Welcome, {trip.guest.name}. <br />
+            <span style={{ color: T.goldLight }}>Q${qcash.projection.current} is waiting.</span>
           </div>
           <div style={{ marginTop: 18, fontSize: 11, color: T.textMuted, lineHeight: 1.5 }}>
             Your visitor fee has been converted into spendable QCash. Open Project Q to see your trip plan.
@@ -641,6 +647,7 @@ function PhoneDownloadMockup() {
 /* ----------------------- What you get ------------------------------------ */
 
 function WhatYouGet() {
+  const { landing } = useDemoData();
   return (
     <Section style={{ background: T.ink, padding: "120px 0" }} id="what">
       <Container style={{ padding: "0 40px" }}>
@@ -669,7 +676,7 @@ function WhatYouGet() {
           {[
             {
               title: "QCash",
-              copy: "Your visitor levy, returned as spendable currency at 200+ Queenstown businesses. Spend on dinner, gondolas, hot pools, gifts — settle vendors instantly with a QR code.",
+              copy: landing.vendorBlurbCopy,
               kicker: "Currency",
             },
             {
@@ -839,13 +846,8 @@ function HowItWorks() {
 /* ----------------------- Partner wall ------------------------------------ */
 
 function PartnerWall() {
-  const partners = [
-    "Eichardt's", "Skyline", "AJ Hackett", "Shotover Jet", "KJet",
-    "Onsen", "Fergburger", "Vudu Café", "The Bunker", "Botswana Butchery",
-    "Joe's Garage", "Yonder", "Bespoke Kitchen", "Atlas Beer", "Patagonia Chocolates",
-    "Kiwi Birdlife", "Hilton Queenstown", "Queenstown Gardens", "Steamer Wharf", "Gibbston Wines",
-    "Cardrona Distillery", "Coronet Peak", "The Remarkables", "Nomad Safaris", "Hippo Lodge",
-  ];
+  const { destinationName, landing } = useDemoData();
+  const partners = landing.partners;
 
   return (
     <Section id="vendors" style={{ background: T.ink, padding: "120px 0" }}>
@@ -862,7 +864,7 @@ function PartnerWall() {
             maxWidth: 720,
           }}
         >
-          200+ Queenstown businesses. <br />
+          200+ {destinationName} businesses. <br />
           <span style={{ color: T.goldLight }}>One currency.</span>
         </h2>
         <p style={{ color: T.textMuted, fontSize: 16, maxWidth: 580, lineHeight: 1.55, marginBottom: 48 }}>
@@ -909,32 +911,8 @@ function PartnerWall() {
 /* ----------------------- Social proof ------------------------------------ */
 
 function SocialProof() {
-  const cards = [
-    {
-      quote: "We saved $200 in 5 days, ate everywhere we wanted, and didn't have to think about budgeting once. The fee paid for itself.",
-      name: "Joe F.",
-      role: "Family of 4 · Queenstown March 2027",
-      tag: "Tourist",
-      initials: "JF",
-      bg: "linear-gradient(135deg, #d4b87a 0%, #8a6a2a 100%)",
-    },
-    {
-      quote: "Q customers tip 18% more on average and rebook us for the next year. The single-use QR settles instantly to our account.",
-      name: "Mariana L.",
-      role: "Owner · Patagonia Chocolates",
-      tag: "Vendor",
-      initials: "ML",
-      bg: "linear-gradient(135deg, #2a7a64 0%, #0a4d3c 100%)",
-    },
-    {
-      quote: "For the first time we have real-time visibility into where visitors spend, when they cluster, and what locals lose. It's the dashboard we wished we had a decade ago.",
-      name: "James Foster",
-      role: "Mayor · Queenstown Lakes District",
-      tag: "Council",
-      initials: "JF",
-      bg: "linear-gradient(135deg, #1a3d33 0%, #03100c 100%)",
-    },
-  ];
+  const { landing } = useDemoData();
+  const cards = landing.testimonials;
 
   return (
     <Section style={{ background: T.inkDeep, padding: "120px 0", borderTop: "1px solid rgba(212,184,122,0.12)" }}>
@@ -1024,7 +1002,8 @@ function SocialProof() {
 
 /* ----------------------- For Queenstown ---------------------------------- */
 
-function ForQueenstown() {
+function ForCity() {
+  const { destinationName, landing } = useDemoData();
   return (
     <Section id="queenstown" style={{ background: T.ink, padding: "120px 0" }}>
       <Container style={{ padding: "0 40px" }}>
@@ -1037,7 +1016,7 @@ function ForQueenstown() {
           }}
         >
           <div>
-            <SectionEyebrow>For Queenstown</SectionEyebrow>
+            <SectionEyebrow>For {destinationName}</SectionEyebrow>
             <h2
               className="serif"
               style={{
@@ -1048,11 +1027,11 @@ function ForQueenstown() {
                 fontWeight: 600,
               }}
             >
-              Built with Queenstown,<br />
-              <span style={{ color: T.goldLight }}>for Queenstown.</span>
+              Built with {destinationName},<br />
+              <span style={{ color: T.goldLight }}>for {destinationName}.</span>
             </h2>
             <p style={{ fontSize: 16, color: T.textMuted, lineHeight: 1.55, marginBottom: 18 }}>
-              The visitor levy was already going to be paid. Project Q gives the money a job. Visitors get a smarter trip. Local businesses get steadier traffic and instant settlement. Council gets real-time visibility into spend distribution, capacity pressure, and where money actually lands.
+              {landing.forCityDescription}
             </p>
             <div style={{ display: "flex", gap: 10, marginTop: 24, flexWrap: "wrap" }}>
               <a href="#partners" style={ghostBtn}>For local businesses →</a>
@@ -1100,6 +1079,7 @@ function ForQueenstown() {
 /* ----------------------- Final CTA --------------------------------------- */
 
 function FinalCTA() {
+  const { destinationName } = useDemoData();
   return (
     <Section
       id="download"
@@ -1139,7 +1119,7 @@ function FinalCTA() {
             marginInline: "auto",
           }}
         >
-          Queenstown,
+          {destinationName},
           <br />
           <span style={{ color: T.goldLight }}>end-to-end.</span>
         </h2>

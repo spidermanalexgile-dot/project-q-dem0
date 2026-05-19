@@ -1,37 +1,11 @@
 /**
- * Real Queenstown, NZ locations with real coordinates.
- * Hardcoded for the demo — no API.
- *
- * Coordinates were chosen from each business's real address. Where a
- * business has multiple Queenstown locations (e.g. AJ Hackett operates
- * out of The Station in town and the Kawarau Bridge site out of town)
- * the most-visited tourist endpoint is used.
+ * Queenstown destination pin data.
+ * Real-world Queenstown, NZ coordinates.
  */
 
-export type PinCategory = "food" | "activity" | "scenic" | "stay" | "wellness";
-export type PinChip = "eat" | "drink" | "adventure" | "scenic" | "stay";
+import type { DestinationPinData, Pin, PlannedStop } from "./pins";
 
-export type Pin = {
-  id: string;
-  name: string;
-  category: PinCategory;
-  chip: PinChip;
-  lat: number;
-  lng: number;
-  description: string;
-  qcash?: number;
-  rating: number; // 0–5
-  reviews: number;
-  imgLabel: string;
-};
-
-/** User location — Steamer Wharf / Main Town Pier area, where Joe is "right now". */
-export const userLocation = { lat: -45.0331, lng: 168.6580 };
-
-/** Map default center — town centre, slight offset so pins fan out evenly. */
-export const defaultCenter = { lat: -45.0322, lng: 168.6605, zoom: 15 };
-
-export const queenstownPins: Pin[] = [
+const pins: Pin[] = [
   // — Food / cafés / restaurants ----------------------------------------------
   {
     id: "fergburger",
@@ -313,16 +287,7 @@ export const queenstownPins: Pin[] = [
   },
 ];
 
-/* ----- AI-planned itinerary --------------------------------------------- */
-
-export type PlannedStop = {
-  pinId: string;
-  day: string;
-  time: string;
-  status: "done" | "next" | "later";
-};
-
-export const plannedTrip: PlannedStop[] = [
+const plannedTrip: PlannedStop[] = [
   { pinId: "onsen", day: "Today", time: "10:30", status: "done" },
   { pinId: "patagonia", day: "Today", time: "12:30", status: "next" },
   { pinId: "kiwi-park", day: "Today", time: "15:00", status: "later" },
@@ -331,65 +296,12 @@ export const plannedTrip: PlannedStop[] = [
   { pinId: "skyline", day: "Tomorrow", time: "09:00", status: "later" },
 ];
 
-/* ----- Top 5 in Queenstown ---------------------------------------------- */
+const topFiveIds = ["skyline", "fergburger", "ajhackett", "wakatipu", "onsen"] as const;
 
-export const topFiveIds = [
-  "skyline",
-  "fergburger",
-  "ajhackett",
-  "wakatipu",
-  "onsen",
-] as const;
-
-/* ----- Distance + format ------------------------------------------------- */
-
-export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(x));
-}
-
-export function formatDistance(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} m`;
-  return `${km.toFixed(1)} km`;
-}
-
-export function formatReviews(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
-export const categoryLabels: Record<PinCategory, string> = {
-  food: "Food & drink",
-  activity: "Activity",
-  scenic: "Scenic",
-  stay: "Stay",
-  wellness: "Wellness",
+export const queenstownPinData: DestinationPinData = {
+  pins,
+  userLocation: { lat: -45.0331, lng: 168.6580 },
+  defaultCenter: { lat: -45.0312, lng: 168.6626, zoom: 14 },
+  plannedTrip,
+  topFiveIds,
 };
-
-export const categoryGlyph: Record<PinCategory, string> = {
-  food: "◆",
-  activity: "▲",
-  scenic: "●",
-  stay: "■",
-  wellness: "◇",
-};
-
-export const chipLabels: Record<PinChip, string> = {
-  eat: "Eat",
-  drink: "Drink",
-  adventure: "Adventure",
-  scenic: "Scenic",
-  stay: "Stay",
-};
-
-export const chipOrder: PinChip[] = ["eat", "drink", "adventure", "scenic", "stay"];
-
-export function findPin(id: string): Pin | undefined {
-  return queenstownPins.find((p) => p.id === id);
-}
