@@ -1,7 +1,11 @@
+import { Link } from "react-router-dom";
 import { useDemoData } from "../data/demoData";
+import { useDestination } from "../context/DestinationContext";
 
 export function Phase1Landing() {
   const { trip, qcash, bookingWelcome } = useDemoData();
+  const { destination } = useDestination();
+  const isVenice = destination === "venice";
   return (
     <div
       style={{
@@ -100,6 +104,24 @@ export function Phase1Landing() {
             Download the Q app →
           </button>
         </div>
+
+        {isVenice && (
+          <div style={{ marginTop: 22 }}>
+            <Link
+              to="/day/welcome"
+              style={{
+                color: "#d4b87a",
+                fontSize: 13,
+                textDecoration: "underline",
+                fontFamily: "'Inter Tight', sans-serif",
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+              }}
+            >
+              Just here for the day? →
+            </Link>
+          </div>
+        )}
       </div>
 
       <div style={{ position: "absolute", bottom: 24, left: 40, right: 40, display: "flex", gap: 32, fontSize: 12, color: "#8aa097" }}>

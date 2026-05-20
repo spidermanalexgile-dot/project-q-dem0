@@ -41,6 +41,20 @@ const screens = [
     items: [{ to: "/p1/equity", label: "Day-tourist equity chart ★" }],
   },
   {
+    phase: "Day Tripper · here for the day",
+    surface: "mobile",
+    veniceOnly: true,
+    items: [
+      { to: "/day/welcome", label: "Welcome · the hook ★" },
+      { to: "/day/start", label: "Quick start · vibe" },
+      { to: "/day/wallet", label: "Wallet · 40 QCash" },
+      { to: "/day/explore", label: "Explore · today near you" },
+      { to: "/day/map", label: "Map · walkable" },
+      { to: "/day/pay", label: "Pay with QCash" },
+      { to: "/day/recap", label: "Recap · your day" },
+    ],
+  },
+  {
     phase: "Phase 4 · Departure",
     surface: "mobile",
     items: [

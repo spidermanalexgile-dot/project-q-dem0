@@ -18,6 +18,14 @@ import { Landing } from "./screens/Landing";
 import { Phase3PayGlass as Phase3Pay } from "./screens/glass/Phase3PayGlass";
 import { Phase2EstimatedQCashGlass as Phase2EstimatedQCash } from "./screens/glass/Phase2EstimatedQCashGlass";
 import { Phase1Equity } from "./screens/Phase1Equity";
+import { DayWelcome } from "./screens/day/DayWelcome";
+import { DayStart } from "./screens/day/DayStart";
+import { DayWallet } from "./screens/day/DayWallet";
+import { DayExplore } from "./screens/day/DayExplore";
+import { DayMap } from "./screens/day/DayMap";
+import { DayPay } from "./screens/day/DayPay";
+import { DayRecap } from "./screens/day/DayRecap";
+import { DayGuard } from "./screens/day/DayGuard";
 
 /** True when this app is rendered inside an iframe (e.g. the walkthrough).
  *  In embed mode we drop the iOS bezel + dev chrome so each iframe is just
@@ -113,6 +121,15 @@ export default function App() {
         <Route path="/p1/landing" element={<DesktopRoute><Phase1Landing /></DesktopRoute>} />
         <Route path="/p1/checkout" element={<DesktopRoute><Phase1ExternalSite /></DesktopRoute>} />
         <Route path="/p1/equity" element={<DesktopRoute><Phase1Equity /></DesktopRoute>} />
+
+        {/* Day Tripper · Venice-only single-day mode */}
+        <Route path="/day/welcome" element={<MobileRoute><DayGuard><DayWelcome /></DayGuard></MobileRoute>} />
+        <Route path="/day/start" element={<MobileRoute><DayGuard><DayStart /></DayGuard></MobileRoute>} />
+        <Route path="/day/wallet" element={<MobileRoute><DayGuard><DayWallet /></DayGuard></MobileRoute>} />
+        <Route path="/day/explore" element={<MobileRoute><DayGuard><DayExplore /></DayGuard></MobileRoute>} />
+        <Route path="/day/map" element={<MobileRoute><DayGuard><DayMap /></DayGuard></MobileRoute>} />
+        <Route path="/day/pay" element={<MobileRoute><DayGuard><DayPay /></DayGuard></MobileRoute>} />
+        <Route path="/day/recap" element={<MobileRoute><DayGuard><DayRecap /></DayGuard></MobileRoute>} />
       </Routes>
     </BrowserRouter>
   );
