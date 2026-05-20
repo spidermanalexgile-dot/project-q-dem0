@@ -7,3 +7,6 @@
 [2026-05-20T09:39:20Z] · DONE · prod 200s on /, /p1/checkout, /p1/equity · 5a67abb
 [2026-05-20T09:51:03Z] · start day-tripper build · 73d0ddd
 [2026-05-20T10:00:22Z] · local verified · 73d0ddd
+[2026-05-20T10:01:30Z] · pushed; waiting 90s for Vercel · f690fda
+[2026-05-20T10:03:00Z] · 90s elapsed, probing prod
+[2026-05-20T10:05:02Z] · prod 200 OK on all /day/* routes · f690fda
