@@ -167,6 +167,14 @@ const sections: Section[] = [
   { phase: "Phase 1 · Booking", name: "projectq.travel · personalized landing", path: "/p1/landing", desktop: true },
   { phase: "Phase 1 · Booking · Venice", name: "Equity chart · who actually pays €40?", path: "/p1/equity", desktop: true, veniceOnly: true },
 
+  { phase: "Venice · Day Tripper", name: "Welcome · the hook", path: "/day/welcome", veniceOnly: true },
+  { phase: "Venice · Day Tripper", name: "Quick start · one vibe question", path: "/day/start", veniceOnly: true },
+  { phase: "Venice · Day Tripper", name: "Wallet · 40 QCash, expires tonight", path: "/day/wallet", veniceOnly: true },
+  { phase: "Venice · Day Tripper", name: "Explore · today near you", path: "/day/explore", veniceOnly: true },
+  { phase: "Venice · Day Tripper", name: "Map · walkable, walking routes", path: "/day/map", veniceOnly: true },
+  { phase: "Venice · Day Tripper", name: "Pay with QCash", path: "/day/pay", veniceOnly: true },
+  { phase: "Venice · Day Tripper", name: "Recap · your day & impact", path: "/day/recap", veniceOnly: true },
+
   { phase: "Phase 2 · Pre-arrival", name: "Onboarding · what gets you out of bed?", path: "/p2/onboarding" },
   { phase: "Phase 2 · Pre-arrival", name: "Projected QCash home", path: "/p2/home" },
   { phase: "Phase 2 · Pre-arrival", name: "Pre-book Skyline Gondola", path: "/p2/prebook" },
