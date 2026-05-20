@@ -4,3 +4,4 @@
 [2026-05-20T09:29:11Z] · local screenshots OK; cleanup; pushing · 5aa900d
 [2026-05-20T09:31:49Z] · prod 200s; pushing seeder + wrap-up · 8378ada
 [2026-05-20T09:37:47Z] · prod shots OK; removing seeder; final push · ac9eefa
+[2026-05-20T09:39:20Z] · DONE · prod 200s on /, /p1/checkout, /p1/equity · 5a67abb
