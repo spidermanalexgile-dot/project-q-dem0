@@ -137,3 +137,17 @@ export function feePercentOf(segment: DayTouristSegment): number {
 
 export const VENICE_EQUITY_SOURCE_NOTE =
   "Blend of Venice city tourism reports 2018-2023 + cruise industry public data + ProjectQ illustrative modelling. Demo numbers — replace with Comune di Venezia 2024-2025 statistics before external use.";
+
+// Runtime invariant — segment percentages must sum to exactly 100. Catches
+// drift the moment anyone edits the table without re-balancing.
+{
+  const sum = VENICE_DAY_TOURIST_SEGMENTS.reduce(
+    (acc, s) => acc + s.percentOfDayTourists,
+    0,
+  );
+  if (sum !== 100) {
+    throw new Error(
+      `VENICE_DAY_TOURIST_SEGMENTS percentages must sum to 100, got ${sum}`,
+    );
+  }
+}

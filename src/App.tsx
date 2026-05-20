@@ -17,6 +17,7 @@ import { Phase3Trip } from "./screens/Phase3Trip";
 import { Landing } from "./screens/Landing";
 import { Phase3PayGlass as Phase3Pay } from "./screens/glass/Phase3PayGlass";
 import { Phase2EstimatedQCashGlass as Phase2EstimatedQCash } from "./screens/glass/Phase2EstimatedQCashGlass";
+import { Phase1Equity } from "./screens/Phase1Equity";
 
 /** True when this app is rendered inside an iframe (e.g. the walkthrough).
  *  In embed mode we drop the iOS bezel + dev chrome so each iframe is just
@@ -111,6 +112,7 @@ export default function App() {
         {/* Desktop screens */}
         <Route path="/p1/landing" element={<DesktopRoute><Phase1Landing /></DesktopRoute>} />
         <Route path="/p1/checkout" element={<DesktopRoute><Phase1ExternalSite /></DesktopRoute>} />
+        <Route path="/p1/equity" element={<DesktopRoute><Phase1Equity /></DesktopRoute>} />
       </Routes>
     </BrowserRouter>
   );
