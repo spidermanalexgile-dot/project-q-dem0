@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useDemoData } from "../data/demoData";
 import { DestinationToggle } from "../components/DestinationToggle";
+import { useDestination } from "../context/DestinationContext";
 
 /* ------------------------------------------------------------- */
 /*  Layout tokens                                                 */
@@ -159,11 +160,12 @@ function Caption({ phase, name }: { phase: string; name: string }) {
 /*  Sections — chronological, single-frame each (Glass only).    */
 /* ------------------------------------------------------------- */
 
-type Section = { phase: string; name: string; path: string; desktop?: boolean };
+type Section = { phase: string; name: string; path: string; desktop?: boolean; veniceOnly?: boolean };
 
 const sections: Section[] = [
   { phase: "Phase 1 · Booking", name: "Sustainability fee at checkout · 6 months out", path: "/p1/checkout", desktop: true },
   { phase: "Phase 1 · Booking", name: "projectq.travel · personalized landing", path: "/p1/landing", desktop: true },
+  { phase: "Phase 1 · Booking · Venice", name: "Equity chart · who actually pays €40?", path: "/p1/equity", desktop: true, veniceOnly: true },
 
   { phase: "Phase 2 · Pre-arrival", name: "Onboarding · what gets you out of bed?", path: "/p2/onboarding" },
   { phase: "Phase 2 · Pre-arrival", name: "Projected QCash home", path: "/p2/home" },
@@ -185,6 +187,10 @@ const sections: Section[] = [
 
 export function Walkthrough() {
   const { walkthroughSubtitle } = useDemoData();
+  const { destination } = useDestination();
+  const visibleSections = sections.filter(
+    (s) => !s.veniceOnly || destination === "venice",
+  );
   return (
     <div
       style={{
@@ -275,7 +281,7 @@ export function Walkthrough() {
           padding: `${TOKENS.sectionsPadTop}px ${TOKENS.pagePadX}px ${TOKENS.sectionsPadBottom}px`,
         }}
       >
-        {sections.map((s, i) => (
+        {visibleSections.map((s, i) => (
           <section key={i}>
             <Caption phase={s.phase} name={s.name} />
             <div style={{ display: "flex", justifyContent: "center" }}>
@@ -333,7 +339,7 @@ export function Walkthrough() {
             That's the full Project Q tourist journey.
             <br />
             <span style={{ color: "var(--gx-gold-deep)" }}>
-              {sections.length} screens · 4 phases · one persona, end-to-end
+              {visibleSections.length} screens · 4 phases · one persona, end-to-end
             </span>
           </div>
           <div

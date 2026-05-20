@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { meshBackground } from "../components/glass/glassStyles";
 import { useDemoData } from "../data/demoData";
 import { DestinationToggle } from "../components/DestinationToggle";
+import { useDestination } from "../context/DestinationContext";
 
 const screens = [
   {
@@ -34,6 +35,12 @@ const screens = [
     ],
   },
   {
+    phase: "Phase 1 · Booking · Venice-only",
+    surface: "desktop",
+    veniceOnly: true,
+    items: [{ to: "/p1/equity", label: "Day-tourist equity chart ★" }],
+  },
+  {
     phase: "Phase 4 · Departure",
     surface: "mobile",
     items: [
@@ -51,6 +58,10 @@ const screens = [
 
 export function DemoIndex() {
   const { demoIndexSubtitle } = useDemoData();
+  const { destination } = useDestination();
+  const visibleScreens = screens.filter(
+    (g) => !("veniceOnly" in g && g.veniceOnly) || destination === "venice",
+  );
   return (
     <div
       style={{
@@ -141,7 +152,7 @@ export function DemoIndex() {
             gap: 20,
           }}
         >
-          {screens.map((group) => (
+          {visibleScreens.map((group) => (
             <div
               key={group.phase}
               style={{
