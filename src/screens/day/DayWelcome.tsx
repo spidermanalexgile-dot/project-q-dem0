@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { StatusBar } from "../../components/StatusBar";
 import { meshBackground, glassSurface, glassText } from "../../components/glass/glassStyles";
+import { VeniceModeChip } from "../../components/VeniceModeChip";
 import { dayTripperPersona } from "../../data/dayTripper";
 
 export function DayWelcome() {
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
+      <VeniceModeChip target="multi-day" />
       <div
         style={{
           height: "calc(100% - 44px)",

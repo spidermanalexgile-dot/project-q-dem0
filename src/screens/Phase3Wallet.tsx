@@ -4,12 +4,14 @@ import { BottomNav } from "./Phase3Home";
 import { useCountUp } from "../components/useCountUp";
 import { useDemoData, type LedgerEntry } from "../data/demoData";
 import { meshBackground, glassText } from "../components/glass/glassStyles";
+import { VeniceModeChip } from "../components/VeniceModeChip";
 
 export function Phase3Wallet() {
   const { qcash, ledger } = useDemoData();
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
+      <VeniceModeChip target="day-tripper" />
 
       <div
         className="no-scrollbar"

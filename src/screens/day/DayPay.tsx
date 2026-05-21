@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { StatusBar } from "../../components/StatusBar";
 import { DayNav } from "./DayNav";
 import { meshBackground, glassSurface, glassSurfaceMuted, glassText } from "../../components/glass/glassStyles";
+import { VeniceModeChip } from "../../components/VeniceModeChip";
 import { dayTripperSpots, type DayTripperSpot } from "../../data/dayTripper";
 import { useDayTripper } from "../../context/DayTripperContext";
 
@@ -74,6 +75,7 @@ export function DayPay() {
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
+      <VeniceModeChip target="multi-day" />
       <div
         className="no-scrollbar"
         style={{ height: "calc(100% - 44px)", overflowY: "auto", paddingBottom: 110 }}

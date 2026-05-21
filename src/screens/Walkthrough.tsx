@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDemoData } from "../data/demoData";
 import { DestinationToggle } from "../components/DestinationToggle";
@@ -160,20 +161,31 @@ function Caption({ phase, name }: { phase: string; name: string }) {
 /*  Sections — chronological, single-frame each (Glass only).    */
 /* ------------------------------------------------------------- */
 
-type Section = { phase: string; name: string; path: string; desktop?: boolean; veniceOnly?: boolean };
+type VeniceMode = "multi-day" | "day-tripper";
+
+type Section = {
+  phase: string;
+  name: string;
+  path: string;
+  desktop?: boolean;
+  veniceOnly?: boolean;
+  /** When destination is Venice, which mode this section belongs to. Untagged
+   *  sections show in the multi-day mode by default. */
+  veniceMode?: VeniceMode;
+};
 
 const sections: Section[] = [
   { phase: "Phase 1 · Booking", name: "Sustainability fee at checkout · 6 months out", path: "/p1/checkout", desktop: true },
   { phase: "Phase 1 · Booking", name: "projectq.travel · personalized landing", path: "/p1/landing", desktop: true },
   { phase: "Phase 1 · Booking · Venice", name: "Equity chart · who actually pays €40?", path: "/p1/equity", desktop: true, veniceOnly: true },
 
-  { phase: "Venice · Day Tripper", name: "Welcome · the hook", path: "/day/welcome", veniceOnly: true },
-  { phase: "Venice · Day Tripper", name: "Quick start · one vibe question", path: "/day/start", veniceOnly: true },
-  { phase: "Venice · Day Tripper", name: "Wallet · 40 QCash, expires tonight", path: "/day/wallet", veniceOnly: true },
-  { phase: "Venice · Day Tripper", name: "Explore · today near you", path: "/day/explore", veniceOnly: true },
-  { phase: "Venice · Day Tripper", name: "Map · walkable, walking routes", path: "/day/map", veniceOnly: true },
-  { phase: "Venice · Day Tripper", name: "Pay with QCash", path: "/day/pay", veniceOnly: true },
-  { phase: "Venice · Day Tripper", name: "Recap · your day & impact", path: "/day/recap", veniceOnly: true },
+  { phase: "Venice · Day Tripper", name: "Welcome · the hook", path: "/day/welcome", veniceOnly: true, veniceMode: "day-tripper" },
+  { phase: "Venice · Day Tripper", name: "Quick start · one vibe question", path: "/day/start", veniceOnly: true, veniceMode: "day-tripper" },
+  { phase: "Venice · Day Tripper", name: "Wallet · 40 QCash, expires tonight", path: "/day/wallet", veniceOnly: true, veniceMode: "day-tripper" },
+  { phase: "Venice · Day Tripper", name: "Explore · today near you", path: "/day/explore", veniceOnly: true, veniceMode: "day-tripper" },
+  { phase: "Venice · Day Tripper", name: "Map · walkable, walking routes", path: "/day/map", veniceOnly: true, veniceMode: "day-tripper" },
+  { phase: "Venice · Day Tripper", name: "Pay with QCash", path: "/day/pay", veniceOnly: true, veniceMode: "day-tripper" },
+  { phase: "Venice · Day Tripper", name: "Recap · your day & impact", path: "/day/recap", veniceOnly: true, veniceMode: "day-tripper" },
 
   { phase: "Phase 2 · Pre-arrival", name: "Onboarding · what gets you out of bed?", path: "/p2/onboarding" },
   { phase: "Phase 2 · Pre-arrival", name: "Projected QCash home", path: "/p2/home" },
@@ -196,9 +208,17 @@ const sections: Section[] = [
 export function Walkthrough() {
   const { walkthroughSubtitle } = useDemoData();
   const { destination } = useDestination();
-  const visibleSections = sections.filter(
-    (s) => !s.veniceOnly || destination === "venice",
-  );
+  const [veniceMode, setVeniceMode] = useState<VeniceMode>("multi-day");
+  const isVenice = destination === "venice";
+
+  const visibleSections = sections.filter((s) => {
+    if (s.veniceOnly && !isVenice) return false;
+    if (!isVenice) return true;
+    // Venice: filter by selected mode. Untagged sections (Phase 1 booking) are
+    // shared across both Venice modes and shown in either.
+    if (!s.veniceMode) return true;
+    return s.veniceMode === veniceMode;
+  });
   return (
     <div
       style={{
@@ -278,6 +298,10 @@ export function Walkthrough() {
             ← All screens
           </Link>
         </div>
+
+        {isVenice && (
+          <VeniceModeChooser mode={veniceMode} onChange={setVeniceMode} />
+        )}
       </div>
 
       {/* Sections */}
@@ -401,6 +425,81 @@ export function Walkthrough() {
             </Link>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- */
+/*  Venice mode chooser                                           */
+/* ------------------------------------------------------------- */
+
+function VeniceModeChooser({
+  mode,
+  onChange,
+}: {
+  mode: VeniceMode;
+  onChange: (m: VeniceMode) => void;
+}) {
+  const items: { key: VeniceMode; label: string; sub: string }[] = [
+    { key: "multi-day", label: "Multi-day journey", sub: "Planning ahead · Phases 1–4" },
+    { key: "day-tripper", label: "Day Tripper", sub: "Here for the day · 40 QCash" },
+  ];
+  return (
+    <div style={{ marginTop: 28, display: "flex", justifyContent: "center" }}>
+      <div
+        style={{
+          display: "inline-flex",
+          gap: 6,
+          padding: 6,
+          borderRadius: 999,
+          background: "var(--gx-surface)",
+          border: "1px solid var(--gx-border)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          boxShadow: "inset 0 1px 0 var(--gx-highlight)",
+        }}
+      >
+        {items.map((it) => {
+          const active = mode === it.key;
+          return (
+            <button
+              key={it.key}
+              onClick={() => onChange(it.key)}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 999,
+                border: 0,
+                background: active ? "linear-gradient(180deg, #fde7a3, #d4b87a)" : "transparent",
+                color: active ? "#3d2f12" : "var(--gx-text-1)",
+                fontFamily: "'Inter Tight', sans-serif",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: "pointer",
+                boxShadow: active ? "inset 0 1px 0 rgba(255,255,255,0.55)" : "none",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 1,
+                minWidth: 168,
+              }}
+            >
+              <span>{it.label}</span>
+              <span
+                className="mono"
+                style={{
+                  fontSize: 9,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: active ? "rgba(61,47,18,0.7)" : "var(--gx-text-3)",
+                  fontWeight: 500,
+                }}
+              >
+                {it.sub}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

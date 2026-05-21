@@ -10,6 +10,7 @@ import {
   glassSurfaceMuted,
   glassText,
 } from "../components/glass/glassStyles";
+import { VeniceModeChip } from "../components/VeniceModeChip";
 import { useDemoData, type TripDayItem } from "../data/demoData";
 
 /* ---------- Trip page ---------- */
@@ -20,6 +21,7 @@ export function Phase3Trip() {
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
+      <VeniceModeChip target="day-tripper" />
 
       <div
         className="no-scrollbar"

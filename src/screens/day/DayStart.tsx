@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { StatusBar } from "../../components/StatusBar";
 import { meshBackground, glassSurfaceMuted, glassText } from "../../components/glass/glassStyles";
+import { VeniceModeChip } from "../../components/VeniceModeChip";
 import { dayTripperVibes, type DayTripperVibe } from "../../data/dayTripper";
 import { useDayTripper } from "../../context/DayTripperContext";
 
@@ -16,6 +17,7 @@ export function DayStart() {
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
+      <VeniceModeChip target="multi-day" />
       <div
         style={{
           height: "calc(100% - 44px)",

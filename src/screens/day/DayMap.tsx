@@ -6,6 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { StatusBar } from "../../components/StatusBar";
 import { DayNav } from "./DayNav";
 import { glassSurface, glassText } from "../../components/glass/glassStyles";
+import { VeniceModeChip } from "../../components/VeniceModeChip";
 import {
   dayTripperSpots,
   sanMarcoArrival,
@@ -347,6 +348,7 @@ export function DayMap() {
             Central Venice
           </div>
         </div>
+        <VeniceModeChip target="multi-day" variant="inline" />
         <button
           onClick={() => navigate("/day/explore")}
           style={{

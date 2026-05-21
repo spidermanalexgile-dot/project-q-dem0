@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { StatusBar } from "../components/StatusBar";
 import { Icon } from "../components/Icon";
 import { QCash } from "../components/QCash";
+import { VeniceModeChip } from "../components/VeniceModeChip";
 import { useDemoData, type ChatMessage } from "../data/demoData";
 
 export function Phase3Home() {
@@ -38,6 +39,7 @@ export function Phase3Home() {
   return (
     <div className="phone-screen" style={{ background: "#f7f4ec" }}>
       <StatusBar />
+      <VeniceModeChip target="day-tripper" />
 
       {/* Header */}
       <div style={{ padding: "6px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

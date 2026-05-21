@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { StatusBar } from "../../components/StatusBar";
 import { DayNav } from "./DayNav";
 import { meshBackground, glassSurfaceMuted, glassText } from "../../components/glass/glassStyles";
+import { VeniceModeChip } from "../../components/VeniceModeChip";
 import { useCountUp } from "../../components/useCountUp";
 import { useDayTripper } from "../../context/DayTripperContext";
 import { dayTripperPersona } from "../../data/dayTripper";
@@ -38,6 +39,7 @@ export function DayWallet() {
   return (
     <div className="phone-screen" style={{ ...meshBackground, color: glassText.primary }}>
       <StatusBar dark />
+      <VeniceModeChip target="multi-day" />
       <div
         className="no-scrollbar"
         style={{ height: "calc(100% - 44px)", overflowY: "auto", overflowX: "hidden", paddingBottom: 110 }}

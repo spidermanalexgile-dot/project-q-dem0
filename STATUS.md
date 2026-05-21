@@ -10,3 +10,4 @@
 [2026-05-20T10:01:30Z] · pushed; waiting 90s for Vercel · f690fda
 [2026-05-20T10:03:00Z] · 90s elapsed, probing prod
 [2026-05-20T10:05:02Z] · prod 200 OK on all /day/* routes · f690fda
+[2026-05-21T02:39:34Z] · mode switcher built · fa97935
