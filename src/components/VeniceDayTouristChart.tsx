@@ -204,7 +204,7 @@ export function VeniceDayTouristChart({ size = 360, initialActiveId }: Props) {
           viewBox={`0 0 ${size} ${size}`}
           style={{ maxWidth: size, outline: "none" }}
           role="img"
-          aria-label="Venice day-tourist segments by share of total; click a slice to see how the €40 sustainability fee lands on it."
+          aria-label={`Venice day-tourist segments by share of total; click a slice to see how the €${VENICE_FEE_EUR} sustainability fee lands on it.`}
           tabIndex={0}
           onKeyDown={onKey}
           onMouseLeave={() => setHoverId(null)}
@@ -336,7 +336,7 @@ export function VeniceDayTouristChart({ size = 360, initialActiveId }: Props) {
             sub={active.arrivalCostNote}
           />
           <StatCell
-            label="€40 fee as share"
+            label={`€${VENICE_FEE_EUR} fee as share`}
             value={`${feePct}%`}
             sub={feePctSub(feePct)}
             valueColor={verdictColor}

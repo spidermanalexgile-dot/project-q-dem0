@@ -47,7 +47,7 @@ const screens = [
     items: [
       { to: "/day/welcome", label: "Welcome · the hook ★" },
       { to: "/day/start", label: "Quick start · vibe" },
-      { to: "/day/wallet", label: "Wallet · 40 QCash" },
+      { to: "/day/wallet", label: "Wallet · 14.19 QCash" },
       { to: "/day/explore", label: "Explore · today near you" },
       { to: "/day/map", label: "Map · walkable" },
       { to: "/day/pay", label: "Pay with QCash" },

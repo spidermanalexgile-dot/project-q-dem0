@@ -98,8 +98,18 @@ export function DayWelcome() {
                 "inset 0 2px 0 rgba(255,255,255,0.55), 0 0 38px rgba(241,216,150,0.55), 0 6px 16px rgba(0,0,0,0.45)",
             }}
           >
-            <div className="serif" style={{ fontSize: 56, fontWeight: 700, color: "#3d2f12", lineHeight: 1 }}>
-              Q{dayTripperPersona.qcashGranted}
+            <div
+              className="serif tnum"
+              style={{
+                fontSize: 38,
+                fontWeight: 700,
+                color: "#3d2f12",
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              Q{dayTripperPersona.qcashGranted.toFixed(2)}
             </div>
           </div>
         </div>

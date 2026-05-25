@@ -266,7 +266,7 @@ export function DayPay() {
                 After this
               </div>
               <div className="serif" style={{ fontSize: 22, color: glassText.gold }}>
-                Q{after} left
+                Q{after.toFixed(2)} left
               </div>
             </div>
             {status === "done" ? (

@@ -177,11 +177,11 @@ type Section = {
 const sections: Section[] = [
   { phase: "Phase 1 · Booking", name: "Sustainability fee at checkout · 6 months out", path: "/p1/checkout", desktop: true },
   { phase: "Phase 1 · Booking", name: "projectq.travel · personalized landing", path: "/p1/landing", desktop: true },
-  { phase: "Phase 1 · Booking · Venice", name: "Equity chart · who actually pays €40?", path: "/p1/equity", desktop: true, veniceOnly: true },
+  { phase: "Phase 1 · Booking · Venice", name: "Equity chart · who actually pays €14.19?", path: "/p1/equity", desktop: true, veniceOnly: true },
 
   { phase: "Venice · Day Tripper", name: "Welcome · the hook", path: "/day/welcome", veniceOnly: true, veniceMode: "day-tripper" },
   { phase: "Venice · Day Tripper", name: "Quick start · one vibe question", path: "/day/start", veniceOnly: true, veniceMode: "day-tripper" },
-  { phase: "Venice · Day Tripper", name: "Wallet · 40 QCash, expires tonight", path: "/day/wallet", veniceOnly: true, veniceMode: "day-tripper" },
+  { phase: "Venice · Day Tripper", name: "Wallet · 14.19 QCash, expires tonight", path: "/day/wallet", veniceOnly: true, veniceMode: "day-tripper" },
   { phase: "Venice · Day Tripper", name: "Explore · today near you", path: "/day/explore", veniceOnly: true, veniceMode: "day-tripper" },
   { phase: "Venice · Day Tripper", name: "Map · walkable, walking routes", path: "/day/map", veniceOnly: true, veniceMode: "day-tripper" },
   { phase: "Venice · Day Tripper", name: "Pay with QCash", path: "/day/pay", veniceOnly: true, veniceMode: "day-tripper" },
@@ -443,7 +443,7 @@ function VeniceModeChooser({
 }) {
   const items: { key: VeniceMode; label: string; sub: string }[] = [
     { key: "multi-day", label: "Multi-day journey", sub: "Planning ahead · Phases 1–4" },
-    { key: "day-tripper", label: "Day Tripper", sub: "Here for the day · 40 QCash" },
+    { key: "day-tripper", label: "Day Tripper", sub: "Here for the day · 14.19 QCash" },
   ];
   return (
     <div style={{ marginTop: 28, display: "flex", justifyContent: "center" }}>

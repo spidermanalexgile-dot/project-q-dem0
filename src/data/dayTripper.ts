@@ -18,8 +18,8 @@ export const dayTripperPersona: DayTripperPersona = {
   names: "Lena & Tom",
   arrival: "Morning cruise",
   departBy: "18:00",
-  feePaidEUR: 40,
-  qcashGranted: 40,
+  feePaidEUR: 14.19,
+  qcashGranted: 14.19,
   qcashExpiry: "23:59 tonight",
 };
 

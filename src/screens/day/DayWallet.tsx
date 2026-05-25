@@ -90,7 +90,7 @@ export function DayWallet() {
             <div
               className="serif tnum"
               style={{
-                fontSize: 96,
+                fontSize: 84,
                 fontWeight: 600,
                 letterSpacing: "-0.05em",
                 color: glassText.primary,
@@ -101,7 +101,7 @@ export function DayWallet() {
                 position: "relative",
               }}
             >
-              {animated.toFixed(0)}
+              {animated.toFixed(2)}
             </div>
             {spent > 0 && (
               <div
@@ -114,7 +114,7 @@ export function DayWallet() {
                   textTransform: "uppercase",
                 }}
               >
-                — {spent.toFixed(0)} spent today
+                — {spent.toFixed(2)} spent today
               </div>
             )}
           </div>

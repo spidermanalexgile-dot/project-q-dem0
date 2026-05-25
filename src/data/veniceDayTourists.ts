@@ -5,13 +5,14 @@
 // and must be replaced with Comune di Venezia 2024-2025 statistics before any
 // external pitch.
 //
-// The data answers a single equity question for the proposed €40 sustainability
-// fee: relative to what each segment ALREADY paid to arrive in Venice, what
-// share of that arrival cost does the fee represent? A flat fee that lands as
-// 9% on a cruise cabin lands as 500% on an €8 regional-train day-trip — the
-// chart visualises that disparity at the booking moment.
+// The data answers a single equity question for the €14.19 sustainability fee
+// (the actual Comune di Venezia contributo di accesso amount): relative to what
+// each segment ALREADY paid to arrive in Venice, what share of that arrival
+// cost does the fee represent? A flat fee that lands as ~3% on a cruise cabin
+// still lands as ~177% on an €8 regional-train day-trip — the chart visualises
+// that disparity at the booking moment.
 
-export const VENICE_FEE_EUR = 40;
+export const VENICE_FEE_EUR = 14.19;
 
 export type EquityVerdict =
   | "fair-share"
@@ -81,7 +82,7 @@ export const VENICE_DAY_TOURIST_SEGMENTS: DayTouristSegment[] = [
     percentOfDayTourists: 3,
     avgArrivalCostEUR: 280,
     arrivalCostNote: "Long-haul flight share + private water-taxi to San Marco.",
-    verdict: "proportional",
+    verdict: "fair-share",
   },
   {
     id: "nearby-hotel",
@@ -90,7 +91,7 @@ export const VENICE_DAY_TOURIST_SEGMENTS: DayTouristSegment[] = [
     percentOfDayTourists: 8,
     avgArrivalCostEUR: 220,
     arrivalCostNote: "Mainland hotel night + regional rail return.",
-    verdict: "proportional",
+    verdict: "fair-share",
   },
   {
     id: "city-break-flight",
@@ -99,7 +100,7 @@ export const VENICE_DAY_TOURIST_SEGMENTS: DayTouristSegment[] = [
     percentOfDayTourists: 14,
     avgArrivalCostEUR: 180,
     arrivalCostNote: "Low-cost return flight share + airport transfer.",
-    verdict: "proportional",
+    verdict: "fair-share",
   },
   {
     id: "coach-tour",
@@ -108,7 +109,7 @@ export const VENICE_DAY_TOURIST_SEGMENTS: DayTouristSegment[] = [
     percentOfDayTourists: 22,
     avgArrivalCostEUR: 85,
     arrivalCostNote: "Per-person share of coach package + guide.",
-    verdict: "heavy-burden",
+    verdict: "proportional",
   },
   {
     id: "intercity-bus",
@@ -117,7 +118,7 @@ export const VENICE_DAY_TOURIST_SEGMENTS: DayTouristSegment[] = [
     percentOfDayTourists: 24,
     avgArrivalCostEUR: 32,
     arrivalCostNote: "FlixBus return ticket from Milan / Vienna / Munich.",
-    verdict: "regressive",
+    verdict: "heavy-burden",
   },
   {
     id: "day-train",

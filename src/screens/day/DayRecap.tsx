@@ -7,10 +7,9 @@ import { dayTripperPersona, impactAllocations } from "../../data/dayTripper";
 import { useDayTripper } from "../../context/DayTripperContext";
 
 const sampleSpends = [
-  { vendor: "Caffè Florian", amount: 9 },
-  { vendor: "St Mark's Campanile", amount: 11 },
-  { vendor: "Gelato · Suso", amount: 5 },
-  { vendor: "Cantine Schiavi", amount: 12 },
+  { vendor: "Caffè Florian", amount: 5 },
+  { vendor: "Gelato · Suso", amount: 4 },
+  { vendor: "Bacaro · spritz", amount: 3 },
 ];
 
 const colors = ["#f1d896", "#5fae87", "#7faec7", "#c99066"];
@@ -95,8 +94,8 @@ export function DayRecap() {
               >
                 Spent
               </div>
-              <div className="serif" style={{ fontSize: 36, color: glassText.gold, lineHeight: 1, marginTop: 4 }}>
-                {displaySpent}
+              <div className="serif tnum" style={{ fontSize: 36, color: glassText.gold, lineHeight: 1, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+                {Number.isInteger(displaySpent) ? displaySpent : displaySpent.toFixed(2)}
               </div>
               <div style={{ fontSize: 11, color: glassText.secondary, marginTop: 2 }}>QCash</div>
             </div>

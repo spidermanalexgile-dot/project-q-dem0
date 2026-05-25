@@ -139,8 +139,8 @@ export function Phase1Equity() {
             The chart isn&apos;t an argument against the fee — Venice needs the revenue, and
             the cruise and city-break segments will barely notice it. It is an argument for
             the <span style={{ color: "var(--gx-gold)" }}>QCash rebate</span> that follows:
-            the same €40 that&apos;s a rounding error on a cruise cabin is rent money for a
-            backpacker on an €8 regional train. The rebate is what keeps the cheapest
+            the same €{VENICE_FEE_EUR} that&apos;s a rounding error on a cruise cabin is real
+            money for a backpacker on an €8 regional train. The rebate is what keeps the cheapest
             day-trippers whole — and the chart is how we surface that intentionally instead
             of burying it on page 4 of a council white-paper.
           </div>
