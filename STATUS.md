@@ -17,3 +17,4 @@
 [2026-05-28T03:10:15Z] · pushed, waiting 90s for Vercel
 [2026-05-28T03:14:18Z] · prod 200 on /, /tourist, /walkthrough · c6f0ec4
 [2026-05-28T04:27:31Z] · dashboard-only mode · 037b1f4
+[2026-05-28T04:31:38Z] · prod dashboard-only live, /p1/equity redirects to / · 36a8a1a
