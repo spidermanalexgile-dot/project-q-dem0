@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "phase": {
+    "year": 3,
+    "real_pay_cap": 150
+  },
+  "lever_cap": 30,
+  "lever_ceiling": 180,
+  "activeDay": "dec_weekday",
+  "dayRev": 225000,
+  "annualRev": 246925582.6314212
+}
