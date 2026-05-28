@@ -16,3 +16,4 @@
 [2026-05-28T03:04:27Z] · dashboard local verified · 5f66752
 [2026-05-28T03:10:15Z] · pushed, waiting 90s for Vercel
 [2026-05-28T03:14:18Z] · prod 200 on /, /tourist, /walkthrough · c6f0ec4
+[2026-05-28T04:27:31Z] · dashboard-only mode · 037b1f4

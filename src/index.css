@@ -1,188 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Minimal global reset — the Authority Control Dashboard owns the rest via
+ * src/control/control.css (scoped to .qctl-root). */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  /* Greens — primary */
-  --q-ink: #0a1f1a;
-  --q-deep: #0a4d3c;
-  --q-deep-2: #0d5d49;
-  --q-mid: #2a7a64;
-  --q-soft: #e8f0eb;
-  --q-soft-2: #f0f4f0;
-
-  /* Gold — accent (QCash) */
-  --q-gold: #d4b87a;
-  --q-gold-deep: #b89958;
-  --q-gold-soft: #f5ecd6;
-
-  /* Neutrals */
-  --q-bg: #f7f4ec;
-  --q-paper: #fdfbf5;
-  --q-card: #ffffff;
-  --q-line: #e7e0cf;
-  --q-line-2: #efe9d9;
-  --q-text: #14241f;
-  --q-text-2: #4d5a55;
-  --q-text-3: #8a948f;
-
-  /* Status */
-  --q-warn: #c47a2c;
-  --q-bad:  #b04a3b;
-  --q-good: #3d7a5a;
-
-  /* ----- Glass theme tokens (dark — locked) -----
-     Power meshBackground / glassSurface / glassText in glassStyles.ts. */
-  --gx-bg-1: #031410;
-  --gx-bg-2: #0a2a23;
-  --gx-bg-3: #03100c;
-  --gx-bloom-1: rgba(241,216,150,0.22);
-  --gx-bloom-2: rgba(42,122,100,0.45);
-  --gx-bloom-3: rgba(10,77,60,0.55);
-
-  --gx-surface: rgba(255,255,255,0.06);
-  --gx-surface-muted: rgba(255,255,255,0.04);
-  --gx-border: rgba(255,255,255,0.15);
-  --gx-border-muted: rgba(255,255,255,0.10);
-  --gx-highlight: rgba(255,255,255,0.25);
-  --gx-highlight-bottom: rgba(255,255,255,0.05);
-  --gx-shadow: rgba(0,0,0,0.35);
-
-  --gx-text-1: #fdfbf5;
-  --gx-text-2: rgba(253,251,245,0.72);
-  --gx-text-3: rgba(253,251,245,0.5);
-  --gx-gold: #f1d896;
-  --gx-gold-deep: #d4b87a;
-
-  --gx-app-bg: #1a1a1a;
+* {
+  box-sizing: border-box;
 }
 
-* { box-sizing: border-box; }
-
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
+  margin: 0;
 }
 
 body {
-  margin: 0;
-  font-family: 'Inter Tight', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  color: var(--q-text);
-  background: var(--gx-app-bg);
+  background: #eee7db;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-/* Utility classes ported from styles.css */
-.mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: "tnum"; }
-.serif { font-family: 'Fraunces', 'Times New Roman', Times, serif; font-optical-sizing: auto; }
-.tnum { font-variant-numeric: tabular-nums; }
-
-/* QCash glyph token: stamped coin look */
-.qcoin {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.2em;
-  height: 1.2em;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #f1d896 0%, #d4b87a 50%, #b89958 100%);
-  color: #4a3a18;
-  font-weight: 700;
-  font-family: 'Fraunces', serif;
-  font-size: 0.72em;
-  letter-spacing: -0.02em;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.4);
-}
-
-/* Phone screen base */
-.phone-screen {
-  width: 100%;
-  height: 100%;
-  background: var(--q-paper);
-  font-family: 'Inter Tight', sans-serif;
-  color: var(--q-text);
-  overflow: hidden;
-  position: relative;
-}
-
-.section-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--q-text-3);
-}
-
-/* Buttons */
-.btn {
-  font-family: 'Inter Tight', sans-serif;
-  font-weight: 600;
-  font-size: 15px;
-  border-radius: 999px;
-  padding: 14px 22px;
-  border: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform 0.12s ease, background 0.15s ease;
-}
-.btn:active { transform: scale(0.98); }
-.btn-primary { background: var(--q-deep); color: var(--q-paper); }
-.btn-primary:hover { background: var(--q-deep-2); }
-.btn-gold { background: var(--q-gold); color: var(--q-ink); }
-.btn-ghost { background: transparent; color: var(--q-deep); border: 1px solid var(--q-line); }
-
-/* Cards */
-.card {
-  background: var(--q-card);
-  border-radius: 20px;
-  border: 1px solid var(--q-line-2);
-}
-
-/* Subtle striped placeholder */
-.img-placeholder {
-  background:
-    repeating-linear-gradient(
-      135deg,
-      #e9e1cd 0 8px,
-      #efe8d6 8px 16px
-    );
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: #8a7c54;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-/* Scenic placeholder */
-.scenic {
-  background:
-    radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.4), transparent 60%),
-    linear-gradient(180deg, #4a7d6c 0%, #2a4a3a 60%, #1a2e26 100%);
-  position: relative;
   overflow: hidden;
 }
-.scenic::before {
-  content: "";
-  position: absolute; inset: 0;
-  background:
-    repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0 2px, transparent 2px 4px);
-}
-
-/* Hide scrollbars but keep scroll */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { scrollbar-width: none; }
-
-/* Subtle slide-in for chat plan card */
-@keyframes slidefade {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.slidefade { animation: slidefade 240ms ease-out; }

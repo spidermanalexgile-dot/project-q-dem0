@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { TopBar } from "./TopBar";
 import { CurvePanel } from "./CurvePanel";
 import { RevenuePanel } from "./RevenuePanel";
@@ -36,9 +35,6 @@ export function ControlDashboard() {
           <LeversPanel />
         </div>
       </main>
-      <Link to="/tourist" className="qctl-tourist-link">
-        Tourist demo →
-      </Link>
     </div>
   );
 }

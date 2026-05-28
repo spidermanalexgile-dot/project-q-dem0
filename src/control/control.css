@@ -693,25 +693,3 @@
   box-shadow: 0 0 0 3px rgba(227, 169, 60, 0.18);
 }
 
-/* Small footer link back to the tourist demo */
-.qctl-root .qctl-tourist-link {
-  position: fixed;
-  bottom: 14px;
-  right: 18px;
-  z-index: 5;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  text-decoration: none;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--hairline);
-  background: rgba(255, 255, 255, 0.4);
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-.qctl-root .qctl-tourist-link:hover {
-  color: var(--ink);
-  border-color: var(--hairline-strong);
-}
