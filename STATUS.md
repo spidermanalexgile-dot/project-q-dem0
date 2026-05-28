@@ -14,3 +14,5 @@
 [2026-05-25T03:02:22Z] · fee changed to €14.19 · 9c1739a
 [2026-05-28T02:23:57Z] · start Control Dashboard build · 5f66752
 [2026-05-28T03:04:27Z] · dashboard local verified · 5f66752
+[2026-05-28T03:10:15Z] · pushed, waiting 90s for Vercel
+[2026-05-28T03:14:18Z] · prod 200 on /, /tourist, /walkthrough · c6f0ec4
