@@ -12,3 +12,5 @@
 [2026-05-20T10:05:02Z] · prod 200 OK on all /day/* routes · f690fda
 [2026-05-21T02:39:34Z] · mode switcher built · fa97935
 [2026-05-25T03:02:22Z] · fee changed to €14.19 · 9c1739a
+[2026-05-28T02:23:57Z] · start Control Dashboard build · 5f66752
+[2026-05-28T03:04:27Z] · dashboard local verified · 5f66752

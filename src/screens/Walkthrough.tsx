@@ -279,7 +279,7 @@ export function Walkthrough() {
         </p>
         <div style={{ marginTop: 22, display: "inline-flex", gap: 8 }}>
           <Link
-            to="/"
+            to="/tourist"
             style={{
               padding: "8px 16px",
               fontSize: 12,
@@ -409,7 +409,7 @@ export function Walkthrough() {
               Open the live demo →
             </Link>
             <Link
-              to="/"
+              to="/tourist"
               style={{
                 padding: "12px 22px",
                 background: "transparent",

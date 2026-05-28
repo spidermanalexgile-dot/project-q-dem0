@@ -7,6 +7,6 @@ import type { ReactNode } from "react";
  */
 export function DayGuard({ children }: { children: ReactNode }) {
   const { destination } = useDestination();
-  if (destination === "queenstown") return <Navigate to="/" replace />;
+  if (destination === "queenstown") return <Navigate to="/tourist" replace />;
   return <>{children}</>;
 }

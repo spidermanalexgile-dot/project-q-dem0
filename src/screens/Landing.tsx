@@ -69,7 +69,7 @@ function Nav() {
           <a href="#queenstown" style={navLink}>For {destinationName}</a>
         </nav>
         <div style={{ display: "flex", gap: 10 }}>
-          <Link to="/" style={navGhost}>← Demo index</Link>
+          <Link to="/tourist" style={navGhost}>← Demo index</Link>
           <a href="#download" style={navPrimary}>Get the app</a>
         </div>
       </Container>

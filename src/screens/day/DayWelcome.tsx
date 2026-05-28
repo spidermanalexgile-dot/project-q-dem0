@@ -147,7 +147,7 @@ export function DayWelcome() {
             See my QCash →
           </Link>
           <Link
-            to="/"
+            to="/tourist"
             style={{
               padding: "12px 22px",
               borderRadius: 999,

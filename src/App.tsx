@@ -26,6 +26,7 @@ import { DayMap } from "./screens/day/DayMap";
 import { DayPay } from "./screens/day/DayPay";
 import { DayRecap } from "./screens/day/DayRecap";
 import { DayGuard } from "./screens/day/DayGuard";
+import { ControlDashboard } from "./control/ControlDashboard";
 
 /** True when this app is rendered inside an iframe (e.g. the walkthrough).
  *  In embed mode we drop the iOS bezel + dev chrome so each iframe is just
@@ -66,7 +67,7 @@ function DesktopRoute({ children }: { children: React.ReactNode }) {
 function BackToIndex() {
   return (
     <Link
-      to="/"
+      to="/tourist"
       style={{
         position: "fixed",
         top: 20,
@@ -96,7 +97,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<DemoIndex />} />
+        {/* Authority Control Dashboard — the new front door. */}
+        <Route path="/" element={<ControlDashboard />} />
+
+        {/* Tourist demo — relocated, fully preserved. */}
+        <Route path="/tourist" element={<DemoIndex />} />
         <Route path="/walkthrough" element={<Walkthrough />} />
         <Route path="/landing" element={<Landing />} />
 
