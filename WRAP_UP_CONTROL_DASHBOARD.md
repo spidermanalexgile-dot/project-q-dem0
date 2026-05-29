@@ -306,3 +306,17 @@ product feature. Confirmed locally and on production via
   **0 console errors**.
 - `npm run build` passes clean (0 TS errors). Screenshots at 1280×800 and
   1920×1200 saved under `review-screenshots/dpm-integration/`.
+
+### Deploy confirmation
+Pushed to `main` (HEAD `676b052`); Vercel auto-deployed. Production
+**https://project-q-dem0.vercel.app/** returns **HTTP 200**. Live readback via the
+command API confirms the new build is serving:
+
+```
+window.ProjectQ.getState().confidence            → 42
+window.ProjectQ.getState().curve.shape.exponent  → 2.2
+window.ProjectQ.feeAtPct(150)                     → 18.71
+```
+
+Confidence pill on production reads **"Model confidence 42%"**; 0 page errors.
+Live screenshot saved to `review-screenshots/dpm-integration/PRODUCTION.png`.

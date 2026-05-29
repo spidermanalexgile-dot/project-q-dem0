@@ -20,3 +20,4 @@
 [2026-05-28T04:31:38Z] · prod dashboard-only live, /p1/equity redirects to / · 36a8a1a
 [2026-05-29T02:23:49Z] · DPM integration: edits in (payload import, exponent normalize, upload UI); build clean; dev 200; running headless verify · 7aac1cc
 [2026-05-29T02:26:24Z] · verify PASS (conf 42, exp 2.2, fee150 €18.71, toasts OK, 0 console errs); build clean; committing+pushing · 4530c68
+[2026-05-29T02:29:26Z] · DONE · pushed 676b052; prod 200; live conf 42 + exp 2.2 + fee150 €18.71; PRODUCTION.png captured · 676b052
