@@ -232,11 +232,39 @@ function parseMarkdownPayload(md: string): Payload {
   return JSON.parse(match[1]) as Payload;
 }
 
+/**
+ * EXPONENT ×10 ENCODING NORMALIZATION.
+ *
+ * Ollie's DPM emits curve.shape.exponent as an INTEGER ×10-encoded value. His
+ * Venice 2026 DPM PDF documents this explicitly ("EXPONENT ENCODING NOTE"):
+ *
+ *   "The schema requires whole integers only. The curve exponent of 2.2 is
+ *    represented as the integer 22. The dashboard MUST divide this value by 10
+ *    to obtain the float 2.2 for the pricing function calculation."
+ *
+ * We handle BOTH the encoded form and a future cleaned-up direct-float form in
+ * this single, robust code path:
+ *   - exponent >= 10  → treat as ×10-encoded → divide by 10   (22 → 2.2)
+ *   - exponent <  10  → treat as a direct float → use as-is    (forward-compat
+ *                       for when the DPM schema is cleaned up to emit 2.2)
+ *
+ * No realistic fee curve uses an exponent >= 10, so this disambiguation is safe.
+ * Rationale & source: Ollie's Venice 2026 DPM PDF, "EXPONENT ENCODING NOTE".
+ */
+function normalizeCurveExponent(shape: { exponent: number }): void {
+  if (typeof shape?.exponent === "number" && shape.exponent >= 10) {
+    shape.exponent = shape.exponent / 10;
+  }
+}
+
 export function loadPayload(input: Payload | string): void {
   const parsed: Payload = isMarkdownString(input) ? parseMarkdownPayload(input) : input;
   validatePayload(parsed);
   // Defensive deep clone so we don't mutate a caller's object.
   const next = JSON.parse(JSON.stringify(parsed)) as State;
+  // Normalize Ollie's integer-encoded curve exponent (e.g. 22 → 2.2) before any
+  // pricing calc reads it. See normalizeCurveExponent() above for the rationale.
+  normalizeCurveExponent(next.curve.shape);
   if (!next.activeDay) next.activeDay = next.day_types[0].id;
   if (!next.phase) next.phase = { year: 1, real_pay_cap: 20 };
   // Initialise delta-tracking fields against the new state.
