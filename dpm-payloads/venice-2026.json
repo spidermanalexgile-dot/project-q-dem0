@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "location": { "id": "venice", "label": "Venice", "currency": "EUR" },
+  "capacity": { "target": 50000, "unit": "visitors/day" },
+  "confidence": 42,
+  "curve": {
+    "base_fee_at_target": 10,
+    "max_fee_cap": 50,
+    "ceiling_pct": 200,
+    "shape": { "plateau_end_pct": 100, "exponent": 22 }
+  },
+  "shoulder_rebate": { "enabled": true, "credit": 8, "applies_below_pct": 28 },
+  "levers": [
+    { "id": "target_capacity", "min": 20000, "max": 120000, "step": 1000, "value": 50000 },
+    { "id": "base_fee",        "min": 0,     "max": 50,     "step": 1,    "value": 10 },
+    { "id": "max_fee_cap",     "min": 10,    "max": 200,    "step": 5,    "value": 50 },
+    { "id": "ceiling_pct",     "min": 120,   "max": 250,    "step": 5,    "value": 200 }
+  ],
+  "day_types": [
+    { "id": "peak_sat",       "label": "Peak summer Saturday", "date": "Sat 1 Aug",   "demand_pct": 200 },
+    { "id": "biennale_wkday", "label": "Biennale weekday",     "date": "Wed 27 May",  "demand_pct": 130 },
+    { "id": "dec_weekday",    "label": "December weekday",     "date": "Wed 9 Dec",   "demand_pct": 45  },
+    { "id": "carnival_sat",   "label": "Carnival Saturday",    "date": "Sat 14 Feb",  "demand_pct": 160 }
+  ],
+  "phase": { "year": 1, "real_pay_cap": 20 },
+  "seasonal": [
+    { "days": 30,  "demand_pct": 200 },
+    { "days": 60,  "demand_pct": 150 },
+    { "days": 120, "demand_pct": 110 },
+    { "days": 95,  "demand_pct": 80  },
+    { "days": 60,  "demand_pct": 45  }
+  ]
+}

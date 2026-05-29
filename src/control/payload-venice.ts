@@ -1,48 +1,21 @@
 import type { Payload } from "./state";
+import veniceDpm from "../../dpm-payloads/venice-2026.json";
 
 /**
- * Sample DPM payload — Venice.
- * In production this is emitted by the offline DPM as a markdown file with a
- * machine-readable JSON block. The UI parses & loads it via window.ProjectQ.loadPayload().
- * Nothing about Venice is special-cased in the UI layer.
+ * Default boot payload — Ollie's first DPM output for Venice 2026.
+ *
+ * This is imported VERBATIM from ./dpm-payloads/venice-2026.json (the file saved
+ * exactly as it appeared in Ollie's DPM PDF). Nothing about Venice — capacity,
+ * confidence, day types, curve shape — is special-cased or inlined in UI code;
+ * the dashboard reads it all from this payload via loadPayload().
+ *
+ * NOTE: the raw file encodes curve.shape.exponent as an integer ×10 (e.g. 22 for
+ * 2.2). That quirk is normalized centrally inside loadPayload() — see
+ * normalizeCurveExponent() in state.ts. We deliberately do NOT pre-correct it
+ * here, so this stays a faithful copy of the DPM output and every load path
+ * (boot, file upload, drag-drop, agent) goes through the same normalization.
+ *
+ * To pitch a different city, drop its DPM payload in via the TopBar upload
+ * affordance (Cmd/Ctrl+O or drag-drop) — no code change needed.
  */
-export const PAYLOAD_VENICE: Payload = {
-  location: { id: "venice", label: "Venice", currency: "EUR" },
-  capacity: { target: 50000, unit: "visitors/day" },
-  confidence: 40,
-
-  curve: {
-    base_fee_at_target: 10,
-    max_fee_cap: 50,
-    ceiling_pct: 200,
-    shape: { plateau_end_pct: 100, exponent: 2.2 },
-  },
-
-  shoulder_rebate: { enabled: true, credit: 8, applies_below_pct: 28 },
-
-  levers: [
-    { id: "target_capacity", min: 20000, max: 120000, step: 1000, value: 50000 },
-    { id: "base_fee", min: 0, max: 50, step: 1, value: 10 },
-    { id: "max_fee_cap", min: 10, max: 200, step: 5, value: 50 },
-    { id: "ceiling_pct", min: 120, max: 250, step: 5, value: 200 },
-  ],
-
-  day_types: [
-    { id: "peak_sat", label: "Peak summer Saturday", date: "Sat 17 Jun", demand_pct: 200 },
-    { id: "high_weekday", label: "High-season weekday", date: "Thu 13 Jul", demand_pct: 145 },
-    { id: "shoulder", label: "Shoulder Sunday", date: "Sun 22 Oct", demand_pct: 85 },
-    { id: "dec_weekday", label: "December weekday", date: "Tue 5 Dec", demand_pct: 45 },
-    { id: "deep_low", label: "Deep low season", date: "Wed 14 Feb", demand_pct: 22 },
-  ],
-
-  phase: { year: 1, real_pay_cap: 20 },
-
-  seasonal: [
-    { days: 30, demand_pct: 200 },
-    { days: 50, demand_pct: 150 },
-    { days: 80, demand_pct: 110 },
-    { days: 90, demand_pct: 80 },
-    { days: 65, demand_pct: 50 },
-    { days: 50, demand_pct: 22 },
-  ],
-};
+export const PAYLOAD_VENICE = veniceDpm as unknown as Payload;
