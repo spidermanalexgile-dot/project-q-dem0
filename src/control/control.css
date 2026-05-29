@@ -23,6 +23,8 @@
   --ink-soft: rgba(28, 25, 23, 0.42);
   --hairline: rgba(28, 25, 23, 0.1);
   --hairline-strong: rgba(28, 25, 23, 0.18);
+  /* Contrast colour for chips/dots drawn on top of --ink (flips in dark mode) */
+  --ink-inverse: var(--stone);
 
   --radius-lg: 22px;
   --radius-md: 16px;

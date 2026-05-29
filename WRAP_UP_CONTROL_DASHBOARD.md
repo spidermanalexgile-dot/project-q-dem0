@@ -320,3 +320,45 @@ window.ProjectQ.feeAtPct(150)                     → 18.71
 
 Confidence pill on production reads **"Model confidence 42%"**; 0 page errors.
 Live screenshot saved to `review-screenshots/dpm-integration/PRODUCTION.png`.
+
+---
+
+## Dashboard UX changes (2026-05-29)
+
+Four operator-requested changes, deployed to production.
+
+### 1. Lever max bounds raised dramatically
+The slider upper bounds are widened in the DPM payload (`dpm-payloads/venice-2026.json`),
+not in code:
+| Lever | old max | new max | step |
+|---|---|---|---|
+| `target_capacity` | 120,000 | **1,000,000** | 5,000 |
+| `base_fee` | 50 | **500** | 1 |
+| `max_fee_cap` | 200 | **2,000** | 10 |
+| `ceiling_pct` | 250 | **1,000** | 10 |
+
+Slider tick labels are now **derived from each lever's payload `min`/`max`**
+(`fmtCompactNum` in `src/control/format.ts`, used by `LeversPanel.tsx`) rather than
+hardcoded, so bounds travel with the payload — a future city's DPM file sets its own
+ranges with no code change. Bounds stay payload-driven; nothing is inlined.
+
+### 2. Dark mode
+- Toggle button in the TopBar (sun/moon glyph, shares the upload-button styling).
+- `.qctl-root.dark` in `control.css` overrides only the **working** colour tokens
+  (canvas/panel/ink/hairline + a flipped `--ink-inverse`); the brand accents
+  (sage/ochre/teal/penalty) are unchanged so the curve reads identically.
+- Curve active-dot, pay-line and callout now use `var(--ink)` / `var(--ink-inverse)`
+  so they invert cleanly in both themes; the multiply grain overlay is dropped in dark.
+- Preference persists to `localStorage` (`qctl-theme`).
+
+### 3. "Zoom out" annual demand profile
+A whole-year view toggled from the curve-panel header (**Cost curve ⇄ Zoom out · year**).
+`YearCurve` in `CurvePanel.tsx` lays the DPM `seasonal[]` bands across a 365-day axis as
+a load-duration curve — sorted by demand, each band coloured by the fee that demand level
+charges and labelled `{demand}% · {days}d · {fee}` — so a glance shows how much of the year
+sits at each demand/fee level. Reads the same store; no engine change.
+
+### 4. Year 1/2/3 deployment-phase toggle removed
+The YR 1·2·3 segmented control is gone from the TopBar. `setPhase` remains exported on
+`window.ProjectQ` (and `phase.real_pay_cap` still drives the real-pay-cap line) for
+backward compatibility with the live-agent command API — only the UI affordance was removed.

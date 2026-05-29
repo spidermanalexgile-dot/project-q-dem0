@@ -22,3 +22,4 @@
 [2026-05-29T02:26:24Z] · verify PASS (conf 42, exp 2.2, fee150 €18.71, toasts OK, 0 console errs); build clean; committing+pushing · 4530c68
 [2026-05-29T02:29:26Z] · DONE · pushed 676b052; prod 200; live conf 42 + exp 2.2 + fee150 €18.71; PRODUCTION.png captured · 676b052
 [2026-05-29T02:40:29Z] · changes: lever maxes↑ (1M/500/2000/1000), dark mode, annual "zoom out" view, removed YR1/2/3; build clean; local verify pass; pushing · ca7eda4
+[2026-05-29T02:43:14Z] · fixed light-mode --ink-inverse token; rebuild clean; re-verify; committing · e3ded0a
