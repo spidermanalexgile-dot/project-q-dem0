@@ -693,3 +693,76 @@
   box-shadow: 0 0 0 3px rgba(227, 169, 60, 0.18);
 }
 
+
+/* ── Runtime DPM payload upload (TopBar affordance) ───────────────────────── */
+.qctl-root .tb-location-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qctl-root .tb-file-input {
+  display: none;
+}
+.qctl-root .tb-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  color: var(--ink-mute);
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.qctl-root .tb-upload:hover {
+  color: var(--ink);
+  border-color: var(--hairline-strong);
+  background: var(--panel-strong);
+}
+.qctl-root .tb-upload:focus-visible {
+  outline: 2px solid var(--ochre);
+  outline-offset: 1px;
+}
+.qctl-root .tb-upload svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ── Payload-load toast (success / error) ─────────────────────────────────── */
+.qctl-payload-toast {
+  position: absolute;
+  top: clamp(62px, 8vh, 86px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  max-width: min(520px, 80vw);
+  padding: 9px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  background: var(--panel-strong);
+  border: 1px solid var(--hairline-strong);
+  border-left: 3px solid var(--sage);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  animation: qctl-toast-in 0.18s ease-out;
+}
+.qctl-payload-toast.err {
+  border-left-color: var(--penalty);
+  color: #a14416;
+}
+@keyframes qctl-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
