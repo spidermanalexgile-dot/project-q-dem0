@@ -229,3 +229,80 @@ review.
 - 1280×800 and 1920×1200 fit without scroll bars
 - Tourist demo unchanged: all routes (`/p1/*`, `/p2/*`, `/p3/*`, `/p4/*`,
   `/day/*`, `/landing`, `/takecontrol`, `/walkthrough`) still load
+
+---
+
+## DPM Integration — Ollie's first output (Venice 2026)
+
+**Date:** 2026-05-29 (UTC)
+**Chunks:** integrate-ollie-dpm-default · dashboard-loader-exponent-normalize · dashboard-runtime-payload-upload · integrate-verify-deploy
+
+Ollie's first DPM parameter set for Venice 2026 is now the dashboard's default
+boot payload, and any future DPM file can be dropped in live during a pitch.
+
+### What shipped
+- **Default boot payload** is imported verbatim from `dpm-payloads/venice-2026.json`
+  (see `src/control/payload-venice.ts`). No Ollie value (50000, 42, "Carnival
+  Saturday", …) is inlined in component or engine logic — every figure is read
+  from the loaded payload. The old placeholder Venice sample was removed.
+- **Runtime upload** affordance in the TopBar (next to the Location dropdown):
+  a small upload glyph that opens a native `.json` / `.md` picker, plus
+  **Cmd/Ctrl+O** and **drag-and-drop anywhere on the window**, all routing through
+  the same `loadPayload()` path.
+
+### The exponent ×10 encoding decision (the one documented schema quirk)
+Ollie's DPM emits `curve.shape.exponent` as an **integer ×10-encoded** value. His
+PDF "EXPONENT ENCODING NOTE" states the schema permits whole integers only, so the
+curve exponent **2.2 is written as the integer 22**, and the dashboard must divide
+by 10 before the pricing calc uses it.
+
+- **Where it lives:** `src/control/state.ts` — `normalizeCurveExponent()` at
+  **state.ts:254**, invoked inside `loadPayload()` at **state.ts:267** (immediately
+  after the defensive deep-clone, before any pricing calc reads the value).
+- **The rule (robust to both forms, in one code path):**
+  - `exponent >= 10` → treated as ×10-encoded → divided by 10 (e.g. `22 → 2.2`)
+  - `exponent <  10` → treated as a direct float → used as-is
+  No realistic fee curve uses an exponent ≥ 10, so the disambiguation is safe.
+- **Proof it decoded:** live `window.ProjectQ.getState().curve.shape.exponent`
+  returns **2.2** (not 22), and `feeAtPct(150)` returns **€18.71** — the smooth
+  exponent-2.2 curve from €10 base to €50 cap. (Had the value stayed 22, the curve
+  would sit flat near €10 until the ceiling then jump to €50 — i.e. fee(150%) ≈ €10,
+  obviously wrong.)
+
+### Recommendation for DPM schema v2
+Allow `curve.shape.exponent` to be emitted as a **direct float** (e.g. `2.2`). The
+loader's `>= 10` rule already provides **backward compatibility either way**: legacy
+×10-encoded payloads (`22`) keep decoding to `2.2`, and cleaned-up payloads carrying
+`2.2` pass through untouched. No dashboard change is required when the schema is
+cleaned up — the same single code path handles both.
+
+### Using the runtime upload in a pitch ("remove Venice, drop in Dubrovnik in seconds")
+- **Button:** the upload glyph in the TopBar, immediately right of the **Location**
+  dropdown. Click it to open a file picker (`.json` or `.md` with a fenced ```json``` block).
+- **Keyboard:** **Cmd+O** (macOS) / **Ctrl+O** (Windows/Linux) opens the same picker.
+- **Drag-and-drop:** drag a DPM `.json`/`.md` file anywhere onto the dashboard window.
+- **Feedback:** on success, a sage toast — *"Payload loaded — {location} · confidence {n}"* —
+  fades after ~3.5s; on failure, a red toast — *"Payload error: {which rule failed}"* —
+  stays ~6s and the **previous payload remains loaded** (the UI never enters a broken
+  state). Validation enforces the design-handoff rules (seasonal days ≈365, lever
+  bounds, ceiling > plateau, cap > base, ≥1 day type).
+
+### Ollie's confidence rating: 42 (shown live, verbatim)
+The confidence pill renders **"Model confidence 42%"** — Ollie's actual, honest DPM
+output. It is **not rounded, padded, or embellished** anywhere; that honesty is a
+product feature. Confirmed locally and on production via
+`window.ProjectQ.getState().confidence → 42`.
+
+### Verification (local, headless Chrome)
+`node scripts-verify-dpm.mjs` against the dev server confirmed:
+- confidence **42**; capacity **50,000**; 4 day_types in Ollie's order
+  (Peak summer Saturday · Sat 1 Aug → Biennale weekday · Wed 27 May → December
+  weekday · Wed 9 Dec → Carnival Saturday · Sat 14 Feb); active day defaults to
+  `peak_sat` (200%).
+- `curve.shape.exponent` **2.2**; `feeAtPct(150)` **€18.71** (within 18–32).
+- Upload OK toast, upload error toast (broken payload → "requires at least one
+  day_type"), previous Venice/42 state survives the error, command API
+  (`setLever`/`setDayType`/`setPhase`/`setRebate`) all mutate + re-render,
+  **0 console errors**.
+- `npm run build` passes clean (0 TS errors). Screenshots at 1280×800 and
+  1920×1200 saved under `review-screenshots/dpm-integration/`.
