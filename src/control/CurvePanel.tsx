@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useStore } from "./useStore";
 import { feeAtPct, payAtPct, type State } from "./state";
 import { fmtEur } from "./format";
@@ -264,7 +265,7 @@ function CurveChart() {
         <path
           d={payD}
           fill="none"
-          stroke="#1C1917"
+          style={{ stroke: "var(--ink)" }}
           strokeWidth="1.5"
           strokeDasharray="5 5"
           opacity="0.42"
@@ -354,14 +355,14 @@ function CurveChart() {
 
         {/* Active day dot */}
         <g>
-          <circle cx={ax} cy={ay} r="14" fill="#1C1917" opacity="0.06" />
-          <circle cx={ax} cy={ay} r="7" fill="#1C1917" />
-          <circle cx={ax} cy={ay} r="3" fill="#FBF6EC" />
+          <circle cx={ax} cy={ay} r="14" style={{ fill: "var(--ink)" }} opacity="0.06" />
+          <circle cx={ax} cy={ay} r="7" style={{ fill: "var(--ink)" }} />
+          <circle cx={ax} cy={ay} r="3" style={{ fill: "var(--ink-inverse)" }} />
         </g>
 
         {/* Active day callout */}
         <g transform={`translate(${calloutLeft}, ${calloutTop})`}>
-          <rect x="0" y="0" width={calloutW} height={calloutH} rx="8" fill="#1C1917" />
+          <rect x="0" y="0" width={calloutW} height={calloutH} rx="8" style={{ fill: "var(--ink)" }} />
           <text
             x="10"
             y="13"
@@ -379,7 +380,7 @@ function CurveChart() {
             x="10"
             y="28"
             style={{
-              fill: "#F2ECE3",
+              fill: "var(--ink-inverse)",
               fontFamily: "var(--font-mono)",
               fontSize: 13,
               fontWeight: 600,
@@ -395,6 +396,216 @@ function CurveChart() {
             )}
           </text>
         </g>
+      </svg>
+    </div>
+  );
+}
+
+/* ─── Annual demand profile ("zoom out" — whole-year DPM view) ───────────── */
+
+function YearCurve() {
+  const state = useStore();
+  if (!state) return <div className="curve-stage" />;
+
+  const w = 1000;
+  const h = 580;
+  const padL = 56;
+  const padR = 28;
+  const padT = 30;
+  const padB = 52;
+  const innerW = Math.max(1, w - padL - padR);
+  const innerH = Math.max(1, h - padT - padB);
+
+  const cap = leverV(state, "max_fee_cap");
+  const totalDays = state.seasonal.reduce((a, s) => a + s.days, 0) || 365;
+  const peakDemand = Math.max(100, ...state.seasonal.map((s) => s.demand_pct));
+  const yMax = Math.ceil((peakDemand * 1.12) / 20) * 20;
+
+  const xS = (d: number) => padL + (d / totalDays) * innerW;
+  const yS = (v: number) => padT + (1 - v / yMax) * innerH;
+  const baseY = yS(0);
+
+  // Load-duration style: sort the DPM seasonal bins by demand (desc) and lay
+  // them across the 365-day axis — a single glance shows how many days a year
+  // sit at each demand level, coloured by the fee that level would charge.
+  const bins = [...state.seasonal].sort((a, b) => b.demand_pct - a.demand_pct);
+  type Band = {
+    x0: number;
+    x1: number;
+    y: number;
+    color: string;
+    demand: number;
+    days: number;
+    fee: number;
+  };
+  const bands: Band[] = [];
+  const stepPts: string[] = [];
+  let cum = 0;
+  for (const b of bins) {
+    const x0 = xS(cum);
+    const x1 = xS(cum + b.days);
+    const y = yS(Math.min(yMax, b.demand_pct));
+    const fee = feeAtPct(b.demand_pct, state);
+    const ratio = cap > 0 ? fee / cap : 0;
+    const color =
+      fee < 0
+        ? "var(--sage)"
+        : ratio > 0.7
+          ? "var(--penalty)"
+          : ratio > 0.3
+            ? "var(--ochre)"
+            : "var(--sage)";
+    bands.push({ x0, x1, y, color, demand: b.demand_pct, days: b.days, fee });
+    stepPts.push(`${x0.toFixed(1)},${y.toFixed(1)}`, `${x1.toFixed(1)},${y.toFixed(1)}`);
+    cum += b.days;
+  }
+  const stepPath = stepPts.map((p, i) => (i ? "L" : "M") + p).join(" ");
+  const areaPath =
+    stepPath +
+    ` L ${xS(totalDays).toFixed(1)},${baseY.toFixed(1)} L ${xS(0).toFixed(1)},${baseY.toFixed(1)} Z`;
+
+  // Y gridlines.
+  const yStep = yMax > 250 ? 50 : 25;
+  const yGrid: number[] = [];
+  for (let v = 0; v <= yMax + 0.01; v += yStep) yGrid.push(v);
+
+  // X ticks (quarters of the year).
+  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(totalDays * f));
+
+  const activeDay =
+    state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
+  const activeY = yS(Math.min(yMax, activeDay.demand_pct));
+
+  return (
+    <div className="curve-stage">
+      <svg className="curve-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="year-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E0763C" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#E3A93C" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Horizontal gridlines + %-axis ticks */}
+        {yGrid.map((v) => (
+          <g key={"yg-" + v}>
+            <line
+              x1={padL}
+              y1={yS(v)}
+              x2={w - padR}
+              y2={yS(v)}
+              stroke="currentColor"
+              opacity={v === 0 ? 0.18 : 0.07}
+            />
+            <text x={padL - 10} y={yS(v) + 4} textAnchor="end" className="curve-tick-label">
+              {v}%
+            </text>
+          </g>
+        ))}
+
+        {/* X ticks (days) */}
+        {xTicks.map((d, i) => (
+          <g key={"xt-" + i}>
+            <line x1={xS(d)} y1={baseY} x2={xS(d)} y2={baseY + 5} stroke="currentColor" opacity="0.25" />
+            <text x={xS(d)} y={baseY + 20} textAnchor="middle" className="curve-tick-label">
+              {d}d
+            </text>
+          </g>
+        ))}
+
+        {/* Target (100%) reference line */}
+        <line
+          x1={padL}
+          y1={yS(100)}
+          x2={w - padR}
+          y2={yS(100)}
+          stroke="#E3A93C"
+          strokeWidth="1"
+          strokeDasharray="3 4"
+          opacity="0.75"
+        />
+        <g transform={`translate(${w - padR - 62}, ${yS(100) - 9})`}>
+          <rect x="0" y="0" width="60" height="18" rx="9" fill="#E3A93C" />
+          <text
+            x="30"
+            y="12"
+            textAnchor="middle"
+            style={{
+              fill: "#1C1917",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+            }}
+          >
+            TARGET
+          </text>
+        </g>
+
+        {/* Warm wash under the duration curve */}
+        <path d={areaPath} fill="url(#year-fill)" />
+
+        {/* Coloured demand bands (fee intensity) */}
+        {bands.map((b, i) => (
+          <g key={"band-" + i}>
+            <rect
+              x={b.x0}
+              y={b.y}
+              width={Math.max(0, b.x1 - b.x0)}
+              height={Math.max(0, baseY - b.y)}
+              style={{ fill: b.color }}
+              opacity="0.22"
+            />
+            <line
+              x1={b.x0}
+              y1={b.y}
+              x2={b.x1}
+              y2={b.y}
+              style={{ stroke: b.color }}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            {b.x1 - b.x0 > 70 && (
+              <text x={(b.x0 + b.x1) / 2} y={b.y - 8} textAnchor="middle" className="year-band-label">
+                {b.demand}% · {b.days}d · {fmtEur(b.fee)}
+              </text>
+            )}
+          </g>
+        ))}
+
+        {/* Step outline */}
+        <path d={stepPath} fill="none" style={{ stroke: "var(--ink)" }} strokeWidth="1.5" opacity="0.5" />
+
+        {/* Active modelled-day demand reference */}
+        <line
+          x1={padL}
+          y1={activeY}
+          x2={w - padR}
+          y2={activeY}
+          style={{ stroke: "var(--ink)" }}
+          strokeWidth="1"
+          strokeDasharray="2 4"
+          opacity="0.5"
+        />
+        <text x={padL + 6} y={activeY - 7} className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
+          Modelled day · {activeDay.label} · {activeDay.demand_pct}%
+        </text>
+
+        {/* Axis label */}
+        <text
+          x={w - padR}
+          y={h - 8}
+          textAnchor="end"
+          style={{
+            fill: "var(--ink-soft)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+          }}
+        >
+          Days per year · sorted by demand
+        </text>
       </svg>
     </div>
   );
@@ -447,37 +658,68 @@ function BucketStrip() {
 
 export function CurvePanel() {
   const state = useStore();
+  const [view, setView] = useState<"cost" | "year">("cost");
   if (!state) return null;
   const activeDay =
     state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
+  const totalDays = state.seasonal.reduce((a, s) => a + s.days, 0);
   return (
     <section className="panel panel-pad curve-panel">
       <header className="panel-header">
         <div>
-          <div className="panel-title">Consumer cost curve</div>
+          <div className="panel-title">
+            {view === "cost" ? "Consumer cost curve" : "Annual demand profile"}
+          </div>
           <div className="panel-sub" style={{ marginTop: 4 }}>
-            {activeDay.demand_pct}% of target · {activeDay.date}
+            {view === "cost"
+              ? `${activeDay.demand_pct}% of target · ${activeDay.date}`
+              : `${totalDays}-day DPM rollup · ${state.seasonal.length} demand bands`}
           </div>
         </div>
         <div className="curve-legend">
-          <span className="legend-swatch" style={{ color: "#9DBA77" }}>
-            <i /> Credit
-          </span>
-          <span className="legend-swatch" style={{ color: "#E3A93C" }}>
-            <i /> Fee
-          </span>
-          <span className="legend-swatch" style={{ color: "#54C9B5" }}>
-            <i /> Q-Cash
-          </span>
+          <div className="curve-view-toggle" role="tablist" aria-label="Curve view">
+            <button
+              className={view === "cost" ? "on" : ""}
+              onClick={() => setView("cost")}
+              aria-pressed={view === "cost"}
+            >
+              Cost curve
+            </button>
+            <button
+              className={view === "year" ? "on" : ""}
+              onClick={() => setView("year")}
+              aria-pressed={view === "year"}
+            >
+              Zoom out · year
+            </button>
+          </div>
+          {view === "cost" && (
+            <>
+              <span className="legend-swatch" style={{ color: "#9DBA77" }}>
+                <i /> Credit
+              </span>
+              <span className="legend-swatch" style={{ color: "#E3A93C" }}>
+                <i /> Fee
+              </span>
+              <span className="legend-swatch" style={{ color: "#54C9B5" }}>
+                <i /> Q-Cash
+              </span>
+            </>
+          )}
           <span className="confidence-pill">
             <span className="dot" /> Model confidence {state.confidence}%
           </span>
         </div>
       </header>
 
-      <CurveChart />
-
-      <BucketStrip />
+      {view === "cost" ? (
+        <>
+          <CurveChart />
+          <BucketStrip />
+        </>
+      ) : (
+        <YearCurve />
+      )}
     </section>
   );
 }

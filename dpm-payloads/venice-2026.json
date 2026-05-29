@@ -11,10 +11,10 @@
   },
   "shoulder_rebate": { "enabled": true, "credit": 8, "applies_below_pct": 28 },
   "levers": [
-    { "id": "target_capacity", "min": 20000, "max": 120000, "step": 1000, "value": 50000 },
-    { "id": "base_fee",        "min": 0,     "max": 50,     "step": 1,    "value": 10 },
-    { "id": "max_fee_cap",     "min": 10,    "max": 200,    "step": 5,    "value": 50 },
-    { "id": "ceiling_pct",     "min": 120,   "max": 250,    "step": 5,    "value": 200 }
+    { "id": "target_capacity", "min": 20000, "max": 1000000, "step": 5000, "value": 50000 },
+    { "id": "base_fee",        "min": 0,     "max": 500,     "step": 1,    "value": 10 },
+    { "id": "max_fee_cap",     "min": 10,    "max": 2000,    "step": 10,   "value": 50 },
+    { "id": "ceiling_pct",     "min": 120,   "max": 1000,    "step": 10,   "value": 200 }
   ],
   "day_types": [
     { "id": "peak_sat",       "label": "Peak summer Saturday", "date": "Sat 1 Aug",   "demand_pct": 200 },

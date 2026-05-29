@@ -1,15 +1,16 @@
 import { useRef, useState } from "react";
 import { useStore } from "./useStore";
 import { setLever, setRebate, type LeverId } from "./state";
-import { fmtNumber } from "./format";
+import { fmtCompactNum, fmtNumber } from "./format";
 
 type LeverMeta = {
   label: string;
   sub: string;
   prefix?: string;
   suffix?: string;
+  /** Suffix shown on the min/max tick labels (kept terse vs. the value suffix). */
+  tickSuffix?: string;
   format: (v: number) => string;
-  ticks: [string, string];
 };
 
 const LEVER_META: Record<LeverId, LeverMeta> = {
@@ -18,30 +19,34 @@ const LEVER_META: Record<LeverId, LeverMeta> = {
     sub: "100% anchor",
     suffix: "/day",
     format: (v) => fmtNumber(v),
-    ticks: ["20k", "120k"],
   },
   base_fee: {
     label: "Base fee at target",
     sub: "Fee at 100%",
     prefix: "€",
     format: (v) => String(v),
-    ticks: ["€0", "€50"],
   },
   max_fee_cap: {
     label: "Max-fee cap",
     sub: "Asymptote of curve",
     prefix: "€",
     format: (v) => String(v),
-    ticks: ["€10", "€200"],
   },
   ceiling_pct: {
     label: "Capacity ceiling",
     sub: "Where curve goes near-vertical",
     suffix: "%",
+    tickSuffix: "%",
     format: (v) => String(v),
-    ticks: ["120%", "250%"],
   },
 };
+
+/** Tick label for a lever bound — derived from the payload's min/max so the
+ *  slider always reflects the loaded DPM bounds (never hardcoded). */
+function fmtTick(v: number, meta: LeverMeta): string {
+  const num = Math.abs(v) >= 10000 ? fmtCompactNum(v) : String(v);
+  return (meta.prefix || "") + num + (meta.tickSuffix || "");
+}
 
 function LeverRow({ id }: { id: LeverId }) {
   const state = useStore();
@@ -83,8 +88,8 @@ function LeverRow({ id }: { id: LeverId }) {
           aria-label={meta.label}
         />
         <div className="ticks">
-          <span>{meta.ticks[0]}</span>
-          <span>{meta.ticks[1]}</span>
+          <span>{fmtTick(lever.min, meta)}</span>
+          <span>{fmtTick(lever.max, meta)}</span>
         </div>
       </div>
     </div>

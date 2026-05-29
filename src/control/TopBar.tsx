@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setDayType, setPhase, loadPayload, getState } from "./state";
+import { setDayType, loadPayload, getState } from "./state";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
 
-export function TopBar() {
+type TopBarProps = {
+  dark: boolean;
+  onToggleDark: () => void;
+};
+
+export function TopBar({ dark, onToggleDark }: TopBarProps) {
   const state = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<Toast>(null);
@@ -76,7 +81,6 @@ export function TopBar() {
   if (!state) return null;
   const activeDay =
     state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
-  const year = state.phase.year;
 
   return (
     <>
@@ -176,19 +180,39 @@ export function TopBar() {
         </div>
 
         <div className="tb-field tb-field-right">
-          <div className="tb-label">Deployment phase</div>
-          <div className="phase-toggle" role="tablist" aria-label="Deployment year">
-            {[1, 2, 3].map((y) => (
-              <button
-                key={y}
-                className={y === year ? "on" : ""}
-                onClick={() => setPhase(y as 1 | 2 | 3)}
-                aria-pressed={y === year}
-              >
-                YR&nbsp;{y}
-              </button>
-            ))}
-          </div>
+          <div className="tb-label">Theme</div>
+          <button
+            type="button"
+            className="tb-upload tb-theme"
+            onClick={onToggleDark}
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+            aria-pressed={dark}
+          >
+            {dark ? (
+              // Sun glyph (click → light)
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                <path
+                  d="M8 1.2v1.8M8 13v1.8M1.2 8H3M13 8h1.8M3.2 3.2l1.3 1.3M11.5 11.5l1.3 1.3M12.8 3.2l-1.3 1.3M4.5 11.5l-1.3 1.3"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            ) : (
+              // Moon glyph (click → dark)
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M13.4 9.6A5.4 5.4 0 0 1 6.4 2.6a5.4 5.4 0 1 0 7 7Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
         </div>
       </header>
 
