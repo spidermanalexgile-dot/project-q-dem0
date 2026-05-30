@@ -468,3 +468,24 @@ and `window.ProjectQ.voiceCommand`. Spoken dates interpolate demand from the DPM
 day_type anchors exactly like the picker (e.g. "first of July" → 1 Jul 2026, 167%).
 Full coverage now: levers, free-form demand, day types, **calendar date**, reset,
 curve view, and theme. Verified live: 15/15 commands, 0 console errors.
+
+---
+
+## Voice sensitivity + warmth (2026-05-30)
+
+### Stay silent on unrecognized audio
+Continuous recognition transcribes *everything* the mic hears — a phone buzz,
+background chatter — and the assistant was speaking "sorry, didn't catch that" at
+each one. `tryVoiceCommand()` now returns a `{ recognized, reply }` pair, and
+`VoiceControl` only speaks when `recognized` is true. Unrecognized audio is dropped
+silently and never changes state. `window.ProjectQ.voiceCommand` keeps its string
+API via a thin wrapper. Verified live: 5 noise phrases leave state unchanged; real
+commands still apply and confirm.
+
+### Warmer, less harsh voice
+`pickFemaleVoice()` now prefers warm neural/premium female voices (Samantha / Siri /
+Ava, Microsoft *Natural, Google) and explicitly skips harsh or novelty voices
+(Zira, eSpeak, Compact, Zarvox, …). Prosody softened: pitch **1.35 → 1.05** (high
+pitch read as tinny/harsh on legacy voices), rate 0.95, volume 0.85. The exact voice
+still depends on what's installed in the pitch machine's browser/OS; the preference
+list picks the best available and avoids the robotic ones.
