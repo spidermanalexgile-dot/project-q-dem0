@@ -601,3 +601,26 @@ engine — honouring "no LLM math in the live loop". Two capabilities:
 Shrunk the revenue card figures (`rev-figure` clamp 44 → 32px) and the
 sustainability-fee figure so large euro values (e.g. €353,340,503) always fit;
 verified no figure/label/note overflows its card.
+
+---
+
+## Analyst v2 — comparison, revenue explain, voice (2026-05-30)
+
+Three upgrades to the deterministic analyst (still no LLM):
+- **Compare levers** — *"what's the cheapest way to add €80M to annual revenue?"*
+  solves all four levers against the goal, ranks by closeness-then-smallest-move,
+  names the cheapest (e.g. Max-fee cap €50 → €70, lands €433.76M) with an Apply
+  button, and lists the alternatives with where each lands. When the ask is smaller
+  than one lever step (e.g. €3M against €353M annual) it says so honestly and shows
+  the closest, instead of a misleading no-op.
+- **Explain revenue** — *"why is annual revenue so high?"* breaks the total into the
+  DPM seasonal bands (visitors × fee × days, sorted by contribution);
+  *"explain January's revenue"* gives the per-day sum with a worked mid-month
+  example. Every figure is from the live engine.
+- **Spoken answers** — new shared `speech.ts` (warm female voice picker +
+  `speak`/`cancelSpeech`) reads a condensed summary of each analyst reply aloud; a
+  speaker toggle in the panel header (persisted to `localStorage`) mutes it.
+
+Verified live: big-target comparison ranks levers + Apply; small-target honesty;
+annual + monthly revenue breakdowns; speaker toggle present and speaking; originals
+(why-demand anchors, goal-seek + Apply moving the engine) intact; 0 console errors.
