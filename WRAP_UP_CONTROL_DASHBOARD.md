@@ -517,3 +517,26 @@ The top-bar field is renamed **"Crowd level"** with a hover **"?"** explainer:
 *how busy the day is vs. a normal day — 100% = a normal day, 200% = twice as
 crowded, 50% = half-empty; higher crowds = higher fee.* The cost-curve sub-line
 now reads "X% of a normal day".
+
+---
+
+## Voice routing fix + sustainability fee (2026-05-30)
+
+### Voice no longer "transfixed on target capacity"
+`target_capacity` carried greedy bare keywords ("target", "capacity", "visitors")
+and the matcher returned the FIRST lever whose keyword appeared — so almost any
+phrase collapsed onto target capacity. Now every matching phrase is scored by
+**specificity** (multi-word and longer phrases score higher) and the highest
+scorer wins: "capacity ceiling" → ceiling_pct, "fee cap" → max_fee_cap, "base fee"
+→ base_fee, "target capacity" → target_capacity. Ambiguous or mis-heard input with
+no clear control + number returns null and the assistant stays silent instead of
+defaulting to a lever. Verified live: each command hits its intended control,
+target capacity is untouched unless explicitly named, and 4 ambiguous phrases
+("the target", "capacity", "increase it to 500", …) change nothing.
+
+### "Sustainability fee if booked today"
+A new headline number at the top of the revenue rail: the per-visitor fee at the
+crowd level currently being modelled — `d.fee(activeDay.demand_pct)` — with a
+"per visitor · N% of a normal day · {date}" note. It reads from the store and
+recomputes instantly as levers, crowd level, or the modelled date change (e.g.
+€50 at a 200% peak-summer-Saturday day). Whole euros, matches the rest of the UI.
