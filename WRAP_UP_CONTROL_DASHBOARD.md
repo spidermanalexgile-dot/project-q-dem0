@@ -641,3 +641,27 @@ modelled-day line label. Cleaned up:
 
 Verified with a bounding-box collision sweep across demand **30% → 200%** at both
 1280×800 and 1920×1200, light and dark, **on production**: zero text overlaps.
+
+---
+
+## Demand-response zoom-out (2026-05-31)
+
+The annual ("zoom out") view was a static load-duration curve the levers didn't
+touch. It now models the whole point of dynamic pricing — **higher fees deter peak
+crowds and flatten the year toward 100% capacity**.
+
+- New deterministic `managedDemandPct()` in state.ts:
+  `managed = 100 + (raw − 100) · e^(−fee / DEMAND_REF_EUR)` (ref €30). The fee, set
+  from the day's forecast demand, compresses that day's deviation from 100% — peak
+  days carry the top fee so they compress most; quiet days near the base fee barely
+  move. Exposed on `window.ProjectQ.managedDemandPct`.
+- The chart draws the **raw forecast** as a faint dashed line and the **managed**
+  outcome as the solid bands, with drop-arrows and a "% flatter → 100%" badge;
+  retitled "Flattening the year toward 100%" with a demand-response explainer.
+- Raising **base fee** / **max-fee cap**, or lowering the **ceiling**, all flatten
+  the curve toward target. Verified monotonic (live): spread-from-100
+  **18.5 → 8.2 → 4.9 → 4.2**, peak day **119% → 100%**.
+- Band labels rebuilt to a width/room-aware single label so they never overlap
+  even when flattened bands cluster near 100%; modelled-day caption moved to the
+  bottom-left. Collision-swept across 8 lever combos at 1280 & 1920 on production:
+  0 overlaps.
