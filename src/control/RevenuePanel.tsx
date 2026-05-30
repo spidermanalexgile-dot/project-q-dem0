@@ -1,6 +1,6 @@
 import { useStore } from "./useStore";
 import { compute } from "./state";
-import { fmtCompactEur, fmtNumber } from "./format";
+import { fmtCompactEur, fmtEur, fmtNumber } from "./format";
 
 function DeltaChip({ value }: { value: number }) {
   if (Math.abs(value) < 1) {
@@ -32,6 +32,9 @@ export function RevenuePanel() {
   const dayDelta = d.dayRevenue - (d.prevDayRev ?? d.dayRevenue);
   const annualDelta = d.annualRevenue - (d.prevAnnualRev ?? d.annualRevenue);
   const activeDay = d.activeDay;
+  // What one visitor pays today, at the crowd level being modelled. Below the
+  // credit threshold this can be negative (a rebate); we show it plainly.
+  const todayFee = d.fee(activeDay.demand_pct);
 
   return (
     <section className="panel panel-pad revenue-panel">
@@ -43,6 +46,14 @@ export function RevenuePanel() {
           </div>
         </div>
       </header>
+
+      <div className="sustain-fee">
+        <div className="sustain-fee-label">Sustainability fee if booked today</div>
+        <div className="sustain-fee-figure">{fmtEur(todayFee)}</div>
+        <div className="sustain-fee-note">
+          per visitor · {activeDay.demand_pct}% of a normal day · {activeDay.date}
+        </div>
+      </div>
 
       <div className="revenue-grid">
         <div className="rev-card">

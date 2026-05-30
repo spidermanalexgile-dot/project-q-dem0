@@ -1099,3 +1099,36 @@
   border-color: var(--ochre);
   outline: none;
 }
+
+/* Sustainability fee (headline "if booked today" number, above revenue cards) */
+.qctl-root .sustain-fee {
+  background: linear-gradient(135deg, rgba(227, 169, 60, 0.16), rgba(84, 201, 181, 0.1));
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: clamp(10px, 1.3vh, 15px) clamp(13px, 1.2vw, 18px);
+  position: relative;
+  overflow: hidden;
+}
+.qctl-root .sustain-fee-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.qctl-root .sustain-fee-figure {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+  font-size: clamp(28px, 3vw, 40px);
+  margin: 4px 0 5px;
+}
+.qctl-root .sustain-fee-note {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}

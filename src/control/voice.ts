@@ -32,14 +32,23 @@ export const LEVER_SPOKEN: Record<LeverId, string> = {
   ceiling_pct: "Capacity ceiling",
 };
 
-/** Keyword groups that identify a lever in a spoken phrase (order matters —
- *  more specific phrases first). */
+/**
+ * Keyword groups that identify a lever. Each phrase has a SPECIFICITY (longer /
+ * less ambiguous phrases score higher). We pick the highest-scoring lever across
+ * ALL phrases — not the first one that happens to contain a generic word like
+ * "capacity" — so "capacity ceiling" resolves to ceiling_pct, not target_capacity.
+ * Bare ambiguous words ("target", "capacity") are deliberately weak.
+ */
 const LEVER_KEYWORDS: { id: LeverId; phrases: string[] }[] = [
-  { id: "max_fee_cap", phrases: ["max fee cap", "max fee", "maximum fee", "fee cap", "max cap", "fee ceiling"] },
-  { id: "ceiling_pct", phrases: ["capacity ceiling", "ceiling"] },
-  { id: "base_fee", phrases: ["base fee", "base price"] },
-  { id: "target_capacity", phrases: ["target capacity", "capacity target", "target", "capacity", "visitors"] },
+  { id: "max_fee_cap", phrases: ["max fee cap", "maximum fee cap", "max fee", "maximum fee", "fee cap", "max cap", "price cap", "maximum price"] },
+  { id: "ceiling_pct", phrases: ["capacity ceiling", "demand ceiling", "ceiling percent", "ceiling"] },
+  { id: "base_fee", phrases: ["base fee at target", "base fee", "base price", "starting fee", "starting price"] },
+  { id: "target_capacity", phrases: ["target capacity", "capacity target", "daily capacity", "visitor capacity", "number of visitors", "visitors per day", "target visitors"] },
 ];
+
+/** Verbs/cues that signal the user is actually issuing a set-value command —
+ *  used to avoid acting on incidental mentions of a control word. */
+const ACTION_CUE = /\b(set|change|make|adjust|move|raise|increase|lower|decrease|reduce|drop|bump|put|cap|to|at|=)\b/;
 
 const SMALL: Record<string, number> = {
   zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
@@ -125,18 +134,37 @@ export function interpretCommand(transcript: string, snap: State): Intent | null
     }
   }
 
-  // Demand (free-form modelled %): "set demand to 150", "model 80 percent".
-  if (/\b(demand|model|modelling|modeling)\b/.test(t) && !/\bcapacity\b/.test(t)) {
-    const n = parseNumber(t);
-    if (n != null) return { kind: "demand", value: n };
+  const num = parseNumber(t);
+
+  // Levers — score EVERY matching phrase across all levers and take the most
+  // specific (longest matched phrase). This stops the old bug where a generic
+  // word like "capacity" made everything collapse onto target_capacity.
+  let best: { id: LeverId; score: number } | null = null;
+  for (const { id, phrases } of LEVER_KEYWORDS) {
+    for (const p of phrases) {
+      if (t.includes(" " + p + " ") || t.includes(" " + p) || t.includes(p + " ")) {
+        const score = p.length + p.split(" ").length * 4; // favour multi-word, longer
+        if (!best || score > best.score) best = { id, score };
+      }
+    }
+  }
+  if (best && num != null) {
+    // "ceiling/percent" style levers accept a %, value levers need a real number.
+    return { kind: "lever", id: best.id, value: num };
   }
 
-  // Levers.
-  for (const { id, phrases } of LEVER_KEYWORDS) {
-    if (phrases.some((p) => t.includes(p))) {
-      const n = parseNumber(t);
-      if (n != null) return { kind: "lever", id, value: n };
-    }
+  // Demand / crowd level (free-form modelled %): "set demand to 150",
+  // "crowd level 80", "model 80 percent". Only when no lever matched.
+  if (/\b(demand|crowd level|crowd|busy|busyness|model|modelling|modeling)\b/.test(t) && num != null) {
+    return { kind: "demand", value: num };
+  }
+
+  // A bare number with a clear action cue and nothing else matched is ambiguous —
+  // do NOT guess (this is what previously defaulted to target capacity). Return
+  // null so the assistant stays silent rather than acting on a mis-hear.
+  if (best && num == null && ACTION_CUE.test(t)) {
+    // Heard a control word but no number — ask isn't possible; ignore quietly.
+    return null;
   }
 
   return null;
