@@ -568,19 +568,21 @@ function YearCurve() {
               strokeWidth="2.5"
               strokeLinecap="round"
             />
-            {b.x1 - b.x0 > 64 && (
+            {/* Labels sit INSIDE the band (below its top line) so they never
+                collide with the axis caption or with neighbouring bands. */}
+            {b.x1 - b.x0 > 58 && baseY - b.y > 40 && (
               <g>
                 <text
                   x={(b.x0 + b.x1) / 2}
-                  y={b.y - 22}
+                  y={b.y + 16}
                   textAnchor="middle"
                   className="year-band-label"
                   style={{ fontWeight: 600 }}
                 >
                   {crowdLabel(b.demand)}
                 </text>
-                <text x={(b.x0 + b.x1) / 2} y={b.y - 9} textAnchor="middle" className="year-band-label">
-                  {b.days} days · fee {fmtEur(b.fee)}
+                <text x={(b.x0 + b.x1) / 2} y={b.y + 29} textAnchor="middle" className="year-band-label">
+                  {b.days} days · {fmtEur(b.fee)}
                 </text>
               </g>
             )}
@@ -601,24 +603,19 @@ function YearCurve() {
           strokeDasharray="2 4"
           opacity="0.5"
         />
-        <text x={padL + 6} y={activeY - 7} className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
-          Day you're modelling · {activeDay.label} · {crowdLabel(activeDay.demand_pct)}
-        </text>
-
-        {/* Y-axis caption (left, vertical-ish) */}
+        {/* Small marker where the modelled-day line meets the y-axis — keeps the
+            line readable without an inline label that could land on a band. */}
+        <circle cx={padL} cy={activeY} r="3.5" style={{ fill: "var(--ink)" }} />
+        {/* Modelled-day caption lives in a FIXED top-left slot, never on the data,
+            so it can't overlap the band labels at any demand level. */}
         <text
-          x={padL - 10}
-          y={padT - 12}
+          x={padL}
+          y={padT - 14}
           textAnchor="start"
-          style={{
-            fill: "var(--ink-soft)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-          }}
+          className="year-band-label"
+          style={{ fill: "var(--ink-mute)", fontWeight: 600 }}
         >
-          ↑ How busy (100% = normal day)
+          Modelling: {activeDay.label} · {crowdLabel(activeDay.demand_pct)}
         </text>
 
         {/* X-axis caption */}
