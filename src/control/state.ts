@@ -11,6 +11,7 @@
  */
 
 import { demandForISO, formatISO } from "./dateutil";
+import { executeVoiceCommand } from "./voice";
 
 export type LeverId =
   | "target_capacity"
@@ -69,6 +70,8 @@ export type State = {
   // ISO "YYYY-MM-DD" when the operator picked a specific calendar date; the
   // demand is derived from it. null when modelling a preset day or a raw %.
   customDate: string | null;
+  // Which hero chart is showing: the cost curve or the annual "zoom out" view.
+  view: "cost" | "year";
 
   // delta-tracking internals
   __lastDayRev: number;
@@ -287,6 +290,11 @@ export function loadPayload(input: Payload | string): void {
   if (!next.activeDay) next.activeDay = next.day_types[0].id;
   next.customDemand = null;
   next.customDate = null;
+  next.view = "cost";
+  // Shoulder-season recirculation has been retired from the product. Force it
+  // off on every load so no payload (legacy or uploaded) can re-introduce the
+  // credit zone in the curve or revenue.
+  if (next.shoulder_rebate) next.shoulder_rebate.enabled = false;
   if (!next.phase) next.phase = { year: 1, real_pay_cap: 20 };
   // Initialise delta-tracking fields against the new state.
   next.__lastDayRev = 0;
@@ -364,6 +372,14 @@ export function setDate(iso: string | null): void {
   notify();
 }
 
+/** Switch the hero chart between the cost curve and the annual "zoom out" view. */
+export function setView(view: "cost" | "year"): void {
+  const s = requireState();
+  if (s.view === view) return;
+  s.view = view;
+  notify();
+}
+
 export function setPhase(year: 1 | 2 | 3): void {
   const s = requireState();
   if (s.phase.year === year) return;
@@ -374,11 +390,16 @@ export function setPhase(year: 1 | 2 | 3): void {
   notify();
 }
 
-export function setRebate(enabled: boolean): void {
+/**
+ * Shoulder-season recirculation has been retired from the product. This command
+ * is kept on the API surface for backward compatibility but is now a no-op — the
+ * rebate stays disabled regardless of the argument.
+ */
+export function setRebate(_enabled: boolean): void {
   const s = requireState();
-  if (s.shoulder_rebate.enabled === enabled) return;
+  if (!s.shoulder_rebate.enabled) return;
   bumpDeltas();
-  s.shoulder_rebate.enabled = enabled;
+  s.shoulder_rebate.enabled = false;
   commitDeltas();
   notify();
 }
@@ -428,6 +449,7 @@ export type ProjectQApi = {
   setDayType: typeof setDayType;
   setDemand: typeof setDemand;
   setDate: typeof setDate;
+  setView: typeof setView;
   setPhase: typeof setPhase;
   setRebate: typeof setRebate;
   getState: typeof getState;
@@ -438,6 +460,9 @@ export type ProjectQApi = {
   qcashAtPct: (pct: number) => number;
   dayRevenue: (demand_pct: number) => number;
   annualRevenue: () => number;
+  /** Parse + apply a natural-language voice/text command; returns the spoken
+   *  confirmation string (theme changes are UI-side and a no-op here). */
+  voiceCommand: (transcript: string) => string;
 };
 
 export function installGlobalApi(): void {
@@ -448,6 +473,7 @@ export function installGlobalApi(): void {
     setDayType,
     setDemand,
     setDate,
+    setView,
     setPhase,
     setRebate,
     getState,
@@ -458,6 +484,8 @@ export function installGlobalApi(): void {
     qcashAtPct: (pct: number) => qcashAtPct(pct),
     dayRevenue: (demand_pct: number) => dayRevenue(demand_pct),
     annualRevenue: () => annualRevenue(),
+    voiceCommand: (transcript: string) =>
+      executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setView }),
   };
   (window as unknown as { ProjectQ: ProjectQApi }).ProjectQ = api;
 }

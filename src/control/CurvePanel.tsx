@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useStore } from "./useStore";
-import { feeAtPct, payAtPct, activeDayType, type State } from "./state";
+import { feeAtPct, payAtPct, activeDayType, setView, type State } from "./state";
 import { fmtEur } from "./format";
 
 function leverV(state: State, id: string): number {
@@ -651,8 +650,8 @@ function BucketStrip() {
 
 export function CurvePanel() {
   const state = useStore();
-  const [view, setView] = useState<"cost" | "year">("cost");
   if (!state) return null;
+  const view = state.view;
   const activeDay =
     activeDayType(state);
   const totalDays = state.seasonal.reduce((a, s) => a + s.days, 0);
@@ -688,9 +687,6 @@ export function CurvePanel() {
           </div>
           {view === "cost" && (
             <>
-              <span className="legend-swatch" style={{ color: "#9DBA77" }}>
-                <i /> Credit
-              </span>
               <span className="legend-swatch" style={{ color: "#E3A93C" }}>
                 <i /> Fee
               </span>

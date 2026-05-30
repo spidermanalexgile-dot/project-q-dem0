@@ -9,7 +9,7 @@
     "ceiling_pct": 200,
     "shape": { "plateau_end_pct": 100, "exponent": 22 }
   },
-  "shoulder_rebate": { "enabled": true, "credit": 8, "applies_below_pct": 28 },
+  "shoulder_rebate": { "enabled": false, "credit": 8, "applies_below_pct": 28 },
   "levers": [
     { "id": "target_capacity", "min": 20000, "max": 350000, "step": 5000, "value": 50000 },
     { "id": "base_fee",        "min": 0,     "max": 100,    "step": 1,    "value": 10 },

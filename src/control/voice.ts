@@ -1,0 +1,198 @@
+/**
+ * Voice-control command parser for the Authority Control dashboard.
+ *
+ * Pure + deterministic: interpretCommand() takes a recognized transcript plus a
+ * read-only snapshot and returns a structured Intent (or null). No side effects,
+ * no I/O — the VoiceControl component executes the intent and reads state back to
+ * build the spoken confirmation. Keeping the parse pure makes it unit-testable
+ * and keeps the "agent reads back state to confirm" property intact.
+ */
+
+import type { LeverId, State } from "./state";
+
+export type Intent =
+  | { kind: "lever"; id: LeverId; value: number }
+  | { kind: "demand"; value: number }
+  | { kind: "dayType"; id: string; label: string }
+  | { kind: "theme"; dark: boolean }
+  | { kind: "view"; view: "cost" | "year" }
+  | { kind: "phase"; year: 1 | 2 | 3 };
+
+/** Friendly spoken names for each lever (used in confirmations). */
+export const LEVER_SPOKEN: Record<LeverId, string> = {
+  target_capacity: "Target capacity",
+  base_fee: "Base fee",
+  max_fee_cap: "Max-fee cap",
+  ceiling_pct: "Capacity ceiling",
+};
+
+/** Keyword groups that identify a lever in a spoken phrase (order matters —
+ *  more specific phrases first). */
+const LEVER_KEYWORDS: { id: LeverId; phrases: string[] }[] = [
+  { id: "max_fee_cap", phrases: ["max fee cap", "max fee", "maximum fee", "fee cap", "max cap", "fee ceiling"] },
+  { id: "ceiling_pct", phrases: ["capacity ceiling", "ceiling"] },
+  { id: "base_fee", phrases: ["base fee", "base price"] },
+  { id: "target_capacity", phrases: ["target capacity", "capacity target", "target", "capacity", "visitors"] },
+];
+
+const SMALL: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
+  fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+  nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+  seventy: 70, eighty: 80, ninety: 90,
+};
+const SCALE: Record<string, number> = { hundred: 100, thousand: 1000, million: 1000000, k: 1000, m: 1000000 };
+
+/**
+ * Parse a number out of a phrase, handling digits ("50,000", "30k", "1.2m") and
+ * spoken words ("fifty thousand", "two hundred"). Returns null if none found.
+ */
+export function parseNumber(text: string): number | null {
+  // Digit forms first: 50000 / 50,000 / 30k / 1.2m / 200%
+  const digit = /(\d[\d,]*\.?\d*)\s*(k|m|thousand|million|percent|%)?/i.exec(text);
+  let digitVal: number | null = null;
+  if (digit) {
+    let n = parseFloat(digit[1].replace(/,/g, ""));
+    const unit = (digit[2] || "").toLowerCase();
+    if (unit === "k" || unit === "thousand") n *= 1000;
+    else if (unit === "m" || unit === "million") n *= 1000000;
+    if (!Number.isNaN(n)) digitVal = n;
+  }
+
+  // Spoken-word number (only if no usable digit form).
+  if (digitVal == null) {
+    const words = text.toLowerCase().split(/[\s-]+/);
+    let total = 0;
+    let current = 0;
+    let matched = false;
+    for (const w of words) {
+      if (w in SMALL) {
+        current += SMALL[w];
+        matched = true;
+      } else if (w in SCALE) {
+        const s = SCALE[w];
+        if (s === 100) current = (current || 1) * 100;
+        else {
+          total += (current || 1) * s;
+          current = 0;
+        }
+        matched = true;
+      }
+    }
+    if (matched) digitVal = total + current;
+  }
+
+  return digitVal == null ? null : Math.round(digitVal);
+}
+
+/**
+ * Interpret a recognized transcript into a structured Intent against the current
+ * state snapshot. Returns null when nothing actionable is recognized.
+ */
+export function interpretCommand(transcript: string, snap: State): Intent | null {
+  const t = " " + transcript.toLowerCase().trim() + " ";
+
+  // Theme.
+  if (/\b(dark mode|dark theme|go dark|lights off|night mode)\b/.test(t)) return { kind: "theme", dark: true };
+  if (/\b(light mode|light theme|go light|lights on|day mode)\b/.test(t)) return { kind: "theme", dark: false };
+
+  // Curve view.
+  if (/\b(zoom out|annual|whole year|year view|full year)\b/.test(t)) return { kind: "view", view: "year" };
+  if (/\b(zoom in|cost curve|cost view|back to (the )?curve)\b/.test(t)) return { kind: "view", view: "cost" };
+
+  // Day type by spoken label (fuzzy: all significant words present).
+  for (const d of snap.day_types) {
+    const words = d.label.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+    if (words.length && words.every((w) => t.includes(w))) {
+      return { kind: "dayType", id: d.id, label: d.label };
+    }
+  }
+
+  // Demand (free-form modelled %): "set demand to 150", "model 80 percent".
+  if (/\b(demand|model|modelling|modeling)\b/.test(t) && !/\bcapacity\b/.test(t)) {
+    const n = parseNumber(t);
+    if (n != null) return { kind: "demand", value: n };
+  }
+
+  // Levers.
+  for (const { id, phrases } of LEVER_KEYWORDS) {
+    if (phrases.some((p) => t.includes(p))) {
+      const n = parseNumber(t);
+      if (n != null) return { kind: "lever", id, value: n };
+    }
+  }
+
+  return null;
+}
+
+/** Direction verb for a confirmation, comparing old → new. */
+export function directionWord(oldV: number, newV: number): "raised" | "lowered" | "set" {
+  if (newV > oldV) return "raised";
+  if (newV < oldV) return "lowered";
+  return "set";
+}
+
+/** Whole-number / unit-aware spoken value for a lever. */
+export function spokenLeverValue(id: LeverId, value: number): string {
+  if (id === "ceiling_pct") return `${value} percent`;
+  if (id === "base_fee" || id === "max_fee_cap") return `${value} euro`;
+  return value.toLocaleString("en-US"); // target_capacity
+}
+
+/** Commands the executor needs — injected so voice.ts stays free of React. */
+export type VoiceDeps = {
+  getState: () => State | null;
+  setLever: (id: LeverId, value: number) => void;
+  setDemand: (pct: number | null) => void;
+  setDayType: (id: string) => void;
+  setView: (view: "cost" | "year") => void;
+  setDark?: (dark: boolean) => void;
+};
+
+/**
+ * Parse a transcript, apply the resulting intent through the injected commands,
+ * and return the spoken confirmation string (or a "didn't catch that" message).
+ * Shared by the VoiceControl component and the window.ProjectQ.voiceCommand API,
+ * so both behave identically and stay testable without a microphone.
+ */
+export function executeVoiceCommand(transcript: string, deps: VoiceDeps): string {
+  const snap = deps.getState();
+  if (!snap) return "No payload loaded yet.";
+  const intent = interpretCommand(transcript, snap);
+  if (!intent) return "Sorry, I didn't catch a command I recognize.";
+
+  switch (intent.kind) {
+    case "lever": {
+      const lever = snap.levers.find((l) => l.id === intent.id);
+      if (!lever) return "That lever isn't available.";
+      const oldV = lever.value;
+      deps.setLever(intent.id, intent.value);
+      const newV = deps.getState()?.levers.find((l) => l.id === intent.id)?.value ?? intent.value;
+      const dir = directionWord(oldV, newV);
+      return `${LEVER_SPOKEN[intent.id]} successfully ${dir} to ${spokenLeverValue(intent.id, newV)}.`;
+    }
+    case "demand": {
+      deps.setDemand(intent.value);
+      const v = deps.getState()?.customDemand ?? intent.value;
+      return `Modelling demand set to ${v} percent.`;
+    }
+    case "dayType": {
+      deps.setDayType(intent.id);
+      const d = deps.getState()?.day_types.find((x) => x.id === intent.id);
+      return `Now modelling ${intent.label}${d ? `, ${d.demand_pct} percent of target` : ""}.`;
+    }
+    case "view": {
+      deps.setView(intent.view);
+      return intent.view === "year"
+        ? "Showing the annual demand profile."
+        : "Showing the cost curve.";
+    }
+    case "theme": {
+      deps.setDark?.(intent.dark);
+      return intent.dark ? "Dark mode on." : "Light mode on.";
+    }
+    default:
+      return "Sorry, I didn't catch a command I recognize.";
+  }
+}

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setLever, setRebate, type LeverId } from "./state";
+import { setLever, type LeverId } from "./state";
 import { fmtCompactNum, fmtNumber } from "./format";
 
 type LeverMeta = {
@@ -96,37 +96,6 @@ function LeverRow({ id }: { id: LeverId }) {
   );
 }
 
-function RebateRow() {
-  const state = useStore();
-  if (!state) return null;
-  const r = state.shoulder_rebate;
-  return (
-    <div className="rebate-row">
-      <div className="rebate-text">
-        <strong style={{ fontWeight: 500 }}>Shoulder-season recirculation</strong>
-        <span className="meta">
-          Below {r.applies_below_pct}% capacity · €{r.credit} Q-Cash to local business
-        </span>
-      </div>
-      <div
-        className={"switch " + (r.enabled ? "on" : "")}
-        onClick={() => setRebate(!r.enabled)}
-        role="switch"
-        aria-checked={r.enabled}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === " " || e.key === "Enter") {
-            e.preventDefault();
-            setRebate(!r.enabled);
-          }
-        }}
-      >
-        <div className="knob" />
-      </div>
-    </div>
-  );
-}
-
 export function LeversPanel() {
   const state = useStore();
   if (!state) return null;
@@ -145,7 +114,6 @@ export function LeversPanel() {
         {ids.map((id) => (
           <LeverRow key={id} id={id} />
         ))}
-        <RebateRow />
       </div>
     </section>
   );
