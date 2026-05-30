@@ -489,3 +489,31 @@ Ava, Microsoft *Natural, Google) and explicitly skips harsh or novelty voices
 pitch read as tinny/harsh on legacy voices), rate 0.95, volume 0.85. The exact voice
 still depends on what's installed in the pitch machine's browser/OS; the preference
 list picks the best available and avoids the robotic ones.
+
+---
+
+## Voice no-repeat (decisive) + graph/demand clarity (2026-05-30)
+
+### Voice now speaks exactly once
+Earlier guards only *ignored* self-heard audio while the mic stayed live. The
+decisive fix: the microphone is **physically stopped** before a confirmation is
+spoken and only restarted in the utterance's `onend` (plus a length-estimated
+safety timer in case `onend` is dropped). `recognition.onend` no longer
+auto-restarts while `suspended`, so the assistant is genuinely deaf while it talks
+and cannot hear or repeat its own reply. Added transcript dedupe (same result
+within 2.5 s ignored). Verified live: noise stays silent, real commands apply once.
+
+### Zoom-out graph made legible for non-technical viewers
+It was a load-duration curve — accurate but opaque. Now:
+- Retitled **"How busy the city is across the year"**, sub *"365 days grouped
+  busiest → quietest · taller = more crowded"*.
+- Each band reads in plain English: **Very busy / Busy / Normal / Quiet / Very
+  quiet**, with the number of days and the fee on those days.
+- Axis captions ("↑ How busy — 100% = normal day", "Days of the year, busiest →
+  quietest"), plus a one-paragraph explainer beneath the chart.
+
+### "Demand %" explained
+The top-bar field is renamed **"Crowd level"** with a hover **"?"** explainer:
+*how busy the day is vs. a normal day — 100% = a normal day, 200% = twice as
+crowded, 50% = half-empty; higher crowds = higher fee.* The cost-curve sub-line
+now reads "X% of a normal day".
