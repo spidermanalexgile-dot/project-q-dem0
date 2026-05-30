@@ -196,3 +196,85 @@ export function demandForISO(
   const t = (target - lower.doy) / (upper.doy - lower.doy);
   return Math.round(lower.demand + (upper.demand - lower.demand) * t);
 }
+
+export type DemandExplain = {
+  demand: number;
+  exact: boolean;
+  // The two DPM anchors the value was blended between (label = date text).
+  lower: { label: string; demand: number; daysAway: number } | null;
+  upper: { label: string; demand: number; daysAway: number } | null;
+  weightUpper: number; // 0..1 — how far toward the upper anchor
+};
+
+/**
+ * Like demandForISO, but returns HOW the figure was derived: which two DPM
+ * day_type anchors it sits between and the blend weight. This is what powers the
+ * analyst agent's truthful "why is this date's demand N%?" answers — the number
+ * is never invented, it's interpolated from Ollie's anchors.
+ */
+export function explainDemandForISO(
+  iso: string,
+  dayTypes: { label?: string; date: string; demand_pct: number }[],
+): DemandExplain | null {
+  const p = parseISO(iso);
+  if (!p) return null;
+  const [y, mo, d] = p;
+  const target = dayOfYear(y, mo, d);
+  const len = yearLength(y);
+
+  const anchors = dayTypes
+    .map((dt) => {
+      const doy = anchorDayOfYear(dt.date, y);
+      return doy == null ? null : { doy, demand: dt.demand_pct, label: dt.label || dt.date };
+    })
+    .filter((a): a is { doy: number; demand: number; label: string } => a != null)
+    .sort((a, b) => a.doy - b.doy);
+
+  if (anchors.length === 0) return { demand: 100, exact: false, lower: null, upper: null, weightUpper: 0 };
+
+  for (const a of anchors) {
+    if (a.doy === target) {
+      return {
+        demand: a.demand,
+        exact: true,
+        lower: { label: a.label, demand: a.demand, daysAway: 0 },
+        upper: { label: a.label, demand: a.demand, daysAway: 0 },
+        weightUpper: 0,
+      };
+    }
+  }
+
+  let lower: typeof anchors[number] | null = null;
+  let upper: typeof anchors[number] | null = null;
+  for (const a of anchors) if (a.doy <= target) lower = a;
+  for (let i = anchors.length - 1; i >= 0; i--) if (anchors[i].doy >= target) upper = anchors[i];
+
+  let lowDoy: number;
+  let upDoy: number;
+  if (!lower) {
+    const last = anchors[anchors.length - 1];
+    lower = last;
+    lowDoy = last.doy - len;
+    upper = anchors[0];
+    upDoy = upper.doy;
+  } else if (!upper) {
+    const first = anchors[0];
+    upper = first;
+    upDoy = first.doy + len;
+    lowDoy = lower.doy;
+  } else {
+    lowDoy = lower.doy;
+    upDoy = upper.doy;
+  }
+
+  const span = upDoy - lowDoy || 1;
+  const t = (target - lowDoy) / span;
+  const demand = Math.round(lower.demand + (upper.demand - lower.demand) * t);
+  return {
+    demand,
+    exact: false,
+    lower: { label: lower.label, demand: lower.demand, daysAway: Math.abs(target - lowDoy) },
+    upper: { label: upper.label, demand: upper.demand, daysAway: Math.abs(upDoy - target) },
+    weightUpper: t,
+  };
+}
