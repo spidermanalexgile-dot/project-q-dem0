@@ -12,6 +12,7 @@
 
 import { demandForISO, formatISO } from "./dateutil";
 import { executeVoiceCommand } from "./voice";
+import { ask } from "./analyst";
 
 export type LeverId =
   | "target_capacity"
@@ -463,6 +464,9 @@ export type ProjectQApi = {
   /** Parse + apply a natural-language voice/text command; returns the spoken
    *  confirmation string (theme changes are UI-side and a no-op here). */
   voiceCommand: (transcript: string) => string;
+  /** Ask the deterministic analyst a question; returns its text answer (any
+   *  suggested lever change is surfaced in the in-UI chat, not auto-applied). */
+  askAnalyst: (question: string) => string;
 };
 
 export function installGlobalApi(): void {
@@ -486,6 +490,10 @@ export function installGlobalApi(): void {
     annualRevenue: () => annualRevenue(),
     voiceCommand: (transcript: string) =>
       executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView }),
+    askAnalyst: (question: string) => {
+      const s = getState();
+      return s ? ask(question, s).answer : "No payload loaded yet.";
+    },
   };
   (window as unknown as { ProjectQ: ProjectQApi }).ProjectQ = api;
 }
