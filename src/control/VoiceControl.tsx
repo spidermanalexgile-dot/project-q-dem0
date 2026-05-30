@@ -83,11 +83,15 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
   const captionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wantListening = useRef(false);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
-  // True while we're speaking a confirmation (or just finished) — used to drop
-  // recognition results so the assistant never hears and re-runs its own reply.
-  const speakingRef = useRef(false);
-  const muteUntil = useRef(0);
-  const lastSpoken = useRef<string>("");
+  // While true the mic is deliberately OFF (we're speaking a reply). The
+  // recognition onend handler must NOT auto-restart during this window — the
+  // utterance's own onend restarts it. This is what makes the assistant
+  // physically deaf while it talks, so it can never hear and repeat itself.
+  const suspended = useRef(false);
+  const restartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Dedupe: ignore an identical transcript fired again within a short cooldown
+  // (some browsers deliver the same final result more than once).
+  const lastHandled = useRef<{ text: string; at: number }>({ text: "", at: 0 });
 
   // Resolve the female voice once voices are available (they load async).
   useEffect(() => {
@@ -104,16 +108,46 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
     };
   }, []);
 
-  /** Speak a confirmation with a soft, feminine voice. Suppresses self-hearing
-   *  by muting recognition processing while (and shortly after) speaking. */
+  /** Turn the mic back on after we've finished speaking (if still wanted). */
+  function resumeListening() {
+    if (restartTimer.current) clearTimeout(restartTimer.current);
+    restartTimer.current = setTimeout(() => {
+      suspended.current = false;
+      if (wantListening.current) {
+        try {
+          recRef.current?.start();
+        } catch {
+          /* already running */
+        }
+      }
+    }, 350);
+  }
+
+  /**
+   * Speak a confirmation ONCE. The microphone is fully stopped before speaking
+   * and only restarted after the utterance ends — so the assistant is physically
+   * deaf while it talks and cannot hear (and repeat) its own words. A hard
+   * fallback timer guarantees the mic resumes even if onend never fires.
+   */
   function speak(text: string) {
     setConfirm(text);
-    lastSpoken.current = text.toLowerCase();
     if (captionTimer.current) clearTimeout(captionTimer.current);
     captionTimer.current = setTimeout(() => setConfirm(""), 6000);
+
+    // Stop listening for the whole duration of the reply.
+    suspended.current = true;
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* no-op */
+    }
+
     try {
       const synth = window.speechSynthesis;
-      if (!synth) return;
+      if (!synth) {
+        resumeListening();
+        return;
+      }
       synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       if (voiceRef.current) u.voice = voiceRef.current;
@@ -122,29 +156,38 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
       u.rate = 0.95;
       u.pitch = 1.05;
       u.volume = 0.85;
-      speakingRef.current = true;
-      u.onend = () => {
-        speakingRef.current = false;
-        // Keep a short guard window after speech ends to swallow trailing echo.
-        muteUntil.current = performance.now() + 700;
-      };
-      u.onerror = () => {
-        speakingRef.current = false;
-        muteUntil.current = performance.now() + 700;
-      };
+      u.onend = () => resumeListening();
+      u.onerror = () => resumeListening();
       synth.speak(u);
+      // Safety net: estimate speech length (~12 chars/sec) and force-resume if
+      // onend is dropped (happens on some browsers when the tab is busy).
+      const est = Math.min(8000, 1200 + text.length * 80);
+      if (restartTimer.current) clearTimeout(restartTimer.current);
+      restartTimer.current = setTimeout(() => {
+        suspended.current = false;
+        if (wantListening.current) {
+          try {
+            recRef.current?.start();
+          } catch {
+            /* already running */
+          }
+        }
+      }, est);
     } catch {
-      /* speech synthesis unavailable — caption still shows the confirmation */
+      resumeListening();
     }
   }
 
   function handleTranscript(transcript: string) {
-    // Drop anything heard while we're speaking or within the post-speech guard —
-    // this is what stops the assistant repeating its own confirmation forever.
-    if (speakingRef.current || performance.now() < muteUntil.current) return;
-    const heard = transcript.toLowerCase();
-    // Extra guard: ignore a result that is just our own last confirmation echoed.
-    if (lastSpoken.current && heard.length > 6 && lastSpoken.current.includes(heard)) return;
+    // Ignore anything heard while the mic is meant to be off (belt & braces on
+    // top of physically stopping it).
+    if (suspended.current) return;
+
+    const heard = transcript.toLowerCase().trim();
+    // Dedupe identical results fired twice in quick succession.
+    const now = performance.now();
+    if (heard === lastHandled.current.text && now - lastHandled.current.at < 2500) return;
+    lastHandled.current = { text: heard, at: now };
 
     const { recognized, reply } = tryVoiceCommand(transcript, {
       getState,
@@ -162,7 +205,7 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
     if (!recognized) return;
 
     setCaption(transcript);
-    speak(reply);
+    speak(reply); // speaks exactly once; mic is off until it finishes
   }
 
   function start() {
@@ -185,9 +228,11 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
       }
     };
     rec.onend = () => {
-      // Auto-restart while the operator still wants to listen (continuous mode
-      // ends on silence in some browsers). This is session continuity, NOT the
-      // command-repeat bug — that's handled by the speak/mute guards above.
+      // While suspended (we're speaking a reply) do NOT auto-restart — the
+      // utterance's onend resumes the mic once it's done talking. This is the
+      // crux of the no-repeat fix: the mic stays off for the whole reply.
+      if (suspended.current) return;
+      // Otherwise keep listening across the silence-driven onend (continuity).
       if (wantListening.current) {
         try {
           rec.start();
@@ -210,9 +255,12 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
 
   function stop() {
     wantListening.current = false;
+    suspended.current = false;
     setListening(false);
+    if (restartTimer.current) clearTimeout(restartTimer.current);
     try {
       recRef.current?.stop();
+      window.speechSynthesis?.cancel();
     } catch {
       /* no-op */
     }
@@ -226,6 +274,7 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
   useEffect(() => {
     return () => {
       wantListening.current = false;
+      if (restartTimer.current) clearTimeout(restartTimer.current);
       try {
         recRef.current?.stop();
         window.speechSynthesis?.cancel();

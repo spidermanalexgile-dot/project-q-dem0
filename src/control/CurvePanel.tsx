@@ -395,6 +395,17 @@ function CurveChart() {
 
 /* ─── Annual demand profile ("zoom out" — whole-year DPM view) ───────────── */
 
+/** Plain-English crowd descriptor for a demand %, so a non-technical viewer can
+ *  read the chart at a glance. Demand % = visitors that day vs. the target/normal
+ *  day (100% = a normal full day; 200% = twice as crowded). */
+function crowdLabel(demandPct: number): string {
+  if (demandPct >= 175) return "Very busy";
+  if (demandPct >= 125) return "Busy";
+  if (demandPct >= 85) return "Normal";
+  if (demandPct >= 50) return "Quiet";
+  return "Very quiet";
+}
+
 function YearCurve() {
   const state = useStore();
   if (!state) return <div className="curve-stage" />;
@@ -495,12 +506,12 @@ function YearCurve() {
           </g>
         ))}
 
-        {/* X ticks (days) */}
+        {/* X ticks (cumulative days of the year) */}
         {xTicks.map((d, i) => (
           <g key={"xt-" + i}>
             <line x1={xS(d)} y1={baseY} x2={xS(d)} y2={baseY + 5} stroke="currentColor" opacity="0.25" />
             <text x={xS(d)} y={baseY + 20} textAnchor="middle" className="curve-tick-label">
-              {d}d
+              {d === 0 ? "0" : `${d} days`}
             </text>
           </g>
         ))}
@@ -557,10 +568,21 @@ function YearCurve() {
               strokeWidth="2.5"
               strokeLinecap="round"
             />
-            {b.x1 - b.x0 > 70 && (
-              <text x={(b.x0 + b.x1) / 2} y={b.y - 8} textAnchor="middle" className="year-band-label">
-                {b.demand}% · {b.days}d · {fmtEur(b.fee)}
-              </text>
+            {b.x1 - b.x0 > 64 && (
+              <g>
+                <text
+                  x={(b.x0 + b.x1) / 2}
+                  y={b.y - 22}
+                  textAnchor="middle"
+                  className="year-band-label"
+                  style={{ fontWeight: 600 }}
+                >
+                  {crowdLabel(b.demand)}
+                </text>
+                <text x={(b.x0 + b.x1) / 2} y={b.y - 9} textAnchor="middle" className="year-band-label">
+                  {b.days} days · fee {fmtEur(b.fee)}
+                </text>
+              </g>
             )}
           </g>
         ))}
@@ -580,10 +602,26 @@ function YearCurve() {
           opacity="0.5"
         />
         <text x={padL + 6} y={activeY - 7} className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
-          Modelled day · {activeDay.label} · {activeDay.demand_pct}%
+          Day you're modelling · {activeDay.label} · {crowdLabel(activeDay.demand_pct)}
         </text>
 
-        {/* Axis label */}
+        {/* Y-axis caption (left, vertical-ish) */}
+        <text
+          x={padL - 10}
+          y={padT - 12}
+          textAnchor="start"
+          style={{
+            fill: "var(--ink-soft)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+          }}
+        >
+          ↑ How busy (100% = normal day)
+        </text>
+
+        {/* X-axis caption */}
         <text
           x={w - padR}
           y={h - 8}
@@ -596,7 +634,7 @@ function YearCurve() {
             textTransform: "uppercase",
           }}
         >
-          Days per year · sorted by demand
+          Days of the year, busiest → quietest →
         </text>
       </svg>
     </div>
@@ -660,12 +698,12 @@ export function CurvePanel() {
       <header className="panel-header">
         <div>
           <div className="panel-title">
-            {view === "cost" ? "Consumer cost curve" : "Annual demand profile"}
+            {view === "cost" ? "Consumer cost curve" : "How busy the city is across the year"}
           </div>
           <div className="panel-sub" style={{ marginTop: 4 }}>
             {view === "cost"
-              ? `${activeDay.demand_pct}% of target · ${activeDay.date}`
-              : `${totalDays}-day DPM rollup · ${state.seasonal.length} demand bands`}
+              ? `${activeDay.demand_pct}% of a normal day · ${activeDay.date}`
+              : `${totalDays} days grouped busiest → quietest · taller = more crowded`}
           </div>
         </div>
         <div className="curve-legend">
@@ -707,7 +745,16 @@ export function CurvePanel() {
           <BucketStrip />
         </>
       ) : (
-        <YearCurve />
+        <>
+          <YearCurve />
+          <p className="year-explainer">
+            Each block is a stretch of the year at a similar crowd level — widest
+            blocks are the most common kind of day. <strong>Height = how busy</strong> (100%
+            is a normal day, 200% is twice as crowded); the <strong>fee</strong> shown is what a
+            visitor pays on those days. Read it left-to-right: the busy, higher-fee
+            days first, down to the quiet, cheap days.
+          </p>
+        </>
       )}
     </section>
   );

@@ -196,7 +196,18 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
           <div className="tb-divider" />
 
           <div className="tb-field">
-            <div className="tb-label">Demand · type any %</div>
+            <div className="tb-label">
+              Crowd level
+              <span
+                className="tb-help"
+                tabIndex={0}
+                role="note"
+                aria-label="What is crowd level? It's how busy the day is versus a normal day. 100 percent is a normal day, 200 percent is twice as crowded, 50 percent is half-empty."
+                title="How busy the day is vs. a normal day. 100% = a normal day · 200% = twice as crowded · 50% = half-empty. Higher crowds = higher fee."
+              >
+                ?
+              </span>
+            </div>
             <div className={"tb-demand-input" + (isCustom ? " custom" : "")}>
               <input
                 type="number"
@@ -208,7 +219,7 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
                   const v = e.target.value;
                   setDemand(v === "" ? null : Number(v));
                 }}
-                aria-label="Modelled demand percentage"
+                aria-label="Crowd level percentage versus a normal day"
               />
               <span className="tb-demand-suffix">%</span>
             </div>
