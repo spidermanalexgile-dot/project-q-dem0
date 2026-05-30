@@ -1375,3 +1375,14 @@
   cursor: pointer;
 }
 .qctl-root.dark .qctl-analyst-input button { background: rgba(90,140,255,0.4); color: #fff; }
+
+/* Analyst header actions (speaker toggle + close) */
+.qctl-analyst-head-actions { display: inline-flex; align-items: center; gap: 4px; }
+.qctl-analyst-speak {
+  appearance: none; background: transparent; border: 0;
+  color: var(--ink-soft); cursor: pointer; padding: 5px; border-radius: 8px;
+  display: inline-flex; transition: color 0.15s ease, background 0.15s ease;
+}
+.qctl-analyst-speak svg { width: 17px; height: 17px; }
+.qctl-analyst-speak:hover { color: var(--ink); background: rgba(127,127,127,0.12); }
+.qctl-analyst-speak.on { color: var(--teal); }

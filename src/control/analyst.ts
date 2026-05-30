@@ -225,6 +225,118 @@ export function ask(qRaw: string, snap: State): AnalystResult {
     return { answer: `At ${demand}% busy, a visitor pays ${eur(fee)} — ${how}` };
   }
 
+  // ── 2b. EXPLAIN revenue (why is <period> revenue €X / how is it worked out) ─
+  if (/\b(why|how|explain|what makes|break ?down)\b/.test(q) && /\brevenue\b/.test(q) &&
+      !/\b(change|raise|increase|grow|lift|lower|reduce|drop|cut|boost|add|hit|reach|cheap|best|which|fastest|easiest)\b/.test(q)) {
+    const monthIdx = findMonth(q);
+    const tc = leverObj(snap, "target_capacity")!.value;
+    if (monthIdx != null) {
+      const r = monthRevenue(snap, monthIdx, year);
+      const dim = daysInMonth(monthIdx, year);
+      // Sample a representative mid-month day to illustrate.
+      const midIso = `${year}-${String(monthIdx + 1).padStart(2, "0")}-15`;
+      const midDemand = demandForISO(midIso, snap.day_types) ?? 100;
+      const midFee = feeAtPct(midDemand, snap);
+      return {
+        answer:
+          `${MONTH_TITLE[monthIdx]} is projected at ${eurCompact(r)}.\n\n` +
+          `It's the sum over all ${dim} days of (visitors × fee). Each day's visitors = ` +
+          `${tc.toLocaleString("en-US")} target × that day's crowd level, and the fee comes from the ` +
+          `cost curve at that crowd level. For example mid-month (${midDemand}% busy) a visitor pays ` +
+          `${eur(midFee)}, so that day earns ≈ ${eurCompact(dayRevenue(midDemand, snap))}. ` +
+          `Quieter winter days pull the month down; busier days lift it.`,
+      };
+    }
+    const r = annualRevenue(snap);
+    // Show the seasonal-band contributions.
+    const bands = [...snap.seasonal]
+      .map((s) => ({ ...s, rev: s.days * dayRevenue(s.demand_pct, snap) }))
+      .sort((a, b) => b.rev - a.rev);
+    const lines = bands
+      .map((b) => `• ${b.demand_pct}% busy × ${b.days} days → ${eurCompact(b.rev)}`)
+      .join("\n");
+    return {
+      answer:
+        `Annual revenue is ${eurCompact(r)}.\n\n` +
+        `It's built from the DPM's seasonal bands — each is (visitors × fee × number of days):\n` +
+        `${lines}\n\n` +
+        `Visitors = ${tc.toLocaleString("en-US")} target capacity × crowd level; the fee per visitor ` +
+        `is read off the cost curve at that crowd level. The busiest bands dominate the total.`,
+    };
+  }
+
+  // ── 3a. COMPARE levers: cheapest / best / which lever for a revenue goal ───
+  if (/\b(cheapest|best|which|fastest|easiest|smallest|most efficient|least)\b/.test(q) &&
+      /\brevenue\b/.test(q)) {
+    const monthIdx = findMonth(q);
+    const amount = parseMoney(q.replace(/\b20\d{2}\b/g, ""));
+    const direction = /\b(lower|reduce|drop|cut|decrease|down|less)\b/.test(q) ? -1 : 1;
+    const metric =
+      monthIdx != null ? (s: State) => monthRevenue(s, monthIdx, year) : (s: State) => annualRevenue(s);
+    const periodLabel = monthIdx != null ? MONTH_TITLE[monthIdx] : "annual";
+    if (amount == null) {
+      return { answer: `Which target? e.g. "what's the cheapest way to add €3M to ${periodLabel} revenue?"` };
+    }
+    const current = metric(snap);
+    const target = current + direction * Math.abs(amount);
+    const tol = Math.max(1, Math.abs(amount) * 0.05);
+    type Cand = { id: LeverId; value: number; achieved: number; miss: number; effort: number; moves: boolean };
+    const candidates: Cand[] = [];
+    for (const id of ["base_fee", "max_fee_cap", "target_capacity", "ceiling_pct"] as LeverId[]) {
+      const sol = solveLever(snap, id, metric, target);
+      const lev = leverObj(snap, id)!;
+      if (!sol) continue;
+      const achieved = metric(withLever(snap, id, sol.value));
+      candidates.push({
+        id,
+        value: sol.value,
+        achieved,
+        miss: Math.abs(achieved - target),
+        effort: Math.abs(sol.value - lev.value) / Math.max(1, lev.max - lev.min),
+        moves: sol.value !== lev.value,
+      });
+    }
+    if (!candidates.length) return { answer: `I couldn't find a lever that moves ${periodLabel} revenue that far.` };
+
+    // Rank by how close they land to the target, then by the smallest move.
+    candidates.sort((a, b) => a.miss - b.miss || a.effort - b.effort);
+    const best = candidates[0];
+    const lev = leverObj(snap, best.id)!;
+    const reaches = best.miss <= tol;
+
+    const ranked = candidates
+      .slice(0, 3)
+      .map((c) => {
+        const l = leverObj(snap, c.id)!;
+        const lands = `lands ${eurCompact(c.achieved - current >= 0 ? c.achieved - current : c.achieved - current)} (${eurCompact(c.achieved)})`;
+        return `• ${LEVER_SPOKEN[c.id]}: ${spokenLeverValue(c.id, l.value)} → ${spokenLeverValue(c.id, c.value)} — ${lands}`;
+      })
+      .join("\n");
+
+    if (!reaches) {
+      // No lever can hit the target precisely — usually because the ask is small
+      // relative to a single lever step. Be honest and show the closest.
+      return {
+        answer:
+          `No single lever can move ${periodLabel} revenue by exactly ${eurCompact(direction * Math.abs(amount))} — ` +
+          `that's smaller than one step of any lever (each step shifts it more than that).\n\n` +
+          `Closest is ${LEVER_SPOKEN[best.id]} → ${spokenLeverValue(best.id, best.value)}, which lands ` +
+          `${eurCompact(best.achieved - current)} (${eurCompact(best.achieved)} vs. ${eurCompact(current)} now).\n\n` +
+          `Options, nearest first:\n${ranked}`,
+        action: best.moves ? { setLever: { id: best.id, value: best.value } } : undefined,
+      };
+    }
+
+    return {
+      answer:
+        `Cheapest lever to move ${periodLabel} revenue by ${eurCompact(direction * Math.abs(amount))}: ` +
+        `${LEVER_SPOKEN[best.id]}.\n\nSet it to ${spokenLeverValue(best.id, best.value)} ` +
+        `(from ${spokenLeverValue(best.id, lev.value)}) — the smallest move that gets there ` +
+        `(lands ${eurCompact(best.achieved)}).\n\nOther options:\n${ranked}\n\nApply the cheapest?`,
+      action: best.moves ? { setLever: { id: best.id, value: best.value } } : undefined,
+    };
+  }
+
   // ── 3. GOAL-SEEK: change <period> revenue by <amount> via <lever> ─────────
   if (/\b(change|raise|increase|grow|lift|lower|reduce|drop|cut|boost|add|by|make|hit|reach|get)\b/.test(q) &&
       /\brevenue\b/.test(q)) {

@@ -2,6 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { getState, setLever } from "./state";
 import { ask, type AnalystAction } from "./analyst";
 import { LEVER_SPOKEN, spokenLeverValue } from "./voice";
+import { speak, cancelSpeech } from "./speech";
+
+const SPEAK_KEY = "qctl-analyst-speak";
+
+/** Condense an answer to a sentence or two for speaking aloud (the on-screen
+ *  text keeps the full breakdown). */
+function spokenSummary(text: string): string {
+  // Drop bullet lines and the "Apply it?" prompt; keep the first 2 sentences.
+  const cleaned = text
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("•") && !l.trim().startsWith("✓"))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .replace(/Apply (it|the cheapest)\?/i, "")
+    .replace(/[€]/g, "")
+    .trim();
+  const sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];
+  return sentences.slice(0, 2).join(" ").trim();
+}
 
 type Msg =
   | { role: "user"; text: string }
@@ -9,9 +28,9 @@ type Msg =
 
 const SUGGESTIONS = [
   "Why is Feb 2nd's demand 139%?",
+  "What's the cheapest way to add €3M to annual revenue?",
+  "Why is annual revenue so high?",
   "Raise January revenue by €3M via the base fee",
-  "Why is the fee on August 1st?",
-  "What's annual revenue right now?",
 ];
 
 export function AnalystPanel() {
@@ -25,8 +44,24 @@ export function AnalystPanel() {
         "or set a revenue goal and I'll solve which lever to move.",
     },
   ]);
+  const [speakOn, setSpeakOn] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SPEAK_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPEAK_KEY, speakOn ? "on" : "off");
+    } catch {
+      /* no-op */
+    }
+    if (!speakOn) cancelSpeech();
+  }, [speakOn]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -60,6 +95,7 @@ export function AnalystPanel() {
     }
     const res = ask(q, snap);
     setMsgs((m) => [...m, { role: "agent", text: res.answer, action: res.action }]);
+    if (speakOn) speak(spokenSummary(res.answer));
   }
 
   function applyAction(action: AnalystAction, atIndex: number) {
@@ -115,14 +151,36 @@ export function AnalystPanel() {
             <div className="qctl-analyst-title">
               <span className="qctl-analyst-dot" /> Project Q Analyst
             </div>
-            <button
-              type="button"
-              className="qctl-analyst-close"
-              onClick={() => setOpen(false)}
-              aria-label="Close analyst"
-            >
-              ✕
-            </button>
+            <div className="qctl-analyst-head-actions">
+              <button
+                type="button"
+                className={"qctl-analyst-speak" + (speakOn ? " on" : "")}
+                onClick={() => setSpeakOn((s) => !s)}
+                title={speakOn ? "Mute spoken answers" : "Speak answers aloud"}
+                aria-label={speakOn ? "Mute spoken answers" : "Speak answers aloud"}
+                aria-pressed={speakOn}
+              >
+                <svg viewBox="0 0 18 18" aria-hidden="true">
+                  <path d="M4 7H2.5v4H4l3.5 2.6V4.4L4 7Z" fill="currentColor" />
+                  {speakOn ? (
+                    <>
+                      <path d="M10.5 6.2a3.2 3.2 0 0 1 0 5.6" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      <path d="M12.3 4.3a5.8 5.8 0 0 1 0 9.4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </>
+                  ) : (
+                    <path d="M11 6.5l4 5M15 6.5l-4 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  )}
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="qctl-analyst-close"
+                onClick={() => setOpen(false)}
+                aria-label="Close analyst"
+              >
+                ✕
+              </button>
+            </div>
           </header>
 
           <div className="qctl-analyst-log" ref={scrollRef}>
