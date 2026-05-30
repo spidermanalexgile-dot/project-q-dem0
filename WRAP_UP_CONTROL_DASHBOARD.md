@@ -381,3 +381,26 @@ backward compatibility with the live-agent command API — only the UI affordanc
   New `setDemand(pct | null)` command added to the `window.ProjectQ` API (clamped
   0–400%). Verified live: typing 175 → demand 175; picking December weekday →
   reverts to 45%.
+
+---
+
+## Calendar date picker (2026-05-30)
+
+The operator can now model **any specific calendar date**, not just the preset day
+types or a raw demand %.
+
+- A native **date input** sits in the TopBar (Modelling-day group). Pick any date
+  and the dashboard models that day.
+- The demand % for the chosen date is **interpolated deterministically from the
+  DPM's own `day_type` date anchors** (each carries a date + `demand_pct`): an
+  anchor date resolves to its exact demand; a date between two anchors blends
+  linearly; the Dec→Jan boundary wraps. No demand is invented — only Ollie's DPM
+  values are blended. Verified live: 1 Aug → 200%, 9 Dec → 45%, 27 May → 130%,
+  14 Feb → 160%, 1 Jul → 167% (between Biennale 130% and Peak 200%).
+- New deterministic `src/control/dateutil.ts` (Sakamoto weekday + day-of-year,
+  **no `Date.now`, no `Math.random`, no timezone reads**) keeps the live-agent
+  read-back property intact.
+- `state.customDate` holds the picked ISO date; it drives the whole dashboard via
+  `activeDayType()` (callout shows e.g. "Calendar day · Sat 1 Aug 2026 · 200%").
+  New `setDate(iso | null)` command on `window.ProjectQ`. Choosing a preset day or
+  typing a raw % clears the date; `setDate(null)` reverts.
