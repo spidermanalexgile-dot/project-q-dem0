@@ -439,3 +439,32 @@ confirmation back**.
   path as a return-string API — used by the live agent and by the headless test
   (no microphone needed). Browser support: Chrome/Edge/Safari (Web Speech API);
   where unavailable the mic button hides but `voiceCommand` still works.
+
+---
+
+## Voice refinements (2026-05-30)
+
+Three follow-ups to the first voice integration.
+
+### Softer, more feminine voice
+`pickFemaleVoice()` scores the browser's installed voices and prefers known soft
+female voices (Samantha, Victoria, Serena, Aria, Google UK English Female, …),
+then any voice advertising "female", avoiding obviously male voices. Delivery was
+softened: `rate 0.95`, `pitch 1.35`, `volume 0.9`.
+
+### Fixed the continuous command-repeat
+The confirmation spoken aloud was being picked up by the microphone and re-run as
+a fresh command — an endless loop. Fixed with a self-hearing guard: while speaking
+(and for ~700 ms after) `speakingRef`/`muteUntil` are set, and `handleTranscript()`
+drops any result heard during that window or that echoes the last confirmation.
+Recognition still auto-restarts on silence for session continuity, but it can no
+longer re-trigger its own reply.
+
+### Every control is voice-reachable, including the date picker
+`parseSpokenDate()` (in `dateutil.ts`) understands ISO ("2026-08-01"), "August 1st",
+"9th of December", "first of July" (ordinal words), and an optional explicit year.
+New `date` and `reset` voice intents; `setDate` is wired into the shared executor
+and `window.ProjectQ.voiceCommand`. Spoken dates interpolate demand from the DPM
+day_type anchors exactly like the picker (e.g. "first of July" → 1 Jul 2026, 167%).
+Full coverage now: levers, free-form demand, day types, **calendar date**, reset,
+curve view, and theme. Verified live: 15/15 commands, 0 console errors.
