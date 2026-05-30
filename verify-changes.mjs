@@ -16,68 +16,68 @@ page.on("pageerror", (e) => errors.push(String(e)));
 await page.goto(URL, { waitUntil: "networkidle" });
 await page.waitForSelector(".confidence-pill", { timeout: 20000 });
 
-// 1. Lever maxes raised dramatically (read from payload).
+// 1. New lever maxes.
 const levers = await page.evaluate(() =>
-  Object.fromEntries(window.ProjectQ.getState().levers.map((l) => [l.id, { max: l.max, value: l.value }])),
+  Object.fromEntries(window.ProjectQ.getState().levers.map((l) => [l.id, l.max])),
 );
 log("LEVER_MAXES", JSON.stringify(levers));
-log("TICK_LABELS", JSON.stringify(await page.$$eval(".ticks", (ts) => ts.map((t) => t.textContent.trim()))));
 
-// 2. Year 1/2/3 removed from the top bar.
-const phaseButtons = await page.$$eval("button", (bs) =>
-  bs.map((b) => b.textContent.trim()).filter((t) => /^YR/.test(t)),
+// 2. No y-axis (€) number labels on the cost curve — only X ticks (%) remain.
+const tickLabels = await page.$$eval(".curve-svg .curve-tick-label", (ts) =>
+  ts.map((t) => t.textContent.trim()),
 );
-log("PHASE_BUTTONS_REMAINING", JSON.stringify(phaseButtons));
+log("CURVE_TICK_LABELS", JSON.stringify(tickLabels));
+log("ANY_EURO_LABEL", tickLabels.some((t) => t.includes("€")));
 
-// confidence + exponent still correct.
+// 3. Free-form demand input.
+const demandInput = page.locator(".tb-demand-input input");
+log("DEMAND_INPUT_PRESENT", await demandInput.count());
+log("DEMAND_INPUT_START", await demandInput.inputValue());
+await demandInput.fill("175");
+await demandInput.dispatchEvent("input");
+await page.waitForTimeout(250);
 log(
-  "CORE",
+  "AFTER_TYPING_175",
   JSON.stringify(
     await page.evaluate(() => {
       const s = window.ProjectQ.getState();
-      return { confidence: s.confidence, exponent: s.curve.shape.exponent };
+      return { customDemand: s.customDemand, activeDemand: window.ProjectQ.compute().activeDay.demand_pct };
     }),
   ),
 );
-
-// 3. "Zoom out" annual demand view.
-await page.screenshot({ path: OUT + "/cost-light.png" });
-const yearBtn = page.locator(".curve-view-toggle button", { hasText: "Zoom out" });
-await yearBtn.click();
-await page.waitForTimeout(300);
-log("YEAR_TITLE", (await page.textContent(".panel-title"))?.trim());
-log("YEAR_BANDS", await page.$$eval("g[key], .year-band-label", () => 0).catch(() => "n/a"));
-log("YEAR_HAS_SVG", await page.locator(".curve-stage svg").count());
-await page.screenshot({ path: OUT + "/year-light.png" });
-// back to cost
-await page.locator(".curve-view-toggle button", { hasText: "Cost curve" }).click();
+// Selecting a preset day clears the custom override.
+await page.selectOption(".tb-context select >> nth=1", "dec_weekday");
 await page.waitForTimeout(200);
-
-// 4. Dark mode toggle.
-const before = await page.evaluate(() => document.querySelector(".qctl-root").className);
-await page.locator(".tb-theme").click();
-await page.waitForTimeout(300);
-const after = await page.evaluate(() => document.querySelector(".qctl-root").className);
-log("ROOT_CLASS_BEFORE", before, "| AFTER", after);
-const bg = await page.evaluate(() =>
-  getComputedStyle(document.querySelector(".qctl-root")).backgroundColor,
-);
-log("DARK_BG", bg);
-await page.screenshot({ path: OUT + "/cost-dark.png" });
-await page.locator(".curve-view-toggle button", { hasText: "Zoom out" }).click();
-await page.waitForTimeout(300);
-await page.screenshot({ path: OUT + "/year-dark.png" });
-
-// command API still intact.
 log(
-  "CMD_API",
+  "AFTER_PICK_DEC",
   JSON.stringify(
     await page.evaluate(() => {
-      window.ProjectQ.setLever("max_fee_cap", 800);
-      return { cap: window.ProjectQ.getState().levers.find((l) => l.id === "max_fee_cap").value };
+      const s = window.ProjectQ.getState();
+      return { customDemand: s.customDemand, activeDay: s.activeDay, demand: window.ProjectQ.compute().activeDay.demand_pct };
     }),
   ),
 );
+// setDemand command API.
+log(
+  "SETDEMAND_API",
+  await page.evaluate(() => {
+    window.ProjectQ.setDemand(260);
+    return window.ProjectQ.getState().customDemand;
+  }),
+);
+await page.evaluate(() => window.ProjectQ.setDemand(null));
+
+log("CORE", JSON.stringify(await page.evaluate(() => {
+  const s = window.ProjectQ.getState();
+  return { confidence: s.confidence, exponent: s.curve.shape.exponent };
+})));
+
+await page.screenshot({ path: OUT + "/cost-light.png" });
+// dark mode
+await page.locator(".tb-theme").click();
+await page.waitForTimeout(250);
+log("DARK_BG", await page.evaluate(() => getComputedStyle(document.querySelector(".qctl-root")).backgroundColor));
+await page.screenshot({ path: OUT + "/cost-dark.png" });
 
 log("CONSOLE_ERRORS", JSON.stringify(errors));
 await browser.close();

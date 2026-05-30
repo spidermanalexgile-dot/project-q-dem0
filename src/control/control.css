@@ -203,6 +203,57 @@
   text-align: center;
 }
 
+/* Editable free-form demand input (replaces the read-only chip). */
+.qctl-root .tb-demand-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.qctl-root .tb-demand-input:hover {
+  border-color: var(--hairline-strong);
+}
+.qctl-root .tb-demand-input:focus-within {
+  border-color: var(--ochre);
+  background: rgba(227, 169, 60, 0.06);
+}
+.qctl-root .tb-demand-input.custom {
+  border-color: var(--ochre);
+}
+.qctl-root .tb-demand-input input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  width: 46px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-align: right;
+  padding: 0;
+}
+.qctl-root .tb-demand-input input:focus {
+  outline: none;
+}
+.qctl-root .tb-demand-input input::-webkit-outer-spin-button,
+.qctl-root .tb-demand-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.qctl-root .tb-demand-suffix {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-mute);
+}
+
 .qctl-root .phase-toggle {
   display: inline-flex;
   background: rgba(28, 25, 23, 0.04);

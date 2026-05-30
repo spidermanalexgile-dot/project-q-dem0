@@ -60,6 +60,9 @@ export type State = {
   seasonal: SeasonalBin[];
 
   activeDay: string;
+  // Free-form modelled demand. When non-null the operator has typed a demand %
+  // directly and it overrides the selected day_type's demand_pct everywhere.
+  customDemand: number | null;
 
   // delta-tracking internals
   __lastDayRev: number;
@@ -71,7 +74,7 @@ export type State = {
 
 export type Payload = Omit<
   State,
-  "activeDay" | "__lastDayRev" | "__lastAnnualRev" | "__prevDayRev" | "__prevAnnualRev" | "__deltaSeq"
+  "activeDay" | "customDemand" | "__lastDayRev" | "__lastAnnualRev" | "__prevDayRev" | "__prevAnnualRev" | "__deltaSeq"
 > & {
   activeDay?: string;
   // payload may omit phase; defaults to Year 1 / real pay cap 20
@@ -155,6 +158,15 @@ export function annualRevenue(snap: State = requireState()): number {
 }
 
 export function activeDayType(snap: State = requireState()): DayType {
+  // A typed free-form demand overrides the selected preset day everywhere.
+  if (snap.customDemand != null) {
+    return {
+      id: "__custom",
+      label: "Custom demand",
+      date: "Free-form",
+      demand_pct: snap.customDemand,
+    };
+  }
   return snap.day_types.find((d) => d.id === snap.activeDay) || snap.day_types[0];
 }
 
@@ -266,6 +278,7 @@ export function loadPayload(input: Payload | string): void {
   // pricing calc reads it. See normalizeCurveExponent() above for the rationale.
   normalizeCurveExponent(next.curve.shape);
   if (!next.activeDay) next.activeDay = next.day_types[0].id;
+  next.customDemand = null;
   if (!next.phase) next.phase = { year: 1, real_pay_cap: 20 };
   // Initialise delta-tracking fields against the new state.
   next.__lastDayRev = 0;
@@ -294,9 +307,23 @@ export function setLever(id: LeverId | string, value: number): void {
 
 export function setDayType(id: string): void {
   const s = requireState();
-  if (s.activeDay === id) return;
+  // Selecting a preset day clears any free-form demand override.
+  if (s.activeDay === id && s.customDemand == null) return;
   bumpDeltas();
   s.activeDay = id;
+  s.customDemand = null;
+  commitDeltas();
+  notify();
+}
+
+/** Free-form modelled demand (%). Pass null to revert to the selected day_type.
+ *  Clamped to a sane 0–400% range. */
+export function setDemand(pct: number | null): void {
+  const s = requireState();
+  const next = pct == null ? null : Math.max(0, Math.min(400, Math.round(Number(pct))));
+  if (s.customDemand === next) return;
+  bumpDeltas();
+  s.customDemand = next;
   commitDeltas();
   notify();
 }
@@ -363,6 +390,7 @@ export type ProjectQApi = {
   loadPayload: typeof loadPayload;
   setLever: typeof setLever;
   setDayType: typeof setDayType;
+  setDemand: typeof setDemand;
   setPhase: typeof setPhase;
   setRebate: typeof setRebate;
   getState: typeof getState;
@@ -381,6 +409,7 @@ export function installGlobalApi(): void {
     loadPayload,
     setLever,
     setDayType,
+    setDemand,
     setPhase,
     setRebate,
     getState,

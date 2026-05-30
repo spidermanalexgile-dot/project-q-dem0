@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStore } from "./useStore";
-import { feeAtPct, payAtPct, type State } from "./state";
+import { feeAtPct, payAtPct, activeDayType, type State } from "./state";
 import { fmtEur } from "./format";
 
 function leverV(state: State, id: string): number {
@@ -77,7 +77,7 @@ function CurveChart() {
 
   // Active day dot + callout.
   const activeDay =
-    state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
+    activeDayType(state);
   const activeFee = feeAtPct(activeDay.demand_pct, state);
   const activePay = payAtPct(activeDay.demand_pct, state);
   const ax = xS(Math.min(xMax, Math.max(xMin, activeDay.demand_pct)));
@@ -115,7 +115,8 @@ function CurveChart() {
           </filter>
         </defs>
 
-        {/* Horizontal gridlines + €-axis ticks */}
+        {/* Horizontal gridlines (left-hand €-axis number labels intentionally
+            omitted — the curve markers + active-day callout carry the values). */}
         {yGrid.map((v) => (
           <g key={"yg-" + v}>
             <line
@@ -126,14 +127,6 @@ function CurveChart() {
               stroke="currentColor"
               opacity={v === 0 ? 0.18 : 0.07}
             />
-            <text
-              x={padL - 10}
-              y={yS(v) + 4}
-              textAnchor="end"
-              className="curve-tick-label"
-            >
-              €{v}
-            </text>
           </g>
         ))}
 
@@ -473,7 +466,7 @@ function YearCurve() {
   const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(totalDays * f));
 
   const activeDay =
-    state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
+    activeDayType(state);
   const activeY = yS(Math.min(yMax, activeDay.demand_pct));
 
   return (
@@ -661,7 +654,7 @@ export function CurvePanel() {
   const [view, setView] = useState<"cost" | "year">("cost");
   if (!state) return null;
   const activeDay =
-    state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
+    activeDayType(state);
   const totalDays = state.seasonal.reduce((a, s) => a + s.days, 0);
   return (
     <section className="panel panel-pad curve-panel">

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setDayType, loadPayload, getState } from "./state";
+import { setDayType, setDemand, loadPayload, getState } from "./state";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
 
@@ -79,8 +79,11 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
   }, []);
 
   if (!state) return null;
-  const activeDay =
+  const selectedDay =
     state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
+  const isCustom = state.customDemand != null;
+  // Effective modelled demand: the typed free-form value, else the preset day's.
+  const demand = isCustom ? (state.customDemand as number) : selectedDay.demand_pct;
 
   return (
     <>
@@ -159,9 +162,12 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
             <div className="tb-label">Modelling day</div>
             <div className="tb-select">
               <select
-                value={state.activeDay}
+                value={isCustom ? "__custom" : state.activeDay}
                 onChange={(e) => setDayType(e.target.value)}
               >
+                {isCustom && (
+                  <option value="__custom">Custom demand · {demand}%</option>
+                )}
                 {state.day_types.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.label} · {d.date}
@@ -174,8 +180,22 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
           <div className="tb-divider" />
 
           <div className="tb-field">
-            <div className="tb-label">Demand</div>
-            <div className="tb-demand-chip">{activeDay.demand_pct}%</div>
+            <div className="tb-label">Demand · type any %</div>
+            <div className={"tb-demand-input" + (isCustom ? " custom" : "")}>
+              <input
+                type="number"
+                min={0}
+                max={400}
+                step={5}
+                value={demand}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDemand(v === "" ? null : Number(v));
+                }}
+                aria-label="Modelled demand percentage"
+              />
+              <span className="tb-demand-suffix">%</span>
+            </div>
           </div>
         </div>
 
