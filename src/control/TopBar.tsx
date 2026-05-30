@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setDayType, setDemand, loadPayload, getState } from "./state";
+import { setDayType, setDemand, setDate, loadPayload, getState } from "./state";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
 
@@ -166,7 +166,9 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
                 onChange={(e) => setDayType(e.target.value)}
               >
                 {isCustom && (
-                  <option value="__custom">Custom demand · {demand}%</option>
+                  <option value="__custom">
+                    {state.customDate ? "Calendar day" : "Custom demand"} · {demand}%
+                  </option>
                 )}
                 {state.day_types.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -174,6 +176,20 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="tb-divider" />
+
+          <div className="tb-field">
+            <div className="tb-label">Pick a date</div>
+            <div className={"tb-date-input" + (state.customDate ? " custom" : "")}>
+              <input
+                type="date"
+                value={state.customDate ?? ""}
+                onChange={(e) => setDate(e.target.value === "" ? null : e.target.value)}
+                aria-label="Model a specific calendar date"
+              />
             </div>
           </div>
 

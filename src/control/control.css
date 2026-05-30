@@ -254,6 +254,54 @@
   color: var(--ink-mute);
 }
 
+/* Calendar date picker — pick any specific day. */
+.qctl-root .tb-date-input {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.qctl-root .tb-date-input:hover {
+  border-color: var(--hairline-strong);
+}
+.qctl-root .tb-date-input:focus-within {
+  border-color: var(--ochre);
+  background: rgba(227, 169, 60, 0.06);
+}
+.qctl-root .tb-date-input.custom {
+  border-color: var(--ochre);
+}
+.qctl-root .tb-date-input input {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 0;
+  cursor: pointer;
+  color-scheme: light;
+}
+.qctl-root.dark .tb-date-input input {
+  color-scheme: dark;
+}
+.qctl-root .tb-date-input input:focus {
+  outline: none;
+}
+.qctl-root .tb-date-input input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  filter: var(--cal-icon-filter, none);
+}
+.qctl-root.dark .tb-date-input input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
 .qctl-root .phase-toggle {
   display: inline-flex;
   background: rgba(28, 25, 23, 0.04);
