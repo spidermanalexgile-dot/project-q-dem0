@@ -25,3 +25,4 @@
 [2026-05-29T02:43:14Z] · fixed light-mode --ink-inverse token; rebuild clean; re-verify; committing · e3ded0a
 [2026-05-29T02:45:21Z] · DONE · prod 200; live: lever maxes 1M/500/2000/1000, dark mode + "zoom out" year view live, YR1/2/3 removed, conf 42 exp 2.2, 0 console errors · ddadb8e
 [2026-05-30T02:50:44Z] · lever maxes 350k/100/1000/300; removed y-axis € labels; modelling-day now free-form demand input (+setDemand API); build clean; local verify pass; pushing · adb486c
+[2026-05-30T02:52:50Z] · DONE · prod 200; live: lever maxes 350k/100/1000/300, y-axis € labels removed, free-form demand input (setDemand) works, conf 42 exp 2.2, 0 console errors · a15367a

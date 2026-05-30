@@ -362,3 +362,22 @@ sits at each demand/fee level. Reads the same store; no engine change.
 The YR 1·2·3 segmented control is gone from the TopBar. `setPhase` remains exported on
 `window.ProjectQ` (and `phase.real_pay_cap` still drives the real-pay-cap line) for
 backward compatibility with the live-agent command API — only the UI affordance was removed.
+
+---
+
+## Dashboard tweaks (2026-05-30)
+
+- **Lever max bounds lowered** (in `dpm-payloads/venice-2026.json`):
+  target_capacity 1,000,000 → **350,000**, base_fee 500 → **100**,
+  max_fee_cap 2,000 → **1,000**, ceiling_pct 1,000 → **300%**. Ticks still derive
+  from the payload bounds.
+- **Removed the left-hand €-axis number labels** on the cost curve (they read as a
+  mislabel against the actual fee values). Horizontal gridlines are kept; the
+  euro values are carried by the curve markers and the active-day callout.
+- **Modelling day is now free-form.** The Demand field is an editable `%` input —
+  type any value and the curve dot, callout and revenue recompute from it. Backed
+  by `state.customDemand`, which overrides the selected `day_type` everywhere via
+  `activeDayType()`; choosing a preset day from the dropdown clears the override.
+  New `setDemand(pct | null)` command added to the `window.ProjectQ` API (clamped
+  0–400%). Verified live: typing 175 → demand 175; picking December weekday →
+  reverts to 45%.
