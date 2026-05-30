@@ -485,7 +485,7 @@ export function installGlobalApi(): void {
     dayRevenue: (demand_pct: number) => dayRevenue(demand_pct),
     annualRevenue: () => annualRevenue(),
     voiceCommand: (transcript: string) =>
-      executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setView }),
+      executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView }),
   };
   (window as unknown as { ProjectQ: ProjectQApi }).ProjectQ = api;
 }

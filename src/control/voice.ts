@@ -9,14 +9,20 @@
  */
 
 import type { LeverId, State } from "./state";
+import { parseSpokenDate, formatISO } from "./dateutil";
+
+/** Modelling year used when a spoken date omits the year (demo context: 2026).
+ *  Not city data — just the default calendar year the picker opens on. */
+export const MODELLING_YEAR = 2026;
 
 export type Intent =
   | { kind: "lever"; id: LeverId; value: number }
   | { kind: "demand"; value: number }
   | { kind: "dayType"; id: string; label: string }
+  | { kind: "date"; iso: string }
   | { kind: "theme"; dark: boolean }
   | { kind: "view"; view: "cost" | "year" }
-  | { kind: "phase"; year: 1 | 2 | 3 };
+  | { kind: "reset" };
 
 /** Friendly spoken names for each lever (used in confirmations). */
 export const LEVER_SPOKEN: Record<LeverId, string> = {
@@ -101,6 +107,16 @@ export function interpretCommand(transcript: string, snap: State): Intent | null
   if (/\b(zoom out|annual|whole year|year view|full year)\b/.test(t)) return { kind: "view", view: "year" };
   if (/\b(zoom in|cost curve|cost view|back to (the )?curve)\b/.test(t)) return { kind: "view", view: "cost" };
 
+  // Reset / clear back to the default preset day.
+  if (/\b(reset|clear|default|first day|back to default)\b/.test(t)) {
+    return { kind: "reset" };
+  }
+
+  // Calendar date (e.g. "model August 1st", "pick the 9th of December",
+  // "go to 2026-02-14"). Checked before day types / levers so a month name wins.
+  const iso = parseSpokenDate(t, MODELLING_YEAR);
+  if (iso) return { kind: "date", iso };
+
   // Day type by spoken label (fuzzy: all significant words present).
   for (const d of snap.day_types) {
     const words = d.label.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
@@ -146,6 +162,7 @@ export type VoiceDeps = {
   setLever: (id: LeverId, value: number) => void;
   setDemand: (pct: number | null) => void;
   setDayType: (id: string) => void;
+  setDate: (iso: string | null) => void;
   setView: (view: "cost" | "year") => void;
   setDark?: (dark: boolean) => void;
 };
@@ -181,6 +198,18 @@ export function executeVoiceCommand(transcript: string, deps: VoiceDeps): string
       deps.setDayType(intent.id);
       const d = deps.getState()?.day_types.find((x) => x.id === intent.id);
       return `Now modelling ${intent.label}${d ? `, ${d.demand_pct} percent of target` : ""}.`;
+    }
+    case "date": {
+      deps.setDate(intent.iso);
+      const v = deps.getState()?.customDemand;
+      return `Modelling ${formatISO(intent.iso)}${v != null ? `, ${v} percent of target` : ""}.`;
+    }
+    case "reset": {
+      deps.setDate(null);
+      deps.setDemand(null);
+      const id = deps.getState()?.activeDay;
+      const d = deps.getState()?.day_types.find((x) => x.id === id);
+      return d ? `Reset to ${d.label}, ${d.demand_pct} percent of target.` : "Reset to the default day.";
     }
     case "view": {
       deps.setView(intent.view);

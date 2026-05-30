@@ -69,6 +69,79 @@ export function anchorDayOfYear(dateText: string, year: number): number | null {
   return dayOfYear(year, mon + 1, day);
 }
 
+const MONTH_NAMES = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+const ORDINAL_WORDS: Record<string, number> = {
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7,
+  eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12, thirteenth: 13,
+  fourteenth: 14, fifteenth: 15, sixteenth: 16, seventeenth: 17, eighteenth: 18,
+  nineteenth: 19, twentieth: 20, "twenty-first": 21, "twenty-second": 22,
+  "twenty-third": 23, "twenty-fourth": 24, "twenty-fifth": 25, "twenty-sixth": 26,
+  "twenty-seventh": 27, "twenty-eighth": 28, "twenty-ninth": 29, thirtieth: 30,
+  "thirty-first": 31,
+};
+
+function pad2(n: number): string {
+  return n < 10 ? "0" + n : String(n);
+}
+
+/**
+ * Parse a spoken/typed date into ISO "YYYY-MM-DD", or null if no date is found.
+ * Handles ISO ("2026-08-01"), "August 1", "1st of August", "model December 9th",
+ * ordinal words ("August first"), and an optional 4-digit year (defaults to the
+ * supplied modelling year). Deterministic — no Date object, no "today".
+ */
+export function parseSpokenDate(textRaw: string, defaultYear: number): string | null {
+  const text = textRaw.toLowerCase();
+
+  // ISO form first.
+  const iso = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(text);
+  if (iso) {
+    const y = Number(iso[1]);
+    const mo = Number(iso[2]);
+    const d = Number(iso[3]);
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return `${y}-${pad2(mo)}-${pad2(d)}`;
+  }
+
+  // Find a month name.
+  let monthIdx = -1;
+  for (let i = 0; i < MONTH_NAMES.length; i++) {
+    const re = new RegExp(`\\b${MONTH_NAMES[i].slice(0, 3)}[a-z]*\\b`);
+    if (re.test(text)) {
+      monthIdx = i;
+      break;
+    }
+  }
+  if (monthIdx < 0) {
+    // Numeric "1/8" or "8/1" not supported (ambiguous); only month-name dates.
+    return null;
+  }
+
+  // Day number: digits ("1", "1st", "9th") near anywhere in the phrase.
+  let day: number | null = null;
+  const dnum = /\b(\d{1,2})(?:st|nd|rd|th)?\b/.exec(text);
+  if (dnum) day = Number(dnum[1]);
+  if (day == null) {
+    for (const [word, n] of Object.entries(ORDINAL_WORDS)) {
+      if (new RegExp(`\\b${word}\\b`).test(text)) {
+        day = n;
+        break;
+      }
+    }
+  }
+  if (day == null || day < 1 || day > 31) return null;
+
+  // Optional explicit 4-digit year (anything that isn't the day).
+  let year = defaultYear;
+  const ynum = /\b(20\d{2})\b/.exec(text);
+  if (ynum) year = Number(ynum[1]);
+
+  return `${year}-${pad2(monthIdx + 1)}-${pad2(day)}`;
+}
+
 type Anchor = { doy: number; demand: number };
 
 /**
