@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getState, setLever, setDemand, setDayType, setDate, setView } from "./state";
-import { executeVoiceCommand } from "./voice";
+import { tryVoiceCommand } from "./voice";
 
 type VoiceProps = {
   dark: boolean;
@@ -30,30 +30,48 @@ function getRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
 }
 
 /**
- * Pick the softest, most feminine English voice available. We score the
- * installed voices and keep the best match — preferring known soft female
- * voices (Samantha, Victoria, Karen, Serena, Google UK English Female, Zira,
- * Aria), then anything explicitly female, then any English voice.
+ * Pick a WARM, NATURAL female English voice. Priority order favours modern
+ * neural/premium voices that sound human (Apple "Siri"/premium, Microsoft Natural,
+ * Google) over the old robotic ones. We also explicitly avoid the harsh/tinny
+ * legacy voices (Zira, eSpeak, "Compact", Albert/Bad-News novelty voices).
  */
 const PREFERRED_VOICES = [
-  "samantha", "victoria", "serena", "karen", "moira", "tessa", "fiona",
-  "google uk english female", "microsoft aria", "microsoft zira",
-  "microsoft sonia", "microsoft libby", "google us english", "allison", "ava",
+  // Apple premium / Siri (very natural)
+  "samantha", "siri", "ava", "allison", "susan", "zoe", "nicky", "joelle",
+  // Microsoft neural
+  "aria natural", "jenny natural", "michelle natural", "ana natural",
+  "sonia natural", "libby natural", "aria", "jenny", "michelle",
+  // Google
+  "google uk english female", "google us english",
+  // Other pleasant female voices
+  "serena", "kate", "stephanie", "fiona", "tessa", "karen", "moira", "victoria",
 ];
+// Harsh / robotic / novelty voices to skip even if nothing else matches.
+const HARSH_VOICES =
+  /zira|espeak|compact|albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|hysterical|pipe organ|trinoids|whisper|wobble|zarvox|superstar|novelty|eloquence/i;
+
 function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const en = voices.filter((v) => /^en(-|_|$)/i.test(v.lang) || /english/i.test(v.name));
-  const pool = en.length ? en : voices;
-  // 1. Named preferred soft-female voices, in priority order.
+  const pool = (en.length ? en : voices).filter((v) => !HARSH_VOICES.test(v.name));
+  const usable = pool.length ? pool : voices;
+  // 1. Named warm/natural female voices, in priority order.
   for (const want of PREFERRED_VOICES) {
-    const hit = pool.find((v) => v.name.toLowerCase().includes(want));
+    const hit = usable.find((v) => v.name.toLowerCase().includes(want));
     if (hit) return hit;
   }
-  // 2. Anything that advertises "female".
-  const female = pool.find((v) => /female|woman/i.test(v.name));
+  // 2. A voice that advertises "natural" (neural) and isn't male.
+  const natural = usable.find(
+    (v) => /natural|neural|premium|enhanced/i.test(v.name) && !/male/i.test(v.name.replace(/female/i, "")),
+  );
+  if (natural) return natural;
+  // 3. Anything explicitly female.
+  const female = usable.find((v) => /female|woman/i.test(v.name));
   if (female) return female;
-  // 3. Avoid obviously male voices; otherwise first English voice.
-  const notMale = pool.find((v) => !/male|david|daniel|alex|fred|george|james|mark/i.test(v.name));
-  return notMale || pool[0] || null;
+  // 4. Avoid obviously male voices; otherwise first usable voice.
+  const notMale = usable.find(
+    (v) => !/\bmale\b|david|daniel|alex|fred|george|james|mark|thomas|oliver|arthur/i.test(v.name),
+  );
+  return notMale || usable[0] || null;
 }
 
 export function VoiceControl({ dark, onSetDark }: VoiceProps) {
@@ -99,10 +117,11 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
       synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       if (voiceRef.current) u.voice = voiceRef.current;
-      // Softer + more feminine: gentler pace, slightly higher pitch, eased volume.
+      // Warm + natural: gentle pace, near-neutral pitch (high pitch sounds harsh
+      // & tinny on legacy voices), eased volume.
       u.rate = 0.95;
-      u.pitch = 1.35;
-      u.volume = 0.9;
+      u.pitch = 1.05;
+      u.volume = 0.85;
       speakingRef.current = true;
       u.onend = () => {
         speakingRef.current = false;
@@ -127,8 +146,7 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
     // Extra guard: ignore a result that is just our own last confirmation echoed.
     if (lastSpoken.current && heard.length > 6 && lastSpoken.current.includes(heard)) return;
 
-    setCaption(transcript);
-    const reply = executeVoiceCommand(transcript, {
+    const { recognized, reply } = tryVoiceCommand(transcript, {
       getState,
       setLever,
       setDemand,
@@ -137,6 +155,13 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
       setView,
       setDark: onSetDark,
     });
+
+    // Only react to ACTUAL commands. Random noise (a phone buzz, background
+    // chatter) gets transcribed too — staying silent on it keeps the assistant
+    // calm instead of saying "sorry, didn't catch that" at every sound.
+    if (!recognized) return;
+
+    setCaption(transcript);
     speak(reply);
   }
 

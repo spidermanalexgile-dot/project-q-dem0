@@ -173,55 +173,84 @@ export type VoiceDeps = {
  * Shared by the VoiceControl component and the window.ProjectQ.voiceCommand API,
  * so both behave identically and stay testable without a microphone.
  */
-export function executeVoiceCommand(transcript: string, deps: VoiceDeps): string {
+export type VoiceResult = { recognized: boolean; reply: string };
+
+/**
+ * Like executeVoiceCommand but reports whether anything was actually recognized.
+ * The live mic uses this to STAY SILENT on unrecognized audio (a phone buzz, a
+ * stray word) instead of speaking "sorry" at every noise. `recognized` is false
+ * only when no intent matched; a matched-but-unavailable target is still
+ * "recognized" so the operator hears why it didn't apply.
+ */
+export function tryVoiceCommand(transcript: string, deps: VoiceDeps): VoiceResult {
   const snap = deps.getState();
-  if (!snap) return "No payload loaded yet.";
+  if (!snap) return { recognized: false, reply: "No payload loaded yet." };
   const intent = interpretCommand(transcript, snap);
-  if (!intent) return "Sorry, I didn't catch a command I recognize.";
+  if (!intent) {
+    return { recognized: false, reply: "Sorry, I didn't catch a command I recognize." };
+  }
 
   switch (intent.kind) {
     case "lever": {
       const lever = snap.levers.find((l) => l.id === intent.id);
-      if (!lever) return "That lever isn't available.";
+      if (!lever) return { recognized: true, reply: "That lever isn't available." };
       const oldV = lever.value;
       deps.setLever(intent.id, intent.value);
       const newV = deps.getState()?.levers.find((l) => l.id === intent.id)?.value ?? intent.value;
       const dir = directionWord(oldV, newV);
-      return `${LEVER_SPOKEN[intent.id]} successfully ${dir} to ${spokenLeverValue(intent.id, newV)}.`;
+      return {
+        recognized: true,
+        reply: `${LEVER_SPOKEN[intent.id]} successfully ${dir} to ${spokenLeverValue(intent.id, newV)}.`,
+      };
     }
     case "demand": {
       deps.setDemand(intent.value);
       const v = deps.getState()?.customDemand ?? intent.value;
-      return `Modelling demand set to ${v} percent.`;
+      return { recognized: true, reply: `Modelling demand set to ${v} percent.` };
     }
     case "dayType": {
       deps.setDayType(intent.id);
       const d = deps.getState()?.day_types.find((x) => x.id === intent.id);
-      return `Now modelling ${intent.label}${d ? `, ${d.demand_pct} percent of target` : ""}.`;
+      return {
+        recognized: true,
+        reply: `Now modelling ${intent.label}${d ? `, ${d.demand_pct} percent of target` : ""}.`,
+      };
     }
     case "date": {
       deps.setDate(intent.iso);
       const v = deps.getState()?.customDemand;
-      return `Modelling ${formatISO(intent.iso)}${v != null ? `, ${v} percent of target` : ""}.`;
+      return {
+        recognized: true,
+        reply: `Modelling ${formatISO(intent.iso)}${v != null ? `, ${v} percent of target` : ""}.`,
+      };
     }
     case "reset": {
       deps.setDate(null);
       deps.setDemand(null);
       const id = deps.getState()?.activeDay;
       const d = deps.getState()?.day_types.find((x) => x.id === id);
-      return d ? `Reset to ${d.label}, ${d.demand_pct} percent of target.` : "Reset to the default day.";
+      return {
+        recognized: true,
+        reply: d ? `Reset to ${d.label}, ${d.demand_pct} percent of target.` : "Reset to the default day.",
+      };
     }
     case "view": {
       deps.setView(intent.view);
-      return intent.view === "year"
-        ? "Showing the annual demand profile."
-        : "Showing the cost curve.";
+      return {
+        recognized: true,
+        reply: intent.view === "year" ? "Showing the annual demand profile." : "Showing the cost curve.",
+      };
     }
     case "theme": {
       deps.setDark?.(intent.dark);
-      return intent.dark ? "Dark mode on." : "Light mode on.";
+      return { recognized: true, reply: intent.dark ? "Dark mode on." : "Light mode on." };
     }
     default:
-      return "Sorry, I didn't catch a command I recognize.";
+      return { recognized: false, reply: "Sorry, I didn't catch a command I recognize." };
   }
+}
+
+/** Back-compat string-only wrapper (used by window.ProjectQ.voiceCommand). */
+export function executeVoiceCommand(transcript: string, deps: VoiceDeps): string {
+  return tryVoiceCommand(transcript, deps).reply;
 }
