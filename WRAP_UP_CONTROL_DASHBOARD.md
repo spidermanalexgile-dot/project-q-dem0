@@ -540,3 +540,23 @@ crowd level currently being modelled — `d.fee(activeDay.demand_pct)` — with 
 "per visitor · N% of a normal day · {date}" note. It reads from the store and
 recomputes instantly as levers, crowd level, or the modelled date change (e.g.
 €50 at a 200% peak-summer-Saturday day). Whole euros, matches the rest of the UI.
+
+---
+
+## Apple-glass dark mode (2026-05-30)
+
+Replaced the warm-brown dark palette with a cool, neutral **glassmorphism** theme:
+- Deep slate canvas (`#0b0d12`) with a subtle deep-space gradient and vivid blurred
+  colour blobs behind everything (blue / teal / violet / faint amber) — this is what
+  makes the frosting read.
+- The top bar, panels, revenue/sustainability cards, toasts and the voice button are
+  now **translucent frosted glass**: `backdrop-filter: saturate(180%) blur(22px)`,
+  thin light borders and an inner top highlight (Apple-style).
+- Cooled the card corner-glows and component tints (sliders, toggles, chips, selects,
+  date/upload fields) off brown onto white-alpha; the sustainability-fee card gets a
+  blue/teal wash. Brand accent colours (ochre fee curve, teal Q-Cash, penalty orange)
+  and the entire light theme are unchanged.
+
+Verified live (1440×900, 2× DPR) in both the cost-curve and annual views; layout
+holds, no scroll, 0 console errors. Note: the frosted glass uses `backdrop-filter`,
+supported by all current Chrome/Edge/Safari/Firefox.
