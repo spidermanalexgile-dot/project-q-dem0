@@ -624,3 +624,20 @@ Three upgrades to the deterministic analyst (still no LLM):
 Verified live: big-target comparison ranks levers + Apply; small-target honesty;
 annual + monthly revenue breakdowns; speaker toggle present and speaking; originals
 (why-demand anchors, goal-seek + Apply moving the engine) intact; 0 console errors.
+
+---
+
+## Zoom-out graph label overlap fix (2026-05-31)
+
+The annual ("zoom out") view crammed three label sets into the top-left — the band
+labels floated ABOVE each band and collided with the y-axis caption and the
+modelled-day line label. Cleaned up:
+- **Band labels** (Very busy / Busy / … + "N days · fee") now sit **inside** each
+  step (below its top line), only when the step is tall and wide enough.
+- The **modelled-day caption** moved to a **fixed top-left slot** above the plot,
+  with a small dot where the line meets the y-axis — so it never lands on a band.
+- Removed the redundant "↑ How busy" y-axis caption (the % gridlines + panel header
+  already convey it).
+
+Verified with a bounding-box collision sweep across demand **30% → 200%** at both
+1280×800 and 1920×1200, light and dark, **on production**: zero text overlaps.
