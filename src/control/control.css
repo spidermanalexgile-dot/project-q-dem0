@@ -378,7 +378,9 @@
 
 .qctl-root .qctl-right-rail {
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* Revenue flexes into the leftover space; the Levers box always gets its full
+     natural height so its last lever can never be clipped. */
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: clamp(10px, 1.2vw, 18px);
   min-height: 0;
 }
@@ -591,15 +593,14 @@
 .qctl-root .levers-panel {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  /* No min-height:0 here — let the panel take exactly the height its levers need
+     so nothing is cut off (the rail grid gives it 'auto'). */
 }
 .qctl-root .levers-list {
   display: flex;
   flex-direction: column;
   gap: clamp(10px, 1.4vh, 16px);
   margin-top: clamp(10px, 1.4vh, 14px);
-  flex: 1;
-  min-height: 0;
 }
 .qctl-root .lever {
   display: grid;
