@@ -29,3 +29,4 @@
 [2026-05-30T03:02:15Z] · added calendar date picker (setDate, interpolates demand from DPM day_type date anchors); build clean; local verify pass (anchors exact, 1 Jul→167%); pushing · 453387d
 [2026-05-30T03:04:20Z] · DONE · prod 200; live: calendar date picker works (anchors exact, 1 Jul→167%, callout "Sat 1 Aug 2026"), preset/null clears, conf 42 exp 2.2, 0 console errors · f49a6eb
 [2026-05-30T04:21:06Z] · removed shoulder-season recirculation (UI+curve+force-off in loader, setRebate no-op); added voice control mode + audible confirmations (voice.ts parser, VoiceControl mic/TTS, window.ProjectQ.voiceCommand); build clean; local verify pass; pushing · 03854cd
+[2026-05-30T04:23:14Z] · DONE · prod 200; live: shoulder rebate removed (row/legend/credit gone, fee@10%%=€10), voice control + audible confirms working (8/8 commands, "lowered to 30,000" etc), 0 console errors · b03916b

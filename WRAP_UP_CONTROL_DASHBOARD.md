@@ -404,3 +404,38 @@ types or a raw demand %.
   `activeDayType()` (callout shows e.g. "Calendar day · Sat 1 Aug 2026 · 200%").
   New `setDate(iso | null)` command on `window.ProjectQ`. Choosing a preset day or
   typing a raw % clears the date; `setDate(null)` reverts.
+
+---
+
+## Remove shoulder rebate + voice control (2026-05-30)
+
+### Shoulder-season recirculation retired
+The feature is fully removed from the product surface:
+- The rebate toggle row is gone from the Levers panel; the credit zone and the
+  "Credit" legend swatch are gone from the cost curve.
+- `loadPayload()` **force-disables** `shoulder_rebate.enabled` on every load, so no
+  payload (legacy or uploaded) can re-introduce the credit zone.
+- `setRebate()` is kept on the `window.ProjectQ` API for backward compatibility but
+  is now a no-op (the rebate stays off). Verified live: rebate row count 0, credit
+  legend count 0, `setRebate(true)` leaves it disabled, and fee at 10% is €10 (base)
+  instead of a −€8 credit.
+
+### Voice control mode + audible confirmations (first integration)
+Speak commands to drive the dashboard; it applies the change **and speaks a
+confirmation back**.
+- **`voice.ts`** — pure, deterministic parser (`interpretCommand`) + a shared
+  executor (`executeVoiceCommand`). Handles levers, free-form demand, day types,
+  curve view, and theme. Understands digit forms ("30,000", "600", "1.2m") and
+  spoken numbers ("fifty thousand", "two hundred").
+- **`VoiceControl.tsx`** — a mic toggle pinned bottom-right (Web Speech API
+  `SpeechRecognition`). It shows the recognized transcript and **speaks the
+  confirmation** via `SpeechSynthesis`. Example: asking to lower target capacity
+  speaks *"Target capacity successfully lowered to 30,000."* Other confirmations:
+  *"Max-fee cap successfully raised to 600 euro."*, *"Now modelling December
+  weekday, 45 percent of target."*, *"Showing the annual demand profile."*
+- The curve view was lifted into the store (`state.view` + `setView`) so voice (and
+  the live agent) can switch the hero chart.
+- **`window.ProjectQ.voiceCommand(transcript)`** exposes the same parse→apply→confirm
+  path as a return-string API — used by the live agent and by the headless test
+  (no microphone needed). Browser support: Chrome/Edge/Safari (Web Speech API);
+  where unavailable the mic button hides but `voiceCommand` still works.
