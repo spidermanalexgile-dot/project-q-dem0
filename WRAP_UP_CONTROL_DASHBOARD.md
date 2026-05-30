@@ -560,3 +560,17 @@ Replaced the warm-brown dark palette with a cool, neutral **glassmorphism** them
 Verified live (1440×900, 2× DPR) in both the cost-curve and annual views; layout
 holds, no scroll, 0 console errors. Note: the frosted glass uses `backdrop-filter`,
 supported by all current Chrome/Edge/Safari/Firefox.
+
+---
+
+## Levers box fit (2026-05-30)
+
+Adding the "Sustainability fee if booked today" card made the revenue panel taller,
+and the right-rail grid (`auto 1fr`) only handed the leftover space to the Levers
+panel — so its last slider (Capacity ceiling) and the 120% / 1000% tick labels were
+clipped by the panel's `overflow: hidden`. Fixed by flipping the rail to
+`grid-template-rows: minmax(0, 1fr) auto`: the **Levers box always gets its full
+natural height** and the Revenue panel flexes into the remaining space (also dropped
+the `levers-list { flex: 1 }` stretch). Verified live that all four sliders + their
+tick labels are fully visible with no document scroll at both 1280×800
+(panel bottom 787 ≤ 800) and 1440×900 (886 ≤ 900).

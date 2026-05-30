@@ -41,3 +41,4 @@
 [2026-05-30T10:12:46Z] · redesigned dark mode: dropped warm-brown palette for cool "Apple glass" (deep slate canvas + blurred colour blobs + frosted translucent panels via backdrop-filter); light mode unchanged; build clean; verify pass; pushing · 2254629
 [2026-05-30T10:15:07Z] · DONE · prod 200; live: Apple-glass dark mode (cool slate + blurred colour blobs + frosted translucent panels, no brown), light mode + features intact, 0 console errors · 4a98cac
 [2026-05-30T10:23:14Z] · fixed Levers box clipping: right-rail grid now minmax(0,1fr) auto so Levers gets its full natural height (revenue flexes into leftover); all 4 sliders + ceiling ticks fit at 1280x800 & 1440x900, no scroll; build clean; pushing · 1a26d24
+[2026-05-30T10:25:24Z] · DONE · prod 200; live: Levers box fully visible (all 4 sliders + ceiling ticks fit at 1280x800 & 1440x900, no scroll), 0 errors · 04dec13
