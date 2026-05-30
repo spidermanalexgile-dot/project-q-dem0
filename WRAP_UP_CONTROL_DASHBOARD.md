@@ -574,3 +574,30 @@ natural height** and the Revenue panel flexes into the remaining space (also dro
 the `levers-list { flex: 1 }` stretch). Verified live that all four sliders + their
 tick labels are fully visible with no document scroll at both 1280×800
 (panel bottom 787 ≤ 800) and 1440×900 (886 ≤ 900).
+
+---
+
+## Analyst agent + revenue-figure fit (2026-05-30)
+
+### Deterministic in-UI analyst (no LLM)
+`analyst.ts` + `AnalystPanel.tsx` add a pure reasoning layer over the SAME calc
+engine — honouring "no LLM math in the live loop". Two capabilities:
+- **Explain** — *"why is Feb 2nd's demand 139%?"* names the two DPM anchor days the
+  value is interpolated between ("December weekday — 45%, 55 days before" /
+  "Carnival Saturday — 160%, 12 days after"), the blend weight (82% of the way) and
+  the result. *"why is the fee on August 1st?"* explains plateau / exponent curve /
+  ceiling. Truthful — every number comes from the live model, nothing invented.
+- **Goal-seek** — *"raise January revenue by €3M by changing the base fee"* runs a
+  bisection solver over the chosen lever against a real per-day → per-month (or
+  annual) revenue model, returns the exact lever value and the **honest achieved
+  delta**, with a one-click **Apply** button (calls `setLever`). Handles annual and
+  any named month, "by"/"to", raise/lower, and reports when a target is out of a
+  lever's range. Verified live: Jan +€3M → base fee €12 (+€3.32M); Apply moved base
+  fee 10→17 and annual revenue +€106.6M.
+- Chat UI: floating "Analyst" button (bottom-right, **Cmd/Ctrl+J**), suggestion
+  chips, frosted-glass dark styling. Exposed as `window.ProjectQ.askAnalyst(q)`.
+
+### Revenue figures no longer clip
+Shrunk the revenue card figures (`rev-figure` clamp 44 → 32px) and the
+sustainability-fee figure so large euro values (e.g. €353,340,503) always fit;
+verified no figure/label/note overflows its card.
