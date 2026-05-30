@@ -1,5 +1,5 @@
 import { useStore } from "./useStore";
-import { feeAtPct, payAtPct, activeDayType, setView, type State } from "./state";
+import { feeAtPct, payAtPct, activeDayType, managedDemandPct, setView, type State } from "./state";
 import { fmtEur } from "./format";
 
 function leverV(state: State, id: string): number {
@@ -428,27 +428,33 @@ function YearCurve() {
   const yS = (v: number) => padT + (1 - v / yMax) * innerH;
   const baseY = yS(0);
 
-  // Load-duration style: sort the DPM seasonal bins by demand (desc) and lay
-  // them across the 365-day axis — a single glance shows how many days a year
-  // sit at each demand level, coloured by the fee that level would charge.
+  // Load-duration style: sort the DPM seasonal bins by RAW (forecast) demand and
+  // lay them across the 365-day axis. The pricing curve then deters peak crowds —
+  // managedDemandPct() is where each day actually settles after fees, pulling the
+  // whole year toward the 100% target. We draw both so the levers' effect shows.
   const bins = [...state.seasonal].sort((a, b) => b.demand_pct - a.demand_pct);
   type Band = {
     x0: number;
     x1: number;
-    y: number;
+    yRaw: number;
+    yMan: number;
     color: string;
-    demand: number;
+    rawDemand: number;
+    managed: number;
     days: number;
     fee: number;
   };
   const bands: Band[] = [];
-  const stepPts: string[] = [];
+  const rawPts: string[] = [];
+  const manPts: string[] = [];
   let cum = 0;
   for (const b of bins) {
     const x0 = xS(cum);
     const x1 = xS(cum + b.days);
-    const y = yS(Math.min(yMax, b.demand_pct));
     const fee = feeAtPct(b.demand_pct, state);
+    const managed = managedDemandPct(b.demand_pct, state);
+    const yRaw = yS(Math.min(yMax, b.demand_pct));
+    const yMan = yS(Math.min(yMax, managed));
     const ratio = cap > 0 ? fee / cap : 0;
     const color =
       fee < 0
@@ -458,14 +464,23 @@ function YearCurve() {
           : ratio > 0.3
             ? "var(--ochre)"
             : "var(--sage)";
-    bands.push({ x0, x1, y, color, demand: b.demand_pct, days: b.days, fee });
-    stepPts.push(`${x0.toFixed(1)},${y.toFixed(1)}`, `${x1.toFixed(1)},${y.toFixed(1)}`);
+    bands.push({ x0, x1, yRaw, yMan, color, rawDemand: b.demand_pct, managed, days: b.days, fee });
+    rawPts.push(`${x0.toFixed(1)},${yRaw.toFixed(1)}`, `${x1.toFixed(1)},${yRaw.toFixed(1)}`);
+    manPts.push(`${x0.toFixed(1)},${yMan.toFixed(1)}`, `${x1.toFixed(1)},${yMan.toFixed(1)}`);
     cum += b.days;
   }
-  const stepPath = stepPts.map((p, i) => (i ? "L" : "M") + p).join(" ");
+  const rawPath = rawPts.map((p, i) => (i ? "L" : "M") + p).join(" ");
+  const stepPath = manPts.map((p, i) => (i ? "L" : "M") + p).join(" ");
+  // Filled area under the MANAGED curve (the outcome the operator controls).
   const areaPath =
     stepPath +
     ` L ${xS(totalDays).toFixed(1)},${baseY.toFixed(1)} L ${xS(0).toFixed(1)},${baseY.toFixed(1)} Z`;
+  // How flat did we get? Mean absolute deviation from 100%, raw vs managed.
+  const totalD = bins.reduce((a, b) => a + b.days, 0) || 1;
+  const rawSpread = bins.reduce((a, b) => a + b.days * Math.abs(b.demand_pct - 100), 0) / totalD;
+  const manSpread =
+    bins.reduce((a, b) => a + b.days * Math.abs(managedDemandPct(b.demand_pct, state) - 100), 0) / totalD;
+  const flattenPct = rawSpread > 0.5 ? Math.round((1 - manSpread / rawSpread) * 100) : 0;
 
   // Y gridlines.
   const yStep = yMax > 250 ? 50 : 25;
@@ -487,7 +502,22 @@ function YearCurve() {
             <stop offset="0%" stopColor="#E0763C" stopOpacity="0.18" />
             <stop offset="100%" stopColor="#E3A93C" stopOpacity="0" />
           </linearGradient>
+          <marker id="year-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M1 1 L4 4 L1 7" fill="none" stroke="#E0763C" strokeWidth="1.2" opacity="0.7" />
+          </marker>
         </defs>
+
+        {/* Raw-vs-managed legend + how-flat badge (top-left, fixed slot). */}
+        <g>
+          <text x={padL} y={padT - 14} textAnchor="start" className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
+            <tspan style={{ fill: "var(--penalty)" }}>– – forecast crowd</tspan>
+            {"   "}
+            <tspan style={{ fontWeight: 600 }}>▰ after pricing</tspan>
+            {flattenPct > 1 && (
+              <tspan style={{ fill: "#2c8676", fontWeight: 600 }}>{`   ·  ${flattenPct}% flatter → 100%`}</tspan>
+            )}
+          </text>
+        </g>
 
         {/* Horizontal gridlines + %-axis ticks */}
         {yGrid.map((v) => (
@@ -545,51 +575,86 @@ function YearCurve() {
           </text>
         </g>
 
-        {/* Warm wash under the duration curve */}
+        {/* Warm wash under the MANAGED curve */}
         <path d={areaPath} fill="url(#year-fill)" />
 
-        {/* Coloured demand bands (fee intensity) */}
+        {/* Raw forecast crowd (before pricing) — faint dashed reference. The
+            pricing levers pull this DOWN toward the 100% target line. */}
+        <path
+          d={rawPath}
+          fill="none"
+          style={{ stroke: "var(--penalty)" }}
+          strokeWidth="1.5"
+          strokeDasharray="4 4"
+          opacity="0.55"
+        />
+
+        {/* Managed demand bands (where each day settles after fees) */}
         {bands.map((b, i) => (
           <g key={"band-" + i}>
             <rect
               x={b.x0}
-              y={b.y}
+              y={b.yMan}
               width={Math.max(0, b.x1 - b.x0)}
-              height={Math.max(0, baseY - b.y)}
+              height={Math.max(0, baseY - b.yMan)}
               style={{ fill: b.color }}
               opacity="0.22"
             />
             <line
               x1={b.x0}
-              y1={b.y}
+              y1={b.yMan}
               x2={b.x1}
-              y2={b.y}
+              y2={b.yMan}
               style={{ stroke: b.color }}
               strokeWidth="2.5"
               strokeLinecap="round"
             />
-            {/* Labels sit INSIDE the band (below its top line) so they never
-                collide with the axis caption or with neighbouring bands. */}
-            {b.x1 - b.x0 > 58 && baseY - b.y > 40 && (
-              <g>
-                <text
-                  x={(b.x0 + b.x1) / 2}
-                  y={b.y + 16}
-                  textAnchor="middle"
-                  className="year-band-label"
-                  style={{ fontWeight: 600 }}
-                >
-                  {crowdLabel(b.demand)}
-                </text>
-                <text x={(b.x0 + b.x1) / 2} y={b.y + 29} textAnchor="middle" className="year-band-label">
-                  {b.days} days · {fmtEur(b.fee)}
-                </text>
-              </g>
+            {/* Drop-arrow from the raw forecast down to the managed level. */}
+            {b.yMan - b.yRaw > 10 && (
+              <line
+                x1={(b.x0 + b.x1) / 2}
+                y1={b.yRaw + 2}
+                x2={(b.x0 + b.x1) / 2}
+                y2={b.yMan - 2}
+                style={{ stroke: "var(--penalty)" }}
+                strokeWidth="1"
+                strokeDasharray="2 2"
+                opacity="0.5"
+                markerEnd="url(#year-arrow)"
+              />
             )}
+            {/* One compact label per band, shown only when the band is wide
+                enough to hold it (so neighbouring labels never overlap) and tall
+                enough to sit inside without spilling into the band below. */}
+            {(() => {
+              const bandW = b.x1 - b.x0;
+              const nextTop = i + 1 < bands.length ? bands[i + 1].yMan : baseY;
+              const room = nextTop - b.yMan; // vertical space before the next step
+              const l1 = `${crowdLabel(b.managed)} · ${Math.round(b.managed)}%`;
+              const l2 = `${b.days}d · ${fmtEur(b.fee)}`;
+              const fits = bandW > Math.max(l1.length, l2.length) * 5.4 + 8;
+              if (!fits || room < 34) return null;
+              return (
+                <g>
+                  <text
+                    x={(b.x0 + b.x1) / 2}
+                    y={b.yMan + 15}
+                    textAnchor="middle"
+                    className="year-band-label"
+                    style={{ fontWeight: 600 }}
+                  >
+                    {l1}
+                  </text>
+                  <text x={(b.x0 + b.x1) / 2} y={b.yMan + 27} textAnchor="middle" className="year-band-label">
+                    {l2}
+                  </text>
+                </g>
+              );
+            })()}
           </g>
         ))}
 
-        {/* Step outline */}
+        {/* Managed step outline */}
         <path d={stepPath} fill="none" style={{ stroke: "var(--ink)" }} strokeWidth="1.5" opacity="0.5" />
 
         {/* Active modelled-day demand reference */}
@@ -603,14 +668,13 @@ function YearCurve() {
           strokeDasharray="2 4"
           opacity="0.5"
         />
-        {/* Small marker where the modelled-day line meets the y-axis — keeps the
-            line readable without an inline label that could land on a band. */}
+        {/* Small marker where the modelled-day line meets the y-axis. */}
         <circle cx={padL} cy={activeY} r="3.5" style={{ fill: "var(--ink)" }} />
-        {/* Modelled-day caption lives in a FIXED top-left slot, never on the data,
-            so it can't overlap the band labels at any demand level. */}
+        {/* Modelled-day caption in a fixed BOTTOM-left slot (above the x-axis),
+            separate from the top legend so the two never collide. */}
         <text
           x={padL}
-          y={padT - 14}
+          y={h - 8}
           textAnchor="start"
           className="year-band-label"
           style={{ fill: "var(--ink-mute)", fontWeight: 600 }}
@@ -689,18 +753,17 @@ export function CurvePanel() {
   const view = state.view;
   const activeDay =
     activeDayType(state);
-  const totalDays = state.seasonal.reduce((a, s) => a + s.days, 0);
   return (
     <section className="panel panel-pad curve-panel">
       <header className="panel-header">
         <div>
           <div className="panel-title">
-            {view === "cost" ? "Consumer cost curve" : "How busy the city is across the year"}
+            {view === "cost" ? "Consumer cost curve" : "Flattening the year toward 100%"}
           </div>
           <div className="panel-sub" style={{ marginTop: 4 }}>
             {view === "cost"
               ? `${activeDay.demand_pct}% of a normal day · ${activeDay.date}`
-              : `${totalDays} days grouped busiest → quietest · taller = more crowded`}
+              : `Pricing deters peak crowds · dashed = forecast, solid = after fees`}
           </div>
         </div>
         <div className="curve-legend">
@@ -745,11 +808,11 @@ export function CurvePanel() {
         <>
           <YearCurve />
           <p className="year-explainer">
-            Each block is a stretch of the year at a similar crowd level — widest
-            blocks are the most common kind of day. <strong>Height = how busy</strong> (100%
-            is a normal day, 200% is twice as crowded); the <strong>fee</strong> shown is what a
-            visitor pays on those days. Read it left-to-right: the busy, higher-fee
-            days first, down to the quiet, cheap days.
+            The <strong style={{ color: "var(--penalty)" }}>dashed line</strong> is the forecast
+            crowd; the <strong>solid blocks</strong> are where each day actually settles once the
+            fee deters peak visitors. The goal is a flat year at <strong>100% capacity</strong> —
+            raise the <strong>base fee</strong> or <strong>max-fee cap</strong> (or lower the
+            <strong> ceiling</strong>) and the busy days get pulled down toward the target line.
           </p>
         </>
       )}

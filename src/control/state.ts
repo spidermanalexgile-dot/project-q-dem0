@@ -155,6 +155,33 @@ export function qcashAtPct(pct: number, snap: State = requireState()): number {
   return Math.max(0, f - snap.phase.real_pay_cap);
 }
 
+/**
+ * Euro-scale of visitor price-sensitivity used by the demand-response model.
+ * A modelling assumption (the DPM doesn't ship an elasticity figure yet): the
+ * higher the fee charged on a day, the more that day's crowd is pushed toward the
+ * 100% target. ~€30 means a €30 fee roughly halves a day's deviation from target.
+ */
+export const DEMAND_REF_EUR = 30;
+
+/**
+ * Managed demand — the crowd level a day actually settles at AFTER the pricing
+ * curve deters (or, on quiet days, fails to deter) visitors. This is the whole
+ * point of dynamic pricing: it flattens the year toward 100% capacity. The fee is
+ * set from the day's forecast (raw) demand; that fee then compresses the day's
+ * deviation from 100% — peak days carry the highest fee so they compress most,
+ * while quiet days sit near the base fee and barely move.
+ *
+ * managed = 100 + (raw − 100) · e^(−fee / DEMAND_REF_EUR)
+ *
+ * Raising base_fee / max_fee_cap, or lowering ceiling_pct, all raise the fees and
+ * therefore flatten the curve toward 100%. Pure + deterministic.
+ */
+export function managedDemandPct(raw_pct: number, snap: State = requireState()): number {
+  const fee = Math.max(0, feeAtPct(raw_pct, snap));
+  const compression = Math.exp(-fee / DEMAND_REF_EUR); // 1 at €0 fee → →0 as fee climbs
+  return 100 + (raw_pct - 100) * compression;
+}
+
 export function dayRevenue(demand_pct: number, snap: State = requireState()): number {
   const tc = leverVal(snap, "target_capacity");
   const visitors = tc * (demand_pct / 100);
@@ -460,6 +487,7 @@ export type ProjectQApi = {
   payAtPct: (pct: number) => number;
   qcashAtPct: (pct: number) => number;
   dayRevenue: (demand_pct: number) => number;
+  managedDemandPct: (raw_pct: number) => number;
   annualRevenue: () => number;
   /** Parse + apply a natural-language voice/text command; returns the spoken
    *  confirmation string (theme changes are UI-side and a no-op here). */
@@ -487,6 +515,7 @@ export function installGlobalApi(): void {
     payAtPct: (pct: number) => payAtPct(pct),
     qcashAtPct: (pct: number) => qcashAtPct(pct),
     dayRevenue: (demand_pct: number) => dayRevenue(demand_pct),
+    managedDemandPct: (raw_pct: number) => managedDemandPct(raw_pct),
     annualRevenue: () => annualRevenue(),
     voiceCommand: (transcript: string) =>
       executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView }),
