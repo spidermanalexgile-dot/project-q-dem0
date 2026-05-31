@@ -96,18 +96,30 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
         const vr = await fetch("https://api.elevenlabs.io/v1/voices", {
           headers: { "xi-api-key": key },
         });
-        const data = (await vr.json()) as {
-          voices?: { voice_id: string; name: string; category?: string; labels?: Record<string, string> }[];
-        };
-        const voices = (data.voices || []).map((v) => ({
+        const raw = await vr.text();
+        let parsed: { voices?: { voice_id: string; name: string; category?: string; labels?: Record<string, string> }[] } = {};
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          /* non-json */
+        }
+        const voices = (parsed.voices || []).map((v) => ({
           id: v.voice_id,
           name: v.name,
           category: v.category,
           gender: v.labels?.gender,
         }));
-        res.end(JSON.stringify({ ok: true, voices }));
-      } catch {
-        res.end(JSON.stringify({ ok: true, voices: [], error: "list_failed" }));
+        res.end(
+          JSON.stringify({
+            ok: true,
+            status: vr.status,
+            count: voices.length,
+            voices,
+            rawHead: voices.length ? undefined : raw.slice(0, 400),
+          }),
+        );
+      } catch (e) {
+        res.end(JSON.stringify({ ok: true, voices: [], error: String(e).slice(0, 200) }));
       }
       return;
     }
