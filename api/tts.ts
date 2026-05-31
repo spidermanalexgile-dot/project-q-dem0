@@ -122,8 +122,18 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
   );
 
   if (!upstream.ok || !upstream.body) {
+    // Surface ElevenLabs' own error so failures are diagnosable (it's their
+    // status/message, not our secret). Common causes: free tier doesn't allow
+    // the turbo model, quota exhausted, or the voice isn't in the account.
+    let detail = "";
+    try {
+      detail = (await upstream.text()).slice(0, 300);
+    } catch {
+      /* ignore */
+    }
     res.statusCode = 502;
-    res.end("Upstream TTS failed");
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "upstream_tts_failed", status: upstream.status, detail }));
     return;
   }
   res.statusCode = 200;
