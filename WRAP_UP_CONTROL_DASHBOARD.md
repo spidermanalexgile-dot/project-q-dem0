@@ -961,3 +961,36 @@ Five polish requests, all shipped + verified live:
    revenue rose since the last change and **red** when it fell (smooth transition,
    light + dark).
 Regressions (capacity model, occupancy, demand-response) all pass; 0 console errors.
+
+---
+
+## Concierge gets a real brain — Claude Sonnet 4.6 (2026-06-01)
+
+**Problem.** The "agent" had no model at all — `voice.ts` + `analyst.ts` were pure
+regex/keyword matchers. That's why she felt dumb, and why the analysis features
+(which all still existed in `analyst.ts`) were effectively invisible: they only
+fired on exact phrasing, voice-only, with no obvious trigger.
+
+**Fix — a Claude brain that routes to the deterministic engine as tools.** The
+model understands free-form/multi-part requests and phrases the reply; every
+number comes from a tool that runs the real calc engine. The "no LLM in the live
+loop" rule holds — Claude never does arithmetic.
+
+- `api/agent.ts` — Node serverless proxy to Anthropic. `ANTHROPIC_API_KEY` lives
+  server-side only (no `VITE_` prefix). Model `claude-sonnet-4-6`. Tolerant key
+  finder, `GET` health + `?debug=1` (env NAMES only, never values).
+- `agent-tools.ts` — deterministic tool layer: `suggest_lever_settings`,
+  `goal_seek_revenue`, `cheapest_lever_for_revenue`, `explain_demand`,
+  `get_revenue`, `whatif_date`, plus `set_*` command tools that apply live.
+- `agent.ts` — client tool-use loop; **falls back to the deterministic analyst**
+  when the proxy isn't configured (no key / offline). `window.ProjectQ.askAgent`.
+- `analyst.ts` — extracted `suggestLeverSettings` / `goalSeekRevenue` /
+  `cheapestLeverForRevenue` as reusable pure fns. **"Suggest lever settings" now
+  computes** through the shared solver (e.g. Peak Sat 200% vs 100% target →
+  Max-fee cap €115, ceiling 200%, base fee gentle).
+
+**Status.** Deployed, site 200, `/api/agent` healthy (`model:claude-sonnet-4-6`).
+Verified live: suggest computes, goal-seek computes, brain falls back to null
+(graceful) with 0 console errors. **To switch her onto Sonnet 4.6**, set
+`ANTHROPIC_API_KEY` in Vercel → Settings → Environment Variables (no `VITE_`
+prefix) and redeploy. Until then she runs the deterministic fallback.
