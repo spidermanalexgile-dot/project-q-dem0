@@ -720,3 +720,29 @@ supports `setLevers[]`). If the day is already under target it advises keeping f
 gentle rather than over-penalising. Verified live alongside control commands,
 occupancy, and questions in the same box; occupancy + demand regressions still pass;
 0 console errors.
+
+---
+
+## Background voice assistant + ElevenLabs (2026-05-31)
+
+### Voice-only, out of the way
+The assistant is now a small **mic orb pinned bottom-left** — clear of the curve,
+levers and revenue panels (it used to sit bottom-right and crowd the levers). It's
+voice-only: **no text box, no chat log**. Tap it (or **⌘/Ctrl+J**) to start
+listening, then just talk; it runs in the background, replies **audibly**, and a
+compact status pill shows only what it heard / said (auto-fades). A pulsing ring
+signals it's live. A suggested lever change is **auto-applied by voice** — no click.
+Commands apply, questions are answered; it stays silent on background noise.
+
+### Upgrading the voice — ElevenLabs
+`speak()` uses **ElevenLabs** premium TTS when a key is configured, otherwise the
+warm built-in browser voice (so it's never silent). Enable it from the console:
+```js
+window.ProjectQ.setVoiceApiKey("YOUR_ELEVENLABS_KEY", "optional-voice-id")
+```
+(persists to `localStorage` `qctl-eleven-key` / `qctl-eleven-voice`; pass `null` to
+clear). It streams `eleven_turbo_v2` MP3 and falls back to the browser voice on any
+error or quota issue. `usingPremiumVoice()` reports which engine is active.
+**Security:** a key embedded in the browser is visible in dev-tools — fine for a
+local pitch demo, but for production route TTS through a small server proxy that
+holds the key and returns the audio.
