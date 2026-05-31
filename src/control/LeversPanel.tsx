@@ -25,10 +25,10 @@ const LEVER_META: Record<LeverId, LeverMeta> = {
     format: (v) => fmtNumber(v),
   },
   base_fee: {
+    // Goes negative → a credit that draws visitors into the low season.
     label: "Base fee at target",
-    sub: "Fee at 100%",
-    prefix: "€",
-    format: (v) => String(v),
+    sub: "Fee at 100% · negative = credit",
+    format: (v) => (v < 0 ? `−€${Math.abs(v)}` : `€${v}`),
   },
   max_fee_cap: {
     label: "Max-fee cap",

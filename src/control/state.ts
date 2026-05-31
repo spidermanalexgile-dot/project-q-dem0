@@ -185,9 +185,16 @@ export function occupancyTarget(snap: State = requireState()): number {
 }
 
 export function managedDemandPct(raw_pct: number, snap: State = requireState()): number {
-  const fee = Math.max(0, feeAtPct(raw_pct, snap));
+  const fee = feeAtPct(raw_pct, snap);
   const target = occupancyTarget(snap);
-  const compression = Math.exp(-fee / DEMAND_REF_EUR); // 1 at €0 fee → →0 as fee climbs
+  // Pricing works in BOTH directions, always steering toward the target:
+  //  • Busy days (raw ≥ target): a positive fee DETERS crowds down toward target;
+  //    the bigger the fee, the more it compresses. (A credit here is irrelevant.)
+  //  • Quiet days (raw < target): a NEGATIVE base fee — a credit/discount —
+  //    ATTRACTS visitors up toward target to fill the low season; a zero/positive
+  //    fee leaves the quiet day where it is (we never deter an already-quiet day).
+  const effort = raw_pct >= target ? Math.max(0, fee) : Math.max(0, -fee);
+  const compression = Math.exp(-effort / DEMAND_REF_EUR); // 1 at €0 → →0 as |fee| climbs
   return target + (raw_pct - target) * compression;
 }
 
