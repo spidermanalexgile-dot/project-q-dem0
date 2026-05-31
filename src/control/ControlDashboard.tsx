@@ -5,6 +5,7 @@ import { RevenuePanel } from "./RevenuePanel";
 import { LeversPanel } from "./LeversPanel";
 import { AssistantPanel } from "./AnalystPanel";
 import { installGlobalApi, loadPayload, getState } from "./state";
+import { initServerVoice } from "./speech";
 import { PAYLOAD_VENICE } from "./payload-venice";
 import "./control.css";
 
@@ -27,6 +28,7 @@ export function ControlDashboard() {
 
   useEffect(() => {
     installGlobalApi();
+    initServerVoice(); // detect the secure /api/tts proxy (production)
     if (!getState()) {
       loadPayload(PAYLOAD_VENICE);
     }

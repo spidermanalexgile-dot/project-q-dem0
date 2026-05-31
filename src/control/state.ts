@@ -13,7 +13,7 @@
 import { demandForISO, formatISO } from "./dateutil";
 import { executeVoiceCommand } from "./voice";
 import { ask } from "./analyst";
-import { setElevenCredentials, setElevenVoice, listFemaleVoices } from "./speech";
+import { setElevenCredentials, setElevenVoice, listFemaleVoices, voiceStatus } from "./speech";
 
 export type LeverId =
   | "target_capacity"
@@ -557,6 +557,8 @@ export type ProjectQApi = {
   setVoice: (voice: string) => void;
   /** List the selectable female voices (name + short description). */
   listVoices: () => { name: string; note: string }[];
+  /** Which TTS engine is active: 'server-proxy' (secure), 'client-key', 'browser'. */
+  voiceStatus: () => { engine: "server-proxy" | "client-key" | "browser"; voice: string };
 };
 
 export function installGlobalApi(): void {
@@ -589,6 +591,7 @@ export function installGlobalApi(): void {
     setVoiceApiKey: (key: string | null, voice?: string) => setElevenCredentials(key, voice),
     setVoice: (voice: string) => setElevenVoice(voice),
     listVoices: () => listFemaleVoices(),
+    voiceStatus: () => voiceStatus(),
   };
   (window as unknown as { ProjectQ: ProjectQApi }).ProjectQ = api;
 }

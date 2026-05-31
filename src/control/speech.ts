@@ -17,6 +17,32 @@
 const ELEVEN_KEY_LS = "qctl-eleven-key";
 const ELEVEN_VOICE_LS = "qctl-eleven-voice";
 
+/* ─── server proxy (/api/tts) detection ──────────────────────────────────── */
+// undefined = not probed yet, true/false = whether the secure server proxy is up.
+let serverTtsReady: boolean | undefined;
+let serverProbe: Promise<boolean> | null = null;
+
+function probeServerTts(): Promise<boolean> {
+  if (serverTtsReady !== undefined) return Promise.resolve(serverTtsReady);
+  if (serverProbe) return serverProbe;
+  serverProbe = (async () => {
+    try {
+      const r = await fetch("/api/tts", { method: "GET" });
+      const j = (await r.json()) as { ok?: boolean };
+      serverTtsReady = r.ok && !!j.ok;
+    } catch {
+      serverTtsReady = false;
+    }
+    return serverTtsReady;
+  })();
+  return serverProbe;
+}
+
+/** Kick the probe early (called once on boot) so the first reply can use it. */
+export function initServerVoice(): void {
+  void probeServerTts();
+}
+
 /**
  * Curated FEMALE ElevenLabs voices (premade library voice IDs, all female). The
  * assistant only ever uses one of these, so it can never pick a male voice.
@@ -62,9 +88,37 @@ function elevenConfig(): ElevenCfg {
   return { key, voiceId: resolveFemaleVoiceId(voiceId || ELEVEN_DEFAULT_VOICE) };
 }
 
-/** True when the premium ElevenLabs voice is configured + will be used. */
+/** True when a premium ElevenLabs voice will be used (secure proxy or client key). */
 export function usingPremiumVoice(): boolean {
-  return elevenConfig() != null;
+  return serverTtsReady === true || elevenConfig() != null;
+}
+
+/** Current chosen female voice id (client config, else default) for proxy calls. */
+function chosenVoiceId(): string {
+  let v = "";
+  try {
+    v = localStorage.getItem(ELEVEN_VOICE_LS) || "";
+  } catch {
+    /* no-op */
+  }
+  return resolveFemaleVoiceId(v || ELEVEN_DEFAULT_VOICE);
+}
+
+/** Speak via the secure server proxy (/api/tts). Returns false on any failure so
+ *  the caller can fall back. The key never touches the browser here. */
+async function speakViaProxy(text: string, onDone?: () => void): Promise<boolean> {
+  try {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voiceId: chosenVoiceId() }),
+    });
+    if (!res.ok) return false;
+    const blob = await res.blob();
+    return playAudioBlob(blob, onDone);
+  } catch {
+    return false;
+  }
 }
 
 /** Store / clear the ElevenLabs key + voice. `voice` may be a name ("Charlotte")
@@ -93,7 +147,42 @@ export function listFemaleVoices(): { name: string; note: string }[] {
   return ELEVEN_FEMALE_VOICES.map((v) => ({ name: v.name, note: v.note }));
 }
 
+/** Which TTS engine is in use right now — handy for setup verification. */
+export function voiceStatus(): { engine: "server-proxy" | "client-key" | "browser"; voice: string } {
+  let voiceName = "browser default";
+  const id = chosenVoiceId();
+  const hit = ELEVEN_FEMALE_VOICES.find((v) => v.id === id);
+  if (serverTtsReady === true) return { engine: "server-proxy", voice: hit?.name ?? "Rachel" };
+  if (elevenConfig() != null) return { engine: "client-key", voice: hit?.name ?? "Rachel" };
+  return { engine: "browser", voice: voiceName };
+}
+
 let currentAudio: HTMLAudioElement | null = null;
+
+/** Play an audio blob (MP3) through a single shared <audio>, calling onDone when
+ *  it ends/errors. Returns false if playback can't start. */
+async function playAudioBlob(blob: Blob, onDone?: () => void): Promise<boolean> {
+  try {
+    const url = URL.createObjectURL(blob);
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    const audio = new Audio(url);
+    currentAudio = audio;
+    const finish = () => {
+      URL.revokeObjectURL(url);
+      if (currentAudio === audio) currentAudio = null;
+      onDone?.();
+    };
+    audio.onended = finish;
+    audio.onerror = finish;
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function speakEleven(text: string, cfg: ElevenCfg, onDone?: () => void): Promise<boolean> {
   if (!cfg) return false;
@@ -111,23 +200,7 @@ async function speakEleven(text: string, cfg: ElevenCfg, onDone?: () => void): P
       },
     );
     if (!res.ok) return false; // bad key / quota — caller falls back to Web Speech
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-    const audio = new Audio(url);
-    currentAudio = audio;
-    const finish = () => {
-      URL.revokeObjectURL(url);
-      if (currentAudio === audio) currentAudio = null;
-      onDone?.();
-    };
-    audio.onended = finish;
-    audio.onerror = finish;
-    await audio.play();
-    return true;
+    return playAudioBlob(await res.blob(), onDone);
   } catch {
     return false;
   }
@@ -203,19 +276,21 @@ function speakBrowser(text: string, onDone?: () => void): void {
   }
 }
 
-/** Speak text once. Uses ElevenLabs when configured, else the browser voice.
+/** Speak text once. Prefers the secure server proxy, then a client ElevenLabs key,
+ *  then the browser voice — falling through on any failure so it's never silent.
  *  onDone fires when speech ends/errors so the caller can resume the mic. */
 export function speak(text: string, onDone?: () => void): void {
-  const cfg = elevenConfig();
-  if (cfg) {
-    // Try premium first; on any failure fall back to the browser voice so the
-    // assistant is never left silent.
-    speakEleven(text, cfg, onDone).then((ok) => {
-      if (!ok) speakBrowser(text, onDone);
-    });
-    return;
-  }
-  speakBrowser(text, onDone);
+  void (async () => {
+    // 1. Secure server proxy (production).
+    if (await probeServerTts()) {
+      if (await speakViaProxy(text, onDone)) return;
+    }
+    // 2. Client-side ElevenLabs key (local pitch).
+    const cfg = elevenConfig();
+    if (cfg && (await speakEleven(text, cfg, onDone))) return;
+    // 3. Built-in browser voice.
+    speakBrowser(text, onDone);
+  })();
 }
 
 export function cancelSpeech(): void {
