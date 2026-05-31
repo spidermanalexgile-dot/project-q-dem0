@@ -84,6 +84,11 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
   const isCustom = state.customDemand != null;
   // Effective modelled demand: the typed free-form value, else the preset day's.
   const demand = isCustom ? (state.customDemand as number) : selectedDay.demand_pct;
+  // Actual day capacity (visitors) = target capacity × today's crowd level.
+  const targetCap = state.levers.find((l) => l.id === "target_capacity")?.value ?? state.capacity.target;
+  const dayHeadcount = Math.round((targetCap * demand) / 100);
+  const fmtPeople = (n: number) =>
+    n >= 1000 ? (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1).replace(/\.0$/, "") + "k" : String(n);
 
   return (
     <>
@@ -98,7 +103,9 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
 
         <div className="tb-context">
           <div className="tb-field">
-            <div className="tb-label">Location</div>
+            <div className="tb-label">
+              Location · {fmtPeople(targetCap)} visitors/day
+            </div>
             <div className="tb-location-row">
               <div className="tb-select">
                 <select
@@ -197,13 +204,13 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
 
           <div className="tb-field">
             <div className="tb-label">
-              Crowd level
+              Crowd level · {fmtPeople(dayHeadcount)} today
               <span
                 className="tb-help"
                 tabIndex={0}
                 role="note"
-                aria-label="What is crowd level? It's how busy the day is versus a normal day. 100 percent is a normal day, 200 percent is twice as crowded, 50 percent is half-empty."
-                title="How busy the day is vs. a normal day. 100% = a normal day · 200% = twice as crowded · 50% = half-empty. Higher crowds = higher fee."
+                aria-label="What is crowd level? It's how busy the day is versus a normal day. 100 percent is a normal day, 200 percent is twice as crowded, 50 percent is half-empty. The headcount shown is target capacity times this level."
+                title="How busy the day is vs. a normal day. 100% = a normal day · 200% = twice as crowded · 50% = half-empty. The figure shown is the actual visitors that day = target capacity × this level."
               >
                 ?
               </span>

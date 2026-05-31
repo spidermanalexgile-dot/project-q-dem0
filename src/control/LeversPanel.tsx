@@ -11,12 +11,16 @@ type LeverMeta = {
   /** Suffix shown on the min/max tick labels (kept terse vs. the value suffix). */
   tickSuffix?: string;
   format: (v: number) => string;
+  /** When set, the slider value (in its own units) is shown as an absolute
+   *  visitor count = round(targetCapacity × v/unitDivisor). Lets the Capacity
+   *  ceiling read as people/day instead of a bare percentage. */
+  asVisitors?: boolean;
 };
 
 const LEVER_META: Record<LeverId, LeverMeta> = {
   target_capacity: {
     label: "Target capacity",
-    sub: "100% anchor",
+    sub: "Normal-day visitors",
     suffix: "/day",
     format: (v) => fmtNumber(v),
   },
@@ -34,17 +38,19 @@ const LEVER_META: Record<LeverId, LeverMeta> = {
   },
   ceiling_pct: {
     label: "Capacity ceiling",
-    sub: "Where curve goes near-vertical",
-    suffix: "%",
-    tickSuffix: "%",
-    format: (v) => String(v),
+    sub: "Crowd limit",
+    suffix: "/day",
+    format: (v) => fmtNumber(v),
+    asVisitors: true,
   },
 };
 
 /** Tick label for a lever bound — derived from the payload's min/max so the
- *  slider always reflects the loaded DPM bounds (never hardcoded). */
-function fmtTick(v: number, meta: LeverMeta): string {
-  const num = Math.abs(v) >= 10000 ? fmtCompactNum(v) : String(v);
+ *  slider always reflects the loaded DPM bounds (never hardcoded). For visitor
+ *  levers we convert the % bound to an absolute count using target capacity. */
+function fmtTick(v: number, meta: LeverMeta, targetCap: number): string {
+  const raw = meta.asVisitors ? Math.round((targetCap * v) / 100) : v;
+  const num = Math.abs(raw) >= 10000 ? fmtCompactNum(raw) : String(raw);
   return (meta.prefix || "") + num + (meta.tickSuffix || "");
 }
 
@@ -56,17 +62,22 @@ function LeverRow({ id }: { id: LeverId }) {
   const flashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   if (!state || !lever || !meta) return null;
 
+  const targetCap = state.levers.find((l) => l.id === "target_capacity")?.value ?? 0;
   const pct = (lever.value - lever.min) / (lever.max - lever.min);
+  // For visitor levers the displayed value is the absolute count; we also show
+  // the original % alongside so the relationship to the target is still clear.
+  const displayValue = meta.asVisitors ? Math.round((targetCap * lever.value) / 100) : lever.value;
+  const subText = meta.asVisitors ? `${meta.sub} · ${lever.value}% of target` : meta.sub;
 
   return (
     <div className={"lever" + (flashing ? " flashing" : "")}>
       <div className="lever-label">
         {meta.label}
-        <div className="lever-sub">{meta.sub}</div>
+        <div className="lever-sub">{subText}</div>
       </div>
       <div className="lever-value">
         {meta.prefix || ""}
-        {meta.format(lever.value)}
+        {meta.format(displayValue)}
         {meta.suffix || ""}
       </div>
       <div className="slider-row">
@@ -88,8 +99,8 @@ function LeverRow({ id }: { id: LeverId }) {
           aria-label={meta.label}
         />
         <div className="ticks">
-          <span>{fmtTick(lever.min, meta)}</span>
-          <span>{fmtTick(lever.max, meta)}</span>
+          <span>{fmtTick(lever.min, meta, targetCap)}</span>
+          <span>{fmtTick(lever.max, meta, targetCap)}</span>
         </div>
       </div>
     </div>
