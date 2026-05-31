@@ -872,3 +872,24 @@ only names/lengths (no secret) for future setup checks.
 **To get the premium ElevenLabs voice working:** upgrade the ElevenLabs account to
 any paid tier (Starter is enough) — no code change needed. To stay free, point the
 proxy at a voice in your own "My Voices" (free accounts can use those via the API).
+
+---
+
+## Staying free — browser voice (2026-05-31)
+
+The user chose to stay on the free ElevenLabs plan. Diagnosis via the proxy showed
+the free key is doubly blocked: the premade library voices require a paid plan
+(402 `paid_plan_required`) AND the key lacks `voices_read` permission (401
+`missing_permissions`). So ElevenLabs TTS is not usable on this account via the API.
+
+Conclusion + behaviour: the dashboard uses the **built-in browser female voice**
+(free, no key, works for everyone). The proxy now forwards ElevenLabs' real status
+(401/402/429/5xx); the client disables the proxy for the session on the first such
+failure and falls straight to the browser voice — so the assistant is never silent
+and doesn't waste a round-trip per reply. Verified live in the real UI: first
+spoken reply made ONE proxy POST → upstream-blocked → `voiceStatus()` flipped from
+`server-proxy` to `browser`, 0 console errors.
+
+To enable the premium ElevenLabs voice later: upgrade to any paid ElevenLabs tier
+AND create an API key with `text_to_speech` (and `voices_read`) permission — then
+it works with no code change (the key env var + proxy are already in place).

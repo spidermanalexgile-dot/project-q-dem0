@@ -169,7 +169,9 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
     } catch {
       /* ignore */
     }
-    res.statusCode = 502;
+    // Forward ElevenLabs' real status (402 paid-plan, 401 key perms, 429 quota…)
+    // so the client can react correctly and disable the proxy for the session.
+    res.statusCode = upstream.status >= 400 ? upstream.status : 502;
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ error: "upstream_tts_failed", status: upstream.status, detail }));
     return;

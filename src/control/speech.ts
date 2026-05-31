@@ -118,9 +118,10 @@ async function speakViaProxy(text: string, onDone?: () => void): Promise<boolean
       body: JSON.stringify({ text, voiceId: chosenVoiceId() }),
     });
     if (!res.ok) {
-      // A 402/403/5xx means the ElevenLabs plan/quota won't serve this — stop
-      // using the proxy this session and fall back to the browser voice.
-      if (res.status === 402 || res.status === 403 || res.status >= 500) serverTtsDisabled = true;
+      // 401 (key lacks permission) / 402 (paid plan required) / 403 / 5xx all mean
+      // ElevenLabs won't serve this — stop using the proxy this session and fall
+      // back to the warm browser voice instead of retrying every reply.
+      if ([401, 402, 403].includes(res.status) || res.status >= 500) serverTtsDisabled = true;
       return false;
     }
     const blob = await res.blob();
