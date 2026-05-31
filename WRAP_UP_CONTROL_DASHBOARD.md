@@ -784,3 +784,33 @@ So the Capacity-ceiling slider now tops out at exactly Venice's record (110k) an
 reads 400k+. Values only — engine and UI logic unchanged. The occupancy auto-tune
 (lands the peak day's cap at 140, within the new €150 max) and the demand-response
 regressions still pass; 0 console errors. Verified live: ceiling ticks 60k / **110k**.
+
+---
+
+## Female-only premium voices (2026-05-31)
+
+**On the Claude API question:** the Claude / Anthropic API is **text-only** — it has
+no text-to-speech, so there's no "Claude voice" to connect. For a better voice the
+right engine is **ElevenLabs**, which is what the app wires up.
+
+The premium voice is now **strictly female**:
+- A curated catalogue of 7 named female ElevenLabs voices — Rachel (warm·calm·pro),
+  Bella, Elli, Charlotte (British·elegant), Matilda (warm·mature), Grace, Lily.
+- `window.ProjectQ.listVoices()` returns them (name + note); `setVoice("Charlotte")`
+  switches by name; `setVoiceApiKey(key, "Charlotte")` enables + sets in one call.
+- **Every** voice selection is resolved through the female catalogue — a name, a
+  curated id, or anything unknown/male all map to a female voice (unknown → default
+  Rachel), so the assistant can **never** speak in a male voice. The browser
+  fallback also strongly prefers female voices.
+
+Verified live: 7 female voices listed, set-by-name resolves correctly, "David" →
+Rachel fallback, clear works, 0 errors.
+
+### How to enable a premium female voice
+```js
+window.ProjectQ.listVoices()                                  // see the options
+window.ProjectQ.setVoiceApiKey("YOUR_ELEVENLABS_KEY", "Charlotte")  // enable
+window.ProjectQ.setVoice("Matilda")                           // switch anytime
+```
+(In-browser key is dev-tools visible — fine for a local pitch; proxy server-side for
+production.)
