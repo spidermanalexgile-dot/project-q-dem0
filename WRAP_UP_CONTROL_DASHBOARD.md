@@ -893,3 +893,21 @@ spoken reply made ONE proxy POST → upstream-blocked → `voiceStatus()` flippe
 To enable the premium ElevenLabs voice later: upgrade to any paid ElevenLabs tier
 AND create an API key with `text_to_speech` (and `voices_read`) permission — then
 it works with no code change (the key env var + proxy are already in place).
+
+---
+
+## Negative base fee — low-season credit (2026-05-31)
+
+Congestion pricing should work in BOTH directions: deter peaks AND fill troughs.
+The base fee can now go negative (min **−€20**) as a credit/discount that draws
+visitors into the low season toward the occupancy target.
+- `managedDemandPct` is now two-sided: on a busy day (raw ≥ target) a positive fee
+  DETERS demand down toward the target; on a quiet day (raw < target) a NEGATIVE fee
+  ATTRACTS demand up toward it (`effort = raw≥target ? max(0,fee) : max(0,−fee)`).
+  A zero/positive fee never deters an already-quiet day.
+- Payload `base_fee` min `0 → −20`. The lever renders the sign correctly (−€15) with
+  a "negative = credit" sub-line; a credited day's revenue goes negative (the
+  authority spends to fill the off-season — shown as NET CREDIT).
+- Verified live: −€15 lifts a 45% December day to **66.6%**, the 200% peak still
+  settles at **118.9%** (busy-day deterrence unchanged), occupancy + demand
+  regressions pass, 0 console errors.
