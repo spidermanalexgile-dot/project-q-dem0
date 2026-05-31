@@ -942,3 +942,22 @@ Six connected requests, shipped as one model upgrade:
 from `monthly` when present). Occupancy auto-tune, demand-response flatten, and the
 negative-base-fee credit all still pass; 0 console errors. Verified live: fee@0 −€2
 rising to €10 at target, 40k target rebases a 100% day to 125%, month axis Jan–Dec.
+
+---
+
+## UI refinements round (2026-05-31)
+
+Five polish requests, all shipped + verified live:
+1. **Convex cost ramp.** The sub-target portion of the cost curve now rises on a
+   `t^1.8` convex curve (instead of linear), so it steepens approaching the target
+   in anticipation of the over-100% spike — less disparate, flows smoothly into the
+   congestion ramp. (fee 25%→−€1, 50%→€1.5, 75%→€5, 100%→€10.)
+2. **Target capacity moved back into the Levers panel** as an input row; removed the
+   redundant capacity figure from the Location label and shortened the Crowd-level
+   label. Top bar now has 6 fields, **0 overlaps**, scrollWidth = clientWidth.
+3. **Green zoom-out.** The annual bell curve is filled a clear attractive green
+   (green gradient wash + green managed hero line + green month dots).
+4. **Revenue trend colour.** The day/annual revenue figures highlight **green** when
+   revenue rose since the last change and **red** when it fell (smooth transition,
+   light + dark).
+Regressions (capacity model, occupancy, demand-response) all pass; 0 console errors.

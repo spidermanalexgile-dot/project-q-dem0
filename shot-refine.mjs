@@ -6,7 +6,7 @@ const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, d
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
-await page.goto("http://localhost:5173/", { waitUntil: "networkidle" });
+await page.goto(process.env.QURL || "http://localhost:5173/", { waitUntil: "networkidle" });
 await page.waitForSelector(".levers-panel", { timeout: 20000 });
 // Top bar overlap check: do any two tb-field/tb-label boxes overlap?
 const overlap = await page.evaluate(() => {
