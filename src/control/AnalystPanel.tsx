@@ -10,6 +10,7 @@ import {
 } from "./state";
 import { ask } from "./analyst";
 import { tryVoiceCommand } from "./voice";
+import { agentAsk, probeBrain } from "./agent";
 import { speak, cancelSpeech, usingPremiumVoice } from "./speech";
 
 type AssistantProps = {
@@ -69,6 +70,7 @@ export function AssistantPanel({ onSetDark }: AssistantProps) {
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const wantListening = useRef(false);
   const suspended = useRef(false); // mic OFF while we speak a reply
+  const processing = useRef(false); // a request is mid-flight (brain round-trip)
   const restartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandled = useRef<{ text: string; at: number }>({ text: "", at: 0 });
@@ -77,6 +79,13 @@ export function AssistantPanel({ onSetDark }: AssistantProps) {
   useEffect(() => {
     setPremium(usingPremiumVoice());
   }, [listening]);
+
+  // Warm the Claude-brain availability flag once, so the first question doesn't
+  // pay a probe round-trip (and the deterministic fallback engages instantly if
+  // the proxy isn't configured).
+  useEffect(() => {
+    void probeBrain();
+  }, []);
 
   // Cmd/Ctrl+J toggles listening.
   useEffect(() => {
@@ -137,9 +146,11 @@ export function AssistantPanel({ onSetDark }: AssistantProps) {
     }, 350);
   }
 
-  function handleTranscript(transcript: string) {
-    if (suspended.current) return;
+  async function handleTranscript(transcript: string) {
+    if (suspended.current || processing.current) return;
     const h = transcript.toLowerCase().trim();
+    // Ignore one- or two-character noise; the brain shouldn't react to coughs.
+    if (h.split(/\s+/).filter(Boolean).length < 2) return;
     const now = performance.now();
     if (h === lastHandled.current.text && now - lastHandled.current.at < 2500) return;
     lastHandled.current = { text: h, at: now };
@@ -147,27 +158,41 @@ export function AssistantPanel({ onSetDark }: AssistantProps) {
     const snap = getState();
     if (!snap) return;
 
-    // Questions go to the analyst; otherwise try a direct command. Auto-apply a
-    // suggested change so a purely-voice flow needs no click. Stay silent on noise.
-    if (!QUESTION_RE.test(h)) {
-      const cmd = tryVoiceCommand(transcript, {
-        getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget, setDark: onSetDark,
-      });
-      if (cmd.recognized) {
+    processing.current = true;
+    try {
+      // 1) The Claude brain — understands free-form requests, calls the
+      //    deterministic tools (which do all the math + apply changes), phrases
+      //    the reply. Returns null when the proxy isn't configured / is offline.
+      const brain = await agentAsk(transcript, { setDark: onSetDark });
+      if (brain) {
         setHeard(transcript);
-        respond(cmd.reply);
+        respond(brain.answer);
         return;
       }
+
+      // 2) Deterministic fallback (no API key / offline): keyword command, else
+      //    the rule-based analyst. Auto-apply a suggested change. Silent on noise.
+      if (!QUESTION_RE.test(h)) {
+        const cmd = tryVoiceCommand(transcript, {
+          getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget, setDark: onSetDark,
+        });
+        if (cmd.recognized) {
+          setHeard(transcript);
+          respond(cmd.reply);
+          return;
+        }
+      }
+      const res = ask(transcript, snap);
+      if (res.answer === "Sorry, I didn't catch a command I recognize.") return; // noise
+      setHeard(transcript);
+      if (res.action) {
+        if ("setLever" in res.action) setLever(res.action.setLever.id, res.action.setLever.value);
+        else for (const r of res.action.setLevers) setLever(r.id, r.value);
+      }
+      respond(res.answer);
+    } finally {
+      processing.current = false;
     }
-    const res = ask(transcript, snap);
-    if (res.answer === "Sorry, I didn't catch a command I recognize.") return; // noise
-    setHeard(transcript);
-    // Apply a suggested lever change automatically (voice-only — no button).
-    if (res.action) {
-      if ("setLever" in res.action) setLever(res.action.setLever.id, res.action.setLever.value);
-      else for (const r of res.action.setLevers) setLever(r.id, r.value);
-    }
-    respond(res.answer);
   }
 
   function start() {
@@ -180,7 +205,7 @@ export function AssistantPanel({ onSetDark }: AssistantProps) {
     rec.onresult = (e) => {
       const last = e.results[e.results.length - 1];
       const t = last && last[0] ? last[0].transcript : "";
-      if (t) handleTranscript(t.trim());
+      if (t) void handleTranscript(t.trim());
     };
     rec.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {

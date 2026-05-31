@@ -632,6 +632,10 @@ export type ProjectQApi = {
   /** Ask the deterministic analyst a question; returns its text answer (any
    *  suggested lever change is surfaced in the in-UI chat, not auto-applied). */
   askAnalyst: (question: string) => string;
+  /** Ask the Claude-brained concierge (tool-use over the deterministic engine).
+   *  Resolves to her spoken answer, or null when the /api/agent proxy isn't
+   *  configured — in which case askAnalyst is the deterministic fallback. */
+  askAgent: (question: string) => Promise<string | null>;
   /** Enable the premium ElevenLabs voice (key persisted to localStorage). The
    *  optional `voice` is a female voice name ("Charlotte") or curated id; anything
    *  else falls back to the default female voice. Pass null key to clear. */
@@ -673,6 +677,13 @@ export function installGlobalApi(): void {
     askAnalyst: (question: string) => {
       const s = getState();
       return s ? ask(question, s).answer : "No payload loaded yet.";
+    },
+    // Dynamic import keeps the brain (which imports this module via agent-tools)
+    // out of state.ts's static dependency graph — no import cycle at load time.
+    askAgent: async (question: string) => {
+      const { agentAsk } = await import("./agent");
+      const r = await agentAsk(question);
+      return r ? r.answer : null;
     },
     setVoiceApiKey: (key: string | null, voice?: string) => setElevenCredentials(key, voice),
     setVoice: (voice: string) => setElevenVoice(voice),

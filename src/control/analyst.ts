@@ -75,7 +75,7 @@ export function monthRevenue(snap: State, monthIdx: number, year: number): numbe
 }
 
 /** A shallow clone of state with one lever overridden (for what-if solving). */
-function withLever(snap: State, id: LeverId, value: number): State {
+export function withLever(snap: State, id: LeverId, value: number): State {
   return {
     ...snap,
     levers: snap.levers.map((l) => (l.id === id ? { ...l, value } : l)),
@@ -87,7 +87,7 @@ function leverObj(snap: State, id: LeverId) {
 }
 
 /** Apply several lever overrides at once (for what-if projection). */
-function withLevers(snap: State, recs: { id: LeverId; value: number }[]): State {
+export function withLevers(snap: State, recs: { id: LeverId; value: number }[]): State {
   const map = new Map(recs.map((r) => [r.id, r.value]));
   return { ...snap, levers: snap.levers.map((l) => (map.has(l.id) ? { ...l, value: map.get(l.id)! } : l)) };
 }
@@ -104,7 +104,7 @@ function clampStep(value: number, lever: { min: number; max: number; step?: numb
  * Works for monotonic metrics in either direction (we detect the sign from the
  * endpoints). Returns null if the target isn't reachable within the lever bounds.
  */
-function solveLever(
+export function solveLever(
   snap: State,
   id: LeverId,
   metric: (s: State) => number,
@@ -178,6 +178,177 @@ function findMonth(text: string): number | null {
   return null;
 }
 
+/* ─── reusable deterministic tools (shared by ask() + the Claude brain) ───── */
+
+const PERIOD_MONTHS: Record<string, number> = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+};
+
+/** Resolve a period name ("annual" | a month) into a revenue metric over state. */
+export function periodMetric(period: string, year = MODELLING_YEAR): {
+  metric: (s: State) => number;
+  label: string;
+} {
+  const p = period.trim().toLowerCase();
+  const m = PERIOD_MONTHS[p];
+  if (m != null) return { metric: (s) => monthRevenue(s, m, year), label: MONTH_TITLE[m] };
+  return { metric: (s) => annualRevenue(s), label: "annual" };
+}
+
+export type SuggestResult = {
+  dayLabel: string;
+  demand: number;
+  target: number;
+  atOrUnder: boolean;
+  recs: { id: LeverId; value: number; label: string; from: number }[];
+  projectedPct: number | null;
+};
+
+/**
+ * Deterministic "suggest lever settings" solver. Given a day (ISO or the day
+ * currently modelled), works out concrete lever values that settle that day at
+ * the occupancy target, and reports the projected managed demand. No LLM, no
+ * guessing — the same engine the dashboard runs.
+ */
+export function suggestLeverSettings(snap: State, iso?: string | null): SuggestResult {
+  const day = iso
+    ? { demand: demandForISO(iso, snap.day_types) ?? 100, label: formatISO(iso) }
+    : { demand: activeDayType(snap).demand_pct, label: activeDayType(snap).label };
+  const target = occupancyTarget(snap);
+  const base = leverObj(snap, "base_fee")!;
+  const cap = leverObj(snap, "max_fee_cap")!;
+  const ceiling = leverObj(snap, "ceiling_pct")!;
+  const over = day.demand - target;
+
+  if (over <= 2) {
+    return {
+      dayLabel: day.label,
+      demand: day.demand,
+      target,
+      atOrUnder: true,
+      recs: [
+        { id: "base_fee", value: base.value, label: LEVER_SPOKEN.base_fee, from: base.value },
+        { id: "max_fee_cap", value: cap.value, label: LEVER_SPOKEN.max_fee_cap, from: cap.value },
+      ],
+      projectedPct: managedDemandPct(day.demand, snap),
+    };
+  }
+
+  // Need a deterrent fee. fee* compresses (demand-target) down toward ~target.
+  const desiredGap = Math.max(0.02, 2 / over); // leave ~2% of the overshoot
+  const feeStar = Math.max(base.value + (cap.step || 1), -30 * Math.log(desiredGap));
+  const capV = clampStep(feeStar, cap);
+  const ceilV = clampStep(Math.max(ceiling.min, Math.min(ceiling.value, Math.round(day.demand))), ceiling);
+  const recs = [
+    { id: "base_fee" as LeverId, value: base.value, label: LEVER_SPOKEN.base_fee, from: base.value },
+    { id: "max_fee_cap" as LeverId, value: capV, label: LEVER_SPOKEN.max_fee_cap, from: cap.value },
+    { id: "ceiling_pct" as LeverId, value: ceilV, label: LEVER_SPOKEN.ceiling_pct, from: ceiling.value },
+  ];
+  return {
+    dayLabel: day.label,
+    demand: day.demand,
+    target,
+    atOrUnder: false,
+    recs,
+    projectedPct: managedDemandPct(day.demand, withLevers(snap, recs)),
+  };
+}
+
+export type GoalSeekResult = {
+  ok: boolean;
+  lever: LeverId;
+  leverLabel: string;
+  from: number;
+  to: number;
+  current: number;
+  achieved: number;
+  delta: number;
+  target: number;
+  clamped: boolean;
+  periodLabel: string;
+};
+
+/** Solve a single lever to move a period's revenue by/to an amount. Deterministic. */
+export function goalSeekRevenue(
+  snap: State,
+  opts: { period: string; amount: number; lever: LeverId; direction?: 1 | -1; absolute?: boolean },
+): GoalSeekResult | null {
+  const { metric, label } = periodMetric(opts.period);
+  const lev = leverObj(snap, opts.lever);
+  if (!lev) return null;
+  const current = metric(snap);
+  const dir = opts.direction ?? 1;
+  const target = opts.absolute ? Math.abs(opts.amount) : current + dir * Math.abs(opts.amount);
+  const sol = solveLever(snap, opts.lever, metric, target);
+  if (!sol) return null;
+  const achieved = metric(withLever(snap, opts.lever, sol.value));
+  return {
+    ok: !sol.clamped,
+    lever: opts.lever,
+    leverLabel: LEVER_SPOKEN[opts.lever],
+    from: lev.value,
+    to: sol.value,
+    current,
+    achieved,
+    delta: achieved - current,
+    target,
+    clamped: sol.clamped,
+    periodLabel: label,
+  };
+}
+
+export type CheapestLeverResult = {
+  periodLabel: string;
+  current: number;
+  target: number;
+  reaches: boolean;
+  ranked: { id: LeverId; label: string; from: number; to: number; achieved: number; delta: number }[];
+};
+
+/** Rank every lever by how cheaply it moves a period's revenue to a goal. */
+export function cheapestLeverForRevenue(
+  snap: State,
+  opts: { period: string; amount: number; direction?: 1 | -1 },
+): CheapestLeverResult {
+  const { metric, label } = periodMetric(opts.period);
+  const current = metric(snap);
+  const dir = opts.direction ?? 1;
+  const target = current + dir * Math.abs(opts.amount);
+  const tol = Math.max(1, Math.abs(opts.amount) * 0.05);
+  type Cand = { id: LeverId; value: number; achieved: number; miss: number; effort: number };
+  const cands: Cand[] = [];
+  for (const id of ["base_fee", "max_fee_cap", "target_capacity", "ceiling_pct"] as LeverId[]) {
+    const lev = leverObj(snap, id);
+    if (!lev) continue;
+    const sol = solveLever(snap, id, metric, target);
+    if (!sol) continue;
+    const achieved = metric(withLever(snap, id, sol.value));
+    cands.push({
+      id,
+      value: sol.value,
+      achieved,
+      miss: Math.abs(achieved - target),
+      effort: Math.abs(sol.value - lev.value) / Math.max(1, lev.max - lev.min),
+    });
+  }
+  cands.sort((a, b) => a.miss - b.miss || a.effort - b.effort);
+  return {
+    periodLabel: label,
+    current,
+    target,
+    reaches: cands.length > 0 && cands[0].miss <= tol,
+    ranked: cands.slice(0, 4).map((c) => ({
+      id: c.id,
+      label: LEVER_SPOKEN[c.id],
+      from: leverObj(snap, c.id)!.value,
+      to: c.value,
+      achieved: c.achieved,
+      delta: c.achieved - current,
+    })),
+  };
+}
+
 /* ─── the agent ─────────────────────────────────────────────────────────── */
 
 /**
@@ -193,54 +364,33 @@ export function ask(qRaw: string, snap: State): AnalystResult {
       /\b(lever|levers|setting|settings|fee|fees|price|prices|config|configuration)\b/.test(q)) {
     // Which day? A spoken date, else the day currently modelled.
     const iso = parseSpokenDate(q, year);
-    const day = iso
-      ? { demand: demandForISO(iso, snap.day_types) ?? 100, label: formatISO(iso) }
-      : { demand: activeDayType(snap).demand_pct, label: activeDayType(snap).label };
-    const target = occupancyTarget(snap);
-    const base = leverObj(snap, "base_fee")!;
-    const cap = leverObj(snap, "max_fee_cap")!;
-    const ceiling = leverObj(snap, "ceiling_pct")!;
-
-    // Solve the fee the day needs to settle at the target (same model as the
-    // occupancy auto-tune), then propose concrete lever values.
-    const over = day.demand - target;
-    const recs: { id: LeverId; value: number }[] = [];
+    const s = suggestLeverSettings(snap, iso);
+    const recs = s.recs.map((r) => ({ id: r.id, value: r.value }));
     let rationale: string;
-    if (over <= 2) {
-      // Already at/under target — keep fees gentle, don't over-penalise.
-      recs.push({ id: "base_fee", value: base.value });
-      recs.push({ id: "max_fee_cap", value: cap.value });
+    if (s.atOrUnder) {
+      const base = s.recs.find((r) => r.id === "base_fee")!;
+      const cap = s.recs.find((r) => r.id === "max_fee_cap")!;
       rationale =
-        `${day.label} is forecast at ${Math.round(day.demand)}% — at or under your ${target}% target, ` +
+        `${s.dayLabel} is forecast at ${Math.round(s.demand)}% — at or under your ${s.target}% target, ` +
         `so no extra deterrence is needed. Keep the base fee around ${eur(base.value)} and the cap at ` +
         `${eur(cap.value)}; pushing fees higher would just turn away visitors you actually want.`;
     } else {
-      // Need a deterrent fee on this day. fee* compresses (demand-target) to ~target.
-      const desiredGap = Math.max(0.02, 2 / over); // leave ~2% of the overshoot
-      const feeStar = Math.max(base.value + (cap.step || 1), -30 * Math.log(desiredGap));
-      const capV = clampStep(feeStar, cap);
-      // Tighten the ceiling so the day actually reaches the cap fee.
-      const ceilV = clampStep(Math.max(ceiling.min, Math.min(ceiling.value, Math.round(day.demand))), ceiling);
-      recs.push({ id: "base_fee", value: base.value });
-      recs.push({ id: "max_fee_cap", value: capV });
-      recs.push({ id: "ceiling_pct", value: ceilV });
-      const projected = managedDemandPct(
-        day.demand,
-        withLevers(snap, recs),
-      );
+      const capV = s.recs.find((r) => r.id === "max_fee_cap")!.value;
+      const ceilV = s.recs.find((r) => r.id === "ceiling_pct")!.value;
+      const baseV = s.recs.find((r) => r.id === "base_fee")!.value;
       rationale =
-        `${day.label} is forecast at ${Math.round(day.demand)}% — that's ${Math.round(over)} points over your ` +
-        `${target}% target, so the pricing curve needs to bite. I'd set:\n` +
+        `${s.dayLabel} is forecast at ${Math.round(s.demand)}% — that's ${Math.round(s.demand - s.target)} points over your ` +
+        `${s.target}% target, so the pricing curve needs to bite. I'd set:\n` +
         `• Max-fee cap → ${eur(capV)} (the deterrent the busiest hours pay)\n` +
         `• Capacity ceiling → ${ceilV}% (so the curve reaches that cap by this day's crowd level)\n` +
-        `• Base fee → ${eur(base.value)} (keep the entry price gentle for normal days)\n\n` +
-        `That settles ${day.label} at about ${Math.round(projected)}% of capacity — right on your ${target}% ` +
+        `• Base fee → ${eur(baseV)} (keep the entry price gentle for normal days)\n\n` +
+        `That settles ${s.dayLabel} at about ${Math.round(s.projectedPct ?? s.demand)}% of capacity — right on your ${s.target}% ` +
         `target — while quiet days stay near the base fee. Higher fee on the busy day deters the overflow; ` +
         `the cheap base keeps the shoulder days welcoming.`;
     }
     return {
       answer: rationale,
-      action: { setLevers: recs, label: `the suggested settings for ${day.label}` },
+      action: { setLevers: recs, label: `the suggested settings for ${s.dayLabel}` },
     };
   }
 
