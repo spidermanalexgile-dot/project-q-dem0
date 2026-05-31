@@ -911,3 +911,34 @@ visitors into the low season toward the occupancy target.
 - Verified live: −€15 lifts a 45% December day to **66.6%**, the 200% peak still
   settles at **118.9%** (busy-day deterrence unchanged), occupancy + demand
   regressions pass, 0 console errors.
+
+---
+
+## Capacity-driven model overhaul (2026-05-31)
+
+Six connected requests, shipped as one model upgrade:
+
+1. **Target capacity is an INPUT, not a lever.** Moved out of the sliders into a
+   top-bar "Target capacity" field (`capacity.target`, operator input). New
+   `setTargetCapacity()`; `setLever('target_capacity')` and the voice command both
+   redirect to it.
+2. **Target capacity rebases demand everywhere.** `liveDemandPct = baseline% ×
+   (baseline / target)` — lowering the target (50k → 40k) makes the same forecast
+   crowd read as a higher % (100% → 125%), so the cost curve and zoom-out steepen.
+   Levers, callouts and revenue all follow. Verified live.
+3. **Cost curve ramps below target (not flat).** `feeAtPct` climbs linearly from a
+   credit floor at 0% up to the base fee at the target, so the 30,000th visitor
+   pays more than the 10,000th.
+4. **Negative Y axis on the cost curve.** x starts at 0% and the y-axis goes below
+   zero so the earliest off-season visitors can be **paid to come** (fee at 0% ≈
+   −€2 at the default settings).
+5. **Zoom-out shows month dates, not "X days".** X-axis is now Jan → Dec.
+6. **Zoom-out is a realistic Venice bell curve.** New `monthly[]` profile (Aug peak
+   ~200%, winter trough ~52%) drawn chronologically as a smooth summer-peak bell —
+   dashed forecast vs solid managed, both target-rebased, peak-month fee label, and
+   a "% closer to target" badge.
+
+`dayRevenue`/`annualRevenue` use `targetCapacity()` + live demand (annual derives
+from `monthly` when present). Occupancy auto-tune, demand-response flatten, and the
+negative-base-fee credit all still pass; 0 console errors. Verified live: fee@0 −€2
+rising to €10 at target, 40k target rebases a 100% day to 125%, month axis Jan–Dec.
