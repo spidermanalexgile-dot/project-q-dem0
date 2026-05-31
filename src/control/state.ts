@@ -13,7 +13,7 @@
 import { demandForISO, formatISO } from "./dateutil";
 import { executeVoiceCommand } from "./voice";
 import { ask } from "./analyst";
-import { setElevenCredentials } from "./speech";
+import { setElevenCredentials, setElevenVoice, listFemaleVoices } from "./speech";
 
 export type LeverId =
   | "target_capacity"
@@ -549,9 +549,14 @@ export type ProjectQApi = {
   /** Ask the deterministic analyst a question; returns its text answer (any
    *  suggested lever change is surfaced in the in-UI chat, not auto-applied). */
   askAnalyst: (question: string) => string;
-  /** Enable the premium ElevenLabs voice (key persisted to localStorage). Pass
-   *  null to clear and fall back to the built-in browser voice. */
-  setVoiceApiKey: (key: string | null, voiceId?: string) => void;
+  /** Enable the premium ElevenLabs voice (key persisted to localStorage). The
+   *  optional `voice` is a female voice name ("Charlotte") or curated id; anything
+   *  else falls back to the default female voice. Pass null key to clear. */
+  setVoiceApiKey: (key: string | null, voice?: string) => void;
+  /** Switch the premium female voice by name without re-entering the key. */
+  setVoice: (voice: string) => void;
+  /** List the selectable female voices (name + short description). */
+  listVoices: () => { name: string; note: string }[];
 };
 
 export function installGlobalApi(): void {
@@ -581,7 +586,9 @@ export function installGlobalApi(): void {
       const s = getState();
       return s ? ask(question, s).answer : "No payload loaded yet.";
     },
-    setVoiceApiKey: (key: string | null, voiceId?: string) => setElevenCredentials(key, voiceId),
+    setVoiceApiKey: (key: string | null, voice?: string) => setElevenCredentials(key, voice),
+    setVoice: (voice: string) => setElevenVoice(voice),
+    listVoices: () => listFemaleVoices(),
   };
   (window as unknown as { ProjectQ: ProjectQApi }).ProjectQ = api;
 }

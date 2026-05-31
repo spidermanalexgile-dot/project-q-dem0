@@ -16,8 +16,33 @@
 
 const ELEVEN_KEY_LS = "qctl-eleven-key";
 const ELEVEN_VOICE_LS = "qctl-eleven-voice";
-// A pleasant default ElevenLabs voice ("Rachel") — overridable per deployment.
-const ELEVEN_DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM";
+
+/**
+ * Curated FEMALE ElevenLabs voices (premade library voice IDs, all female). The
+ * assistant only ever uses one of these, so it can never pick a male voice.
+ * Default = Rachel (warm, calm, professional — a good pitch-room voice).
+ */
+export const ELEVEN_FEMALE_VOICES: { name: string; id: string; note: string }[] = [
+  { name: "Rachel", id: "21m00Tcm4TlvDq8ikWAM", note: "warm · calm · professional" },
+  { name: "Bella", id: "EXAVITQu4vr4xnSDxMaL", note: "soft · friendly" },
+  { name: "Elli", id: "MF3mGyEYCl7XYWbV9V6O", note: "young · bright" },
+  { name: "Charlotte", id: "XB0fDUnXU5powFXDhCwa", note: "British · elegant" },
+  { name: "Matilda", id: "XrExE9yKIg1WjnnlVkGX", note: "warm · mature" },
+  { name: "Grace", id: "oWAxZDx7w5VEj9dCyTzz", note: "gentle · Southern US" },
+  { name: "Lily", id: "pFZP5JQG7iQjIQuC4Bku", note: "British · soft" },
+];
+const ELEVEN_DEFAULT_VOICE = ELEVEN_FEMALE_VOICES[0].id;
+
+/** Resolve a spoken/typed voice name (e.g. "Charlotte") to a female voice id. */
+function resolveFemaleVoiceId(nameOrId: string): string {
+  const q = nameOrId.trim().toLowerCase();
+  const byName = ELEVEN_FEMALE_VOICES.find((v) => v.name.toLowerCase() === q);
+  if (byName) return byName.id;
+  // Accept a raw id only if it's one of our curated female voices; otherwise fall
+  // back to the default so we never end up on a non-female / unknown voice.
+  const byId = ELEVEN_FEMALE_VOICES.find((v) => v.id === nameOrId);
+  return byId ? byId.id : ELEVEN_DEFAULT_VOICE;
+}
 
 type ElevenCfg = { key: string; voiceId: string } | null;
 function elevenConfig(): ElevenCfg {
@@ -32,7 +57,9 @@ function elevenConfig(): ElevenCfg {
     /* storage blocked */
   }
   if (!key) return null;
-  return { key, voiceId: voiceId || ELEVEN_DEFAULT_VOICE };
+  // Always resolve through the female catalogue so a stale/unknown id can never
+  // produce a male voice.
+  return { key, voiceId: resolveFemaleVoiceId(voiceId || ELEVEN_DEFAULT_VOICE) };
 }
 
 /** True when the premium ElevenLabs voice is configured + will be used. */
@@ -40,15 +67,30 @@ export function usingPremiumVoice(): boolean {
   return elevenConfig() != null;
 }
 
-/** Store / clear the ElevenLabs key + voice (so the operator can enable it live). */
-export function setElevenCredentials(key: string | null, voiceId?: string): void {
+/** Store / clear the ElevenLabs key + voice. `voice` may be a name ("Charlotte")
+ *  or a curated female id; anything else falls back to the default female voice. */
+export function setElevenCredentials(key: string | null, voice?: string): void {
   try {
     if (key) localStorage.setItem(ELEVEN_KEY_LS, key);
     else localStorage.removeItem(ELEVEN_KEY_LS);
-    if (voiceId) localStorage.setItem(ELEVEN_VOICE_LS, voiceId);
+    if (voice) localStorage.setItem(ELEVEN_VOICE_LS, resolveFemaleVoiceId(voice));
   } catch {
     /* no-op */
   }
+}
+
+/** Switch the premium voice without touching the key (name or curated id). */
+export function setElevenVoice(voice: string): void {
+  try {
+    localStorage.setItem(ELEVEN_VOICE_LS, resolveFemaleVoiceId(voice));
+  } catch {
+    /* no-op */
+  }
+}
+
+/** The list of selectable female voices (name + note) for a picker / help text. */
+export function listFemaleVoices(): { name: string; note: string }[] {
+  return ELEVEN_FEMALE_VOICES.map((v) => ({ name: v.name, note: v.note }));
 }
 
 let currentAudio: HTMLAudioElement | null = null;
