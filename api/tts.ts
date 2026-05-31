@@ -47,8 +47,23 @@ function readJsonBody(req: Req): Promise<{ text?: string; voiceId?: string }> {
   });
 }
 
+/** Find the ElevenLabs key tolerant of casing/spelling — env names are
+ *  case-sensitive, so accept ELEVENLABS_API_KEY / ElevenLabs_API_Key / etc.,
+ *  plus a couple of common alternates. */
+function findElevenKey(): string | undefined {
+  const direct = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_API_KEY;
+  if (direct) return direct;
+  for (const [name, value] of Object.entries(process.env)) {
+    const n = name.toLowerCase().replace(/[^a-z]/g, "");
+    if ((n.includes("elevenlabs") || n.includes("eleven")) && n.includes("key") && value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 export default async function handler(req: Req, res: ServerResponse): Promise<void> {
-  const key = process.env.ELEVENLABS_API_KEY;
+  const key = findElevenKey();
 
   // Health probe — reports whether the key is configured WITHOUT exposing it.
   // ?debug=1 adds a SAFE diagnostic (env var NAMES only, never values) to help
