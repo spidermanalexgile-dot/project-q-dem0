@@ -77,6 +77,11 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
           keyLength: key ? key.length : 0,
           model: MODEL,
           anthropicVarNames: names.filter((n) => /anthropic|claude/i.test(n)),
+          // Candidate secret-ish var NAMES only (never values) so a misnamed key
+          // is easy to spot. Excludes Vercel/system internals.
+          keyishVarNames: names
+            .filter((n) => /key|api|token|secret/i.test(n))
+            .filter((n) => !/^(VERCEL|AWS|NEXT|PATH|NODE|npm|PWD|HOME|SHLVL|_|LANG|TERM)/i.test(n)),
           totalEnvVars: names.length,
         }),
       );
