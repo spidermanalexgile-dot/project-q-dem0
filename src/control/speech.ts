@@ -21,6 +21,10 @@ const ELEVEN_VOICE_LS = "qctl-eleven-voice";
 // undefined = not probed yet, true/false = whether the secure server proxy is up.
 let serverTtsReady: boolean | undefined;
 let serverProbe: Promise<boolean> | null = null;
+// Set true if a real proxy POST fails at runtime (e.g. ElevenLabs free-plan 402)
+// — we then skip the proxy for the rest of the session and use the browser voice
+// directly, so every reply isn't slowed by a failing round-trip.
+let serverTtsDisabled = false;
 
 function probeServerTts(): Promise<boolean> {
   if (serverTtsReady !== undefined) return Promise.resolve(serverTtsReady);
@@ -90,7 +94,7 @@ function elevenConfig(): ElevenCfg {
 
 /** True when a premium ElevenLabs voice will be used (secure proxy or client key). */
 export function usingPremiumVoice(): boolean {
-  return serverTtsReady === true || elevenConfig() != null;
+  return (serverTtsReady === true && !serverTtsDisabled) || elevenConfig() != null;
 }
 
 /** Current chosen female voice id (client config, else default) for proxy calls. */
@@ -113,7 +117,12 @@ async function speakViaProxy(text: string, onDone?: () => void): Promise<boolean
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, voiceId: chosenVoiceId() }),
     });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      // A 402/403/5xx means the ElevenLabs plan/quota won't serve this — stop
+      // using the proxy this session and fall back to the browser voice.
+      if (res.status === 402 || res.status === 403 || res.status >= 500) serverTtsDisabled = true;
+      return false;
+    }
     const blob = await res.blob();
     return playAudioBlob(blob, onDone);
   } catch {
@@ -152,7 +161,7 @@ export function voiceStatus(): { engine: "server-proxy" | "client-key" | "browse
   let voiceName = "browser default";
   const id = chosenVoiceId();
   const hit = ELEVEN_FEMALE_VOICES.find((v) => v.id === id);
-  if (serverTtsReady === true) return { engine: "server-proxy", voice: hit?.name ?? "Rachel" };
+  if (serverTtsReady === true && !serverTtsDisabled) return { engine: "server-proxy", voice: hit?.name ?? "Rachel" };
   if (elevenConfig() != null) return { engine: "client-key", voice: hit?.name ?? "Rachel" };
   return { engine: "browser", voice: voiceName };
 }
@@ -281,8 +290,9 @@ function speakBrowser(text: string, onDone?: () => void): void {
  *  onDone fires when speech ends/errors so the caller can resume the mic. */
 export function speak(text: string, onDone?: () => void): void {
   void (async () => {
-    // 1. Secure server proxy (production).
-    if (await probeServerTts()) {
+    // 1. Secure server proxy (production) — unless a prior call proved it can't
+    //    serve (e.g. free-plan 402).
+    if (!serverTtsDisabled && (await probeServerTts())) {
       if (await speakViaProxy(text, onDone)) return;
     }
     // 2. Client-side ElevenLabs key (local pitch).

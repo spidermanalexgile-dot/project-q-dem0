@@ -844,3 +844,31 @@ The proper, secure ElevenLabs setup — the key never reaches the browser.
    `window.ProjectQ.voiceStatus()` should report `engine: "server-proxy"`. Pick a
    voice with `window.ProjectQ.setVoice("Charlotte")`. It can never be male (server
    allowlist + female default).
+
+---
+
+## Voice proxy: env-var name + free-plan finding (2026-05-31)
+
+After the user added the key and redeployed, `/api/tts` still reported `{ok:false}`.
+A safe `?debug=1` health diagnostic (env var NAMES only, never values) revealed:
+1. **Edge runtime** didn't expose `process.env` reliably → switched `api/tts.ts` to a
+   **Node** serverless function (`process.env.ELEVENLABS_API_KEY` now resolves).
+2. The Vercel var was named **`ElevenLabs_API_Key`**, but env names are
+   case-sensitive — it didn't match `ELEVENLABS_API_KEY`. Added `findElevenKey()`
+   which accepts `ELEVENLABS_API_KEY` / `ELEVEN_API_KEY` or any env name normalising
+   to contain "eleven" + "key", so the existing var now works as-is. After this the
+   probe returns `{ok:true, keyLength:51}`.
+3. A real POST then returned ElevenLabs **402 `paid_plan_required`**: *"Free users
+   cannot use library voices via the API."* So the curated premium voices need a
+   **paid ElevenLabs plan** (Starter ~$5/mo). The key + proxy are correct; only the
+   plan blocks it.
+
+Resilience added: a runtime proxy failure (402/403/5xx) now disables the proxy for
+the session and falls straight to the warm browser voice, so the assistant is never
+silent and doesn't retry a failing round-trip on every reply. `voiceStatus()` and
+`usingPremiumVoice()` reflect the disabled state. The `?debug=1` endpoint returns
+only names/lengths (no secret) for future setup checks.
+
+**To get the premium ElevenLabs voice working:** upgrade the ElevenLabs account to
+any paid tier (Starter is enough) — no code change needed. To stay free, point the
+proxy at a voice in your own "My Voices" (free accounts can use those via the API).
