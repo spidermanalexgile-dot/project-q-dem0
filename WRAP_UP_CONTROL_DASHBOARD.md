@@ -814,3 +814,33 @@ window.ProjectQ.setVoice("Matilda")                           // switch anytime
 ```
 (In-browser key is dev-tools visible — fine for a local pitch; proxy server-side for
 production.)
+
+---
+
+## Secure server voice proxy / Option B (2026-05-31)
+
+The proper, secure ElevenLabs setup — the key never reaches the browser.
+- **`api/tts.ts`** (Vercel edge function) reads the key from the server env var
+  `ELEVENLABS_API_KEY`. `GET /api/tts` → `{ ok }` health probe; `POST {text,voiceId}`
+  → streams `audio/mpeg`. Hardened: only the curated female voice ids are accepted,
+  800-char cap, `no-store`. The key name is **absent from the client bundle**.
+- **`speech.ts`** `speak()` now prefers the secure proxy: probes `GET /api/tts` once
+  on boot (`initServerVoice`), then per reply tries **proxy → client-side key →
+  browser voice**, falling through on any failure so it's never silent.
+  `window.ProjectQ.voiceStatus()` reports the engine (`server-proxy` / `client-key`
+  / `browser`).
+- Verified live: `/api/tts` GET returns `{"ok":false}` (proxy deployed, key not set
+  yet — correct), the voice API + 7 female voices still work, 0 console errors. In
+  dev the probe falls back cleanly to the browser voice.
+
+### Setup (do this once)
+1. **elevenlabs.io → Profile → API key** — copy it.
+2. **Vercel → your project → Settings → Environment Variables** → add
+   `ELEVENLABS_API_KEY = <your key>`, scope **Production** (NO `VITE_` prefix — that
+   keeps it server-only).
+3. **Redeploy** (Deployments → Redeploy, or push any commit).
+4. Done — the dashboard auto-detects `/api/tts`; the assistant speaks in the premium
+   female voice for **all** visitors, key never exposed. Verify in the console:
+   `window.ProjectQ.voiceStatus()` should report `engine: "server-proxy"`. Pick a
+   voice with `window.ProjectQ.setVoice("Charlotte")`. It can never be male (server
+   allowlist + female default).
