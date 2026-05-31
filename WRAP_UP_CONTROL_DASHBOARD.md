@@ -692,3 +692,31 @@ year toward it.
 Modelling note: the deterrence strength uses `DEMAND_REF_EUR` (€30) — the same
 price-sensitivity assumption as the demand-response curve; it calibrates when the
 DPM ships an elasticity figure.
+
+---
+
+## Unified assistant + suggest (2026-05-31)
+
+### Voice control and the analyst are now one feature
+Merged `VoiceControl` into the analyst as a single **Project Q Assistant** panel:
+- One floating "Assistant" button (or **Cmd/Ctrl+J**) opens a chat with the **mic
+  built into the input row**. Talk or type — either works.
+- Direct commands ("set base fee to 20", "we only want 80% capacity", "dark mode")
+  are recognized and **auto-applied**; questions ("why is…", "suggest…", "cheapest
+  way to…") go to the analyst. Questions always beat command-matching, so
+  "why is Feb 2nd's demand…" returns the analysis rather than being read as a date
+  command.
+- The same warm female voice reads replies aloud (speaker toggle in the header);
+  the mic is physically muted while it speaks, so it never hears/repeats itself.
+- The standalone voice button + bubble were removed.
+
+### New: "suggest lever settings for this day and explain"
+The analyst recommends concrete `base_fee` / `max_fee_cap` / `ceiling_pct` values
+that settle the modelled day on the occupancy target, with a plain-English rationale
+("Peak summer Saturday is forecast at 200% — 100 points over your 100% target… set
+Max-fee cap → €120, Capacity ceiling → 200%, Base fee → €10… settles it at ~100%"),
+and a **one-click Apply that moves all the levers at once** (`AnalystAction` now
+supports `setLevers[]`). If the day is already under target it advises keeping fees
+gentle rather than over-penalising. Verified live alongside control commands,
+occupancy, and questions in the same box; occupancy + demand regressions still pass;
+0 console errors.
