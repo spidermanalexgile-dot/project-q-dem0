@@ -327,25 +327,34 @@ export function runTool(
 
     case "set_lever": {
       const id = input.lever as LeverId;
+      const from = id === "target_capacity" ? targetCapacity(snap) : snap.levers.find((l) => l.id === id)?.value;
       if (id === "target_capacity") setTargetCapacity(Number(input.value));
       else setLever(id, Number(input.value));
-      const nv = id === "target_capacity"
+      const to = id === "target_capacity"
         ? targetCapacity(getState()!)
         : getState()!.levers.find((l) => l.id === id)?.value;
-      return { result: { lever: id, value: nv, applied: true }, applied: true };
+      return { result: { lever: id, from, to, changed: from !== to, applied: true }, applied: true };
     }
 
-    case "set_target_capacity":
+    case "set_target_capacity": {
+      const from = targetCapacity(snap);
       setTargetCapacity(Number(input.visitors));
-      return { result: { target_capacity: targetCapacity(getState()!), applied: true }, applied: true };
+      const to = targetCapacity(getState()!);
+      return { result: { target_capacity: to, from, changed: from !== to, applied: true }, applied: true };
+    }
 
-    case "set_occupancy_target":
+    case "set_occupancy_target": {
+      const from = occupancyTarget(snap);
       setOccupancyTarget(Number(input.pct));
-      return { result: { occupancy_target: occupancyTarget(getState()!), applied: true }, applied: true };
+      const to = occupancyTarget(getState()!);
+      return { result: { occupancy_target: to, from, changed: from !== to, applied: true }, applied: true };
+    }
 
-    case "set_demand":
+    case "set_demand": {
+      const from = snap.customDemand ?? activeDayType(snap).demand_pct;
       setDemand(Number(input.pct));
-      return { result: { demand_pct: getState()!.customDemand, applied: true }, applied: true };
+      return { result: { demand_pct: getState()!.customDemand, from, applied: true }, applied: true };
+    }
 
     case "set_day_type": {
       const id = String(input.id);
