@@ -1,8 +1,95 @@
 /**
- * Shared speech-synthesis helper — picks a warm, natural female voice and speaks
- * text with softened prosody. Used by both the voice control and the analyst so
- * they sound identical. No recognition here (that lives in VoiceControl).
+ * Shared speech-synthesis helper.
+ *
+ * Two engines, chosen at runtime:
+ *  1. ElevenLabs (premium, very natural) — used when an API key + voice id are
+ *     present (localStorage `qctl-eleven-key` / `qctl-eleven-voice`, or
+ *     window.QCTL_ELEVEN = {key, voiceId}). Streams MP3 from their TTS endpoint
+ *     and plays it through an <audio> element.
+ *  2. Browser Web Speech API (free, no key) — the default fallback; picks the
+ *     warmest natural female voice installed and softens the prosody.
+ *
+ * SECURITY NOTE: a browser-embedded ElevenLabs key is visible to anyone who opens
+ * dev-tools. Fine for a local pitch demo; for production route TTS through a tiny
+ * server proxy that holds the key and returns the audio.
  */
+
+const ELEVEN_KEY_LS = "qctl-eleven-key";
+const ELEVEN_VOICE_LS = "qctl-eleven-voice";
+// A pleasant default ElevenLabs voice ("Rachel") — overridable per deployment.
+const ELEVEN_DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM";
+
+type ElevenCfg = { key: string; voiceId: string } | null;
+function elevenConfig(): ElevenCfg {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { QCTL_ELEVEN?: { key?: string; voiceId?: string } };
+  let key = w.QCTL_ELEVEN?.key || "";
+  let voiceId = w.QCTL_ELEVEN?.voiceId || "";
+  try {
+    key = key || localStorage.getItem(ELEVEN_KEY_LS) || "";
+    voiceId = voiceId || localStorage.getItem(ELEVEN_VOICE_LS) || "";
+  } catch {
+    /* storage blocked */
+  }
+  if (!key) return null;
+  return { key, voiceId: voiceId || ELEVEN_DEFAULT_VOICE };
+}
+
+/** True when the premium ElevenLabs voice is configured + will be used. */
+export function usingPremiumVoice(): boolean {
+  return elevenConfig() != null;
+}
+
+/** Store / clear the ElevenLabs key + voice (so the operator can enable it live). */
+export function setElevenCredentials(key: string | null, voiceId?: string): void {
+  try {
+    if (key) localStorage.setItem(ELEVEN_KEY_LS, key);
+    else localStorage.removeItem(ELEVEN_KEY_LS);
+    if (voiceId) localStorage.setItem(ELEVEN_VOICE_LS, voiceId);
+  } catch {
+    /* no-op */
+  }
+}
+
+let currentAudio: HTMLAudioElement | null = null;
+
+async function speakEleven(text: string, cfg: ElevenCfg, onDone?: () => void): Promise<boolean> {
+  if (!cfg) return false;
+  try {
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}?optimize_streaming_latency=2`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": cfg.key, "Content-Type": "application/json", Accept: "audio/mpeg" },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_turbo_v2",
+          voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.2, use_speaker_boost: true },
+        }),
+      },
+    );
+    if (!res.ok) return false; // bad key / quota — caller falls back to Web Speech
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    const audio = new Audio(url);
+    currentAudio = audio;
+    const finish = () => {
+      URL.revokeObjectURL(url);
+      if (currentAudio === audio) currentAudio = null;
+      onDone?.();
+    };
+    audio.onended = finish;
+    audio.onerror = finish;
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const PREFERRED_VOICES = [
   "samantha", "siri", "ava", "allison", "susan", "zoe", "nicky", "joelle",
@@ -50,10 +137,7 @@ function ensureVoice(): SpeechSynthesisVoice | null {
   return cachedVoice;
 }
 
-/** Speak text once with the shared warm voice. Cancels any in-progress speech.
- *  onDone fires when speech ends/errors (or immediately if unavailable) so the
- *  caller can resume the mic. */
-export function speak(text: string, onDone?: () => void): void {
+function speakBrowser(text: string, onDone?: () => void): void {
   try {
     const synth = window.speechSynthesis;
     if (!synth) {
@@ -77,8 +161,27 @@ export function speak(text: string, onDone?: () => void): void {
   }
 }
 
+/** Speak text once. Uses ElevenLabs when configured, else the browser voice.
+ *  onDone fires when speech ends/errors so the caller can resume the mic. */
+export function speak(text: string, onDone?: () => void): void {
+  const cfg = elevenConfig();
+  if (cfg) {
+    // Try premium first; on any failure fall back to the browser voice so the
+    // assistant is never left silent.
+    speakEleven(text, cfg, onDone).then((ok) => {
+      if (!ok) speakBrowser(text, onDone);
+    });
+    return;
+  }
+  speakBrowser(text, onDone);
+}
+
 export function cancelSpeech(): void {
   try {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
     window.speechSynthesis?.cancel();
   } catch {
     /* no-op */

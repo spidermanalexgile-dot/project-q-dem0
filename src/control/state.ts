@@ -13,6 +13,7 @@
 import { demandForISO, formatISO } from "./dateutil";
 import { executeVoiceCommand } from "./voice";
 import { ask } from "./analyst";
+import { setElevenCredentials } from "./speech";
 
 export type LeverId =
   | "target_capacity"
@@ -548,6 +549,9 @@ export type ProjectQApi = {
   /** Ask the deterministic analyst a question; returns its text answer (any
    *  suggested lever change is surfaced in the in-UI chat, not auto-applied). */
   askAnalyst: (question: string) => string;
+  /** Enable the premium ElevenLabs voice (key persisted to localStorage). Pass
+   *  null to clear and fall back to the built-in browser voice. */
+  setVoiceApiKey: (key: string | null, voiceId?: string) => void;
 };
 
 export function installGlobalApi(): void {
@@ -577,6 +581,7 @@ export function installGlobalApi(): void {
       const s = getState();
       return s ? ask(question, s).answer : "No payload loaded yet.";
     },
+    setVoiceApiKey: (key: string | null, voiceId?: string) => setElevenCredentials(key, voiceId),
   };
   (window as unknown as { ProjectQ: ProjectQApi }).ProjectQ = api;
 }

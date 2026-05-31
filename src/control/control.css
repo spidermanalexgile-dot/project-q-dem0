@@ -1415,3 +1415,91 @@
   box-shadow: 0 0 0 3px rgba(224, 118, 60, 0.2);
   animation: qctl-voice-pulse 1.2s ease-in-out infinite;
 }
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* BACKGROUND VOICE ASSISTANT — small orb, bottom-left, out of the way        */
+/* ════════════════════════════════════════════════════════════════════════ */
+.qctl-assistant-dock {
+  position: fixed;
+  left: clamp(14px, 1.6vw, 24px);
+  bottom: clamp(14px, 1.8vh, 24px);
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none; /* only the orb + pill are interactive */
+}
+.qctl-assistant-orb {
+  pointer-events: auto;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--hairline-strong);
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+  color: var(--ink-mute);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-panel);
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.qctl-assistant-orb:hover { transform: translateY(-1px); color: var(--ink); }
+.qctl-assistant-orb svg { width: 19px; height: 19px; }
+.qctl-root.dark .qctl-assistant-orb {
+  background: var(--panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.qctl-assistant-orb.listening {
+  color: var(--penalty);
+  border-color: var(--penalty);
+}
+/* Pulsing ring while listening — the only thing that signals it's live. */
+.qctl-assistant-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--penalty);
+  opacity: 0.6;
+  animation: qctl-orb-ring 1.6s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes qctl-orb-ring {
+  0% { transform: scale(0.9); opacity: 0.55; }
+  70% { transform: scale(1.5); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* Compact status pill (what it heard / said) — fades on its own. */
+.qctl-assistant-status {
+  pointer-events: none;
+  max-width: min(380px, 60vw);
+  margin-bottom: 2px;
+  padding: 9px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--hairline-strong);
+  border-left: 3px solid var(--penalty);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow-panel);
+  font-family: var(--font-mono);
+  animation: qctl-toast-in 0.16s ease-out;
+}
+.qctl-root.dark .qctl-assistant-status {
+  background: var(--panel-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.qctl-assistant-heard {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink-mute);
+  margin-bottom: 4px;
+}
+.qctl-assistant-said {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
+}
