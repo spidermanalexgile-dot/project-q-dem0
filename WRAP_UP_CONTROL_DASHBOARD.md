@@ -665,3 +665,30 @@ crowds and flatten the year toward 100% capacity**.
   even when flattened bands cluster near 100%; modelled-day caption moved to the
   bottom-left. Collision-swept across 8 lever combos at 1280 & 1920 on production:
   0 overlaps.
+
+---
+
+## Occupancy target + auto-tune (2026-05-31)
+
+The authority can now set the occupancy it wants to hold (e.g. *"Venice wants 80%
+today"*) and the fee levers **auto-tune** to deter crowds above it and steer the
+year toward it.
+
+- `state.occupancy_target` (default 100). `managedDemandPct` now flattens toward the
+  target: `managed = target + (raw − target) · e^(−fee/REF)`; `occupancyTarget()`
+  getter exposed on `window.ProjectQ`.
+- `setOccupancyTarget(pct)`: solves the fee the busiest forecast day needs to settle
+  at the target and sets `max_fee_cap` (clamped), lowering the `ceiling` if the peak
+  wouldn't otherwise reach the cap fee. Verified live: target 80 → peak day **81%**,
+  target 60 → **61%**. `null` resets to 100%.
+- **Voice command:** *"we only want 80% capacity today"* / *"hold occupancy at 70
+  percent"* → occupancy intent (guarded so it never grabs the `target_capacity`
+  lever — confirmed a normal "set target capacity to 70,000" still routes correctly),
+  with a spoken confirmation. Also on `window.ProjectQ.setOccupancyTarget` + `voiceCommand`.
+- **UI:** a *"Occupancy target"* field in the TopBar (with a ? explainer); the
+  zoom-out TARGET line and title now follow the chosen target ("Steering the year
+  toward N% capacity"), so the managed curve visibly settles on the target line.
+
+Modelling note: the deterrence strength uses `DEMAND_REF_EUR` (€30) — the same
+price-sensitivity assumption as the demand-response curve; it calibrates when the
+DPM ships an elasticity figure.
