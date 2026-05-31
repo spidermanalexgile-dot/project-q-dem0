@@ -51,9 +51,25 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
   const key = process.env.ELEVENLABS_API_KEY;
 
   // Health probe — reports whether the key is configured WITHOUT exposing it.
+  // ?debug=1 adds a SAFE diagnostic (env var NAMES only, never values) to help
+  // pinpoint a misnamed / wrongly-scoped var. No secret is ever returned.
   if (req.method === "GET") {
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Cache-Control", "no-store");
+    const url = req.url || "";
+    if (url.includes("debug=1")) {
+      const names = Object.keys(process.env);
+      res.end(
+        JSON.stringify({
+          ok: !!key,
+          keyPresent: !!key,
+          keyLength: key ? key.length : 0,
+          elevenVarNames: names.filter((n) => /eleven/i.test(n)),
+          totalEnvVars: names.length,
+        }),
+      );
+      return;
+    }
     res.end(JSON.stringify({ ok: !!key }));
     return;
   }
