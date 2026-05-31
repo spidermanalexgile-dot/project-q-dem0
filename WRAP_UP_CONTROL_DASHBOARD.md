@@ -766,3 +766,21 @@ ceiling lever from a bare percentage to a visitor count.
   slider, and voice commands ("set capacity ceiling to 250") are unchanged. Verified
   live: ceiling 150% → "75,000/day", voice still applies, occupancy + demand
   regressions pass, 0 console errors.
+
+---
+
+## Realistic capacity bounds (2026-05-31)
+
+The lever upper bounds were wildly unrealistic for Venice — target capacity slid to
+350,000 and the ceiling to 300% (≈150k+), giving 400k+ figures. Venice's highest-ever
+recorded daily footfall is ~110,000, so the DPM payload bounds were rebased around it:
+- `target_capacity` max **350,000 → 70,000** (step 1,000)
+- `max_fee_cap` max **€1,000 → €150** (step 5)
+- `ceiling_pct` max **300% → 220%** — 220% of the 50,000 target = **110,000/day**, the
+  real record; default 200% = 100,000/day
+- `base_fee` max **€100 → €50**
+
+So the Capacity-ceiling slider now tops out at exactly Venice's record (110k) and nothing
+reads 400k+. Values only — engine and UI logic unchanged. The occupancy auto-tune
+(lands the peak day's cap at 140, within the new €150 max) and the demand-response
+regressions still pass; 0 console errors. Verified live: ceiling ticks 60k / **110k**.
