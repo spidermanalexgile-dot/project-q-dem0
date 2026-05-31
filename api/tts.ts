@@ -85,6 +85,32 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
       );
       return;
     }
+    // ?voices=1 lists the account's usable voices (names + ids + category +
+    // gender) so we can pick a FREE-plan-usable female voice. No secret returned.
+    if ((req.url || "").includes("voices=1")) {
+      if (!key) {
+        res.end(JSON.stringify({ ok: false }));
+        return;
+      }
+      try {
+        const vr = await fetch("https://api.elevenlabs.io/v1/voices", {
+          headers: { "xi-api-key": key },
+        });
+        const data = (await vr.json()) as {
+          voices?: { voice_id: string; name: string; category?: string; labels?: Record<string, string> }[];
+        };
+        const voices = (data.voices || []).map((v) => ({
+          id: v.voice_id,
+          name: v.name,
+          category: v.category,
+          gender: v.labels?.gender,
+        }));
+        res.end(JSON.stringify({ ok: true, voices }));
+      } catch {
+        res.end(JSON.stringify({ ok: true, voices: [], error: "list_failed" }));
+      }
+      return;
+    }
     res.end(JSON.stringify({ ok: !!key }));
     return;
   }
