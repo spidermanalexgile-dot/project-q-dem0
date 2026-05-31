@@ -172,10 +172,14 @@ export function feeAtPct(pct: number, snap: State = requireState()): number {
     // Ramp from a credit floor at 0% up to the base fee at the target. The floor
     // is a discount that pulls the very first off-season visitors in; when the
     // base fee is itself negative (a credit), the whole low end is a credit.
+    // The ramp is CONVEX (accelerating) so it steepens as it approaches the
+    // target, anticipating the over-target spike — the gap from the low end to
+    // base is less abrupt and the curve flows smoothly into the congestion ramp.
     const floor = Math.min(base, base - 12); // e.g. base €10 → floor −€2 at 0%
     if (plateauEnd <= 0) return base;
     const t = Math.max(0, pct) / plateauEnd; // 0 at empty, 1 at target
-    return floor + (base - floor) * t;
+    const tp = Math.pow(t, 1.8); // convex: gentle early, steeper near 100%
+    return floor + (base - floor) * tp;
   }
   if (pct >= ceiling) return cap;
   const t = (pct - plateauEnd) / (ceiling - plateauEnd);

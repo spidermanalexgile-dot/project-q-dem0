@@ -5,7 +5,6 @@ import {
   setDemand,
   setDate,
   setOccupancyTarget,
-  setTargetCapacity,
   targetCapacity,
   liveDemandPct,
   loadPayload,
@@ -117,9 +116,7 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
 
         <div className="tb-context">
           <div className="tb-field">
-            <div className="tb-label">
-              Location · {fmtPeople(targetCap)} visitors/day
-            </div>
+            <div className="tb-label">Location</div>
             <div className="tb-location-row">
               <div className="tb-select">
                 <select
@@ -218,7 +215,7 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
 
           <div className="tb-field">
             <div className="tb-label">
-              Crowd level · {fmtPeople(dayHeadcount)} → {liveDemand}% of {fmtPeople(targetCap)}
+              Crowd level · {liveDemand}% ({fmtPeople(dayHeadcount)})
               <span
                 className="tb-help"
                 tabIndex={0}
@@ -278,37 +275,6 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
             </div>
           </div>
 
-          <div className="tb-divider" />
-
-          <div className="tb-field">
-            <div className="tb-label">
-              Target capacity
-              <span
-                className="tb-help"
-                tabIndex={0}
-                role="note"
-                aria-label="Target capacity: the visitors-per-day the city wants to hold. Lowering it makes the same forecast crowd a higher share of capacity, so the cost curve and demand profile steepen."
-                title="Visitors/day the city wants to hold. Lower it (e.g. 40k) and the same forecast crowd becomes a higher % of capacity — the cost curve and zoom-out steepen to reflect the tighter limit."
-              >
-                ?
-              </span>
-            </div>
-            <div className={"tb-demand-input tb-capacity-input" + (targetCap !== baseline ? " custom" : "")}>
-              <input
-                type="number"
-                min={5000}
-                max={120000}
-                step={1000}
-                value={targetCap}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v !== "") setTargetCapacity(Number(v));
-                }}
-                aria-label="Target capacity in visitors per day"
-              />
-              <span className="tb-demand-suffix">/day</span>
-            </div>
-          </div>
         </div>
 
         <div className="tb-field tb-field-right">

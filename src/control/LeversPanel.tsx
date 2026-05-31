@@ -1,7 +1,38 @@
 import { useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setLever, targetCapacity, type LeverId } from "./state";
+import { setLever, setTargetCapacity, targetCapacity, type LeverId } from "./state";
 import { fmtCompactNum, fmtNumber } from "./format";
+
+/** Target capacity is an operator INPUT (visitors/day), shown at the top of the
+ *  Levers panel — lowering it rebases the whole demand model to a higher %. */
+function TargetCapacityRow() {
+  const state = useStore();
+  if (!state) return null;
+  const target = targetCapacity(state);
+  const baseline = state.capacity.baseline || target;
+  return (
+    <div className={"lever lever-input" + (target !== baseline ? " custom" : "")}>
+      <div className="lever-label">
+        Target capacity
+        <div className="lever-sub">Visitors/day · rebases demand</div>
+      </div>
+      <div className="lever-input-box">
+        <input
+          type="number"
+          min={5000}
+          max={120000}
+          step={1000}
+          value={target}
+          onChange={(e) => {
+            if (e.target.value !== "") setTargetCapacity(Number(e.target.value));
+          }}
+          aria-label="Target capacity in visitors per day"
+        />
+        <span>/day</span>
+      </div>
+    </div>
+  );
+}
 
 type LeverMeta = {
   label: string;
@@ -122,6 +153,7 @@ export function LeversPanel() {
         </div>
       </header>
       <div className="levers-list">
+        <TargetCapacityRow />
         {ids.map((id) => (
           <LeverRow key={id} id={id} />
         ))}

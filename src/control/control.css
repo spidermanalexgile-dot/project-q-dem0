@@ -1503,3 +1503,52 @@
   line-height: 1.4;
   color: var(--ink);
 }
+
+/* Revenue figure trend highlight: green when it rose, red when it fell. */
+.qctl-root .rev-figure {
+  transition: color 0.4s ease;
+}
+.qctl-root .rev-figure.up { color: #2c8b52; }
+.qctl-root .rev-figure.down { color: #c0461d; }
+.qctl-root.dark .rev-figure.up { color: #5fd398; }
+.qctl-root.dark .rev-figure.down { color: #f0936a; }
+
+/* Target-capacity input row inside the Levers panel. */
+.qctl-root .lever-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: clamp(8px, 1.2vh, 12px);
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 2px;
+}
+.qctl-root .lever-input-box {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline-strong);
+  background: rgba(127, 127, 127, 0.05);
+  font-family: var(--font-mono);
+}
+.qctl-root .lever-input.custom .lever-input-box { border-color: var(--ochre); }
+.qctl-root .lever-input-box input {
+  width: 70px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 14.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.qctl-root .lever-input-box input:focus { outline: none; }
+.qctl-root .lever-input-box input::-webkit-outer-spin-button,
+.qctl-root .lever-input-box input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.qctl-root .lever-input-box span { font-size: 11px; color: var(--ink-mute); }

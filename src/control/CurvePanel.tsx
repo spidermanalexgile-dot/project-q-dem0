@@ -476,8 +476,9 @@ function YearCurve() {
       <svg className="curve-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
         <defs>
           <linearGradient id="year-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E0763C" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#E3A93C" stopOpacity="0" />
+            <stop offset="0%" stopColor="#3FB97A" stopOpacity="0.34" />
+            <stop offset="55%" stopColor="#4FC98A" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#7FD9A8" stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
@@ -526,8 +527,8 @@ function YearCurve() {
         {/* Raw forecast bell curve (before pricing) — dashed */}
         <path d={rawPath} fill="none" style={{ stroke: "var(--penalty)" }} strokeWidth="2" strokeDasharray="5 4" opacity="0.6" strokeLinejoin="round" />
 
-        {/* Managed curve (after pricing) — solid hero line */}
-        <path d={manPath} fill="none" style={{ stroke: "var(--ink)" }} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Managed curve (after pricing) — solid green hero line */}
+        <path d={manPath} fill="none" stroke="#2FA866" strokeWidth="2.75" strokeLinejoin="round" strokeLinecap="round" />
 
         {/* Month dots on the managed curve + a fee label on the peak month */}
         {months.map((m, i) => {
@@ -539,7 +540,7 @@ function YearCurve() {
               {yS(Math.min(yMax, m.managed)) - yS(Math.min(yMax, m.live)) > 8 && (
                 <line x1={xAt(i)} y1={yS(Math.min(yMax, m.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity="0.45" />
               )}
-              <circle cx={xAt(i)} cy={cy} r="2.6" style={{ fill: "var(--ink)" }} />
+              <circle cx={xAt(i)} cy={cy} r="2.8" fill="#2FA866" />
               {isPeak && (
                 <text x={xAt(i)} y={cy - 9} textAnchor="middle" className="year-band-label" style={{ fontWeight: 600 }}>
                   {m.name} · {Math.round(m.managed)}% · {fmtEur(m.fee)}

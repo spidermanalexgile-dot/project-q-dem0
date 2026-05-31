@@ -32,6 +32,10 @@ export function RevenuePanel() {
   const dayDelta = d.dayRevenue - (d.prevDayRev ?? d.dayRevenue);
   const annualDelta = d.annualRevenue - (d.prevAnnualRev ?? d.annualRevenue);
   const activeDay = d.activeDay;
+  // Highlight the figure green when revenue rose, red when it fell (since the
+  // last change); neutral when unchanged.
+  const trendClass = (delta: number) =>
+    Math.abs(delta) < 1 ? "" : delta > 0 ? " up" : " down";
   // What one visitor pays today, at the crowd level being modelled. Below the
   // credit threshold this can be negative (a rebate); we show it plainly.
   const todayFee = d.fee(activeDay.demand_pct);
@@ -58,7 +62,7 @@ export function RevenuePanel() {
       <div className="revenue-grid">
         <div className="rev-card">
           <div className="rev-label">Total day revenue</div>
-          <div className="rev-figure day">
+          <div className={"rev-figure day" + trendClass(dayDelta)}>
             <span className="currency">€</span>
             {fmtNumber(d.dayRevenue).replace(/^-/, "")}
             {d.dayRevenue < 0 && (
@@ -77,7 +81,7 @@ export function RevenuePanel() {
 
         <div className="rev-card annual">
           <div className="rev-label">Projected annual revenue</div>
-          <div className="rev-figure annual">
+          <div className={"rev-figure annual" + trendClass(annualDelta)}>
             <span className="currency">€</span>
             {fmtNumber(d.annualRevenue)}
           </div>
