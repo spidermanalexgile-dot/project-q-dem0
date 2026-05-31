@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setDayType, setDemand, setDate, setOccupancyTarget, loadPayload, getState } from "./state";
+import {
+  setDayType,
+  setDemand,
+  setDate,
+  setOccupancyTarget,
+  setTargetCapacity,
+  targetCapacity,
+  liveDemandPct,
+  loadPayload,
+  getState,
+} from "./state";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
 
@@ -82,11 +92,15 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
   const selectedDay =
     state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
   const isCustom = state.customDemand != null;
-  // Effective modelled demand: the typed free-form value, else the preset day's.
+  // Baseline modelled demand: the typed free-form value, else the preset day's.
   const demand = isCustom ? (state.customDemand as number) : selectedDay.demand_pct;
-  // Actual day capacity (visitors) = target capacity × today's crowd level.
-  const targetCap = state.levers.find((l) => l.id === "target_capacity")?.value ?? state.capacity.target;
-  const dayHeadcount = Math.round((targetCap * demand) / 100);
+  const targetCap = targetCapacity(state);
+  // Live demand % is the baseline rebased by the chosen target capacity; the
+  // headcount = the forecast crowd for that day (independent of target — fewer
+  // "slots" just makes the same crowd a higher % of capacity).
+  const liveDemand = Math.round(liveDemandPct(demand, state));
+  const baseline = state.capacity.baseline || targetCap;
+  const dayHeadcount = Math.round((baseline * demand) / 100);
   const fmtPeople = (n: number) =>
     n >= 1000 ? (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1).replace(/\.0$/, "") + "k" : String(n);
 
@@ -204,7 +218,7 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
 
           <div className="tb-field">
             <div className="tb-label">
-              Crowd level · {fmtPeople(dayHeadcount)} today
+              Crowd level · {fmtPeople(dayHeadcount)} → {liveDemand}% of {fmtPeople(targetCap)}
               <span
                 className="tb-help"
                 tabIndex={0}
@@ -261,6 +275,38 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
                 aria-label="Desired occupancy as a percentage of capacity"
               />
               <span className="tb-demand-suffix">%</span>
+            </div>
+          </div>
+
+          <div className="tb-divider" />
+
+          <div className="tb-field">
+            <div className="tb-label">
+              Target capacity
+              <span
+                className="tb-help"
+                tabIndex={0}
+                role="note"
+                aria-label="Target capacity: the visitors-per-day the city wants to hold. Lowering it makes the same forecast crowd a higher share of capacity, so the cost curve and demand profile steepen."
+                title="Visitors/day the city wants to hold. Lower it (e.g. 40k) and the same forecast crowd becomes a higher % of capacity — the cost curve and zoom-out steepen to reflect the tighter limit."
+              >
+                ?
+              </span>
+            </div>
+            <div className={"tb-demand-input tb-capacity-input" + (targetCap !== baseline ? " custom" : "")}>
+              <input
+                type="number"
+                min={5000}
+                max={120000}
+                step={1000}
+                value={targetCap}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v !== "") setTargetCapacity(Number(v));
+                }}
+                aria-label="Target capacity in visitors per day"
+              />
+              <span className="tb-demand-suffix">/day</span>
             </div>
           </div>
         </div>

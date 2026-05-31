@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setLever, type LeverId } from "./state";
+import { setLever, targetCapacity, type LeverId } from "./state";
 import { fmtCompactNum, fmtNumber } from "./format";
 
 type LeverMeta = {
@@ -62,7 +62,7 @@ function LeverRow({ id }: { id: LeverId }) {
   const flashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   if (!state || !lever || !meta) return null;
 
-  const targetCap = state.levers.find((l) => l.id === "target_capacity")?.value ?? 0;
+  const targetCap = targetCapacity(state);
   const pct = (lever.value - lever.min) / (lever.max - lever.min);
   // For visitor levers the displayed value is the absolute count; we also show
   // the original % alongside so the relationship to the target is still clear.

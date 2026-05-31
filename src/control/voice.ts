@@ -234,6 +234,16 @@ export function tryVoiceCommand(transcript: string, deps: VoiceDeps): VoiceResul
 
   switch (intent.kind) {
     case "lever": {
+      // target_capacity is now an operator input (capacity.target), not a slider.
+      if (intent.id === "target_capacity") {
+        const oldV = snap.capacity?.target ?? 0;
+        deps.setLever("target_capacity", intent.value); // setLever redirects it
+        const newV = deps.getState()?.capacity?.target ?? intent.value;
+        return {
+          recognized: true,
+          reply: `Target capacity successfully ${directionWord(oldV, newV)} to ${newV.toLocaleString("en-US")}.`,
+        };
+      }
       const lever = snap.levers.find((l) => l.id === intent.id);
       if (!lever) return { recognized: true, reply: "That lever isn't available." };
       const oldV = lever.value;

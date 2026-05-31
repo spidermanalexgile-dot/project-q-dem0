@@ -51,11 +51,16 @@ export type CurveSpec = {
 
 export type SeasonalBin = { days: number; demand_pct: number };
 
+export type MonthlyBin = { month: string; demand_pct: number };
+
 export type Phase = { year: 1 | 2 | 3; real_pay_cap: number };
 
 export type State = {
   location: { id: string; label: string; currency: string };
-  capacity: { target: number; unit: string };
+  // target = the live daily capacity the authority is steering to (operator input).
+  // baseline = the capacity the DPM's demand_pct figures were measured against; we
+  // rebase live demand by baseline/target so changing target reshapes every curve.
+  capacity: { target: number; baseline: number; unit: string };
   confidence: number;
   curve: CurveSpec;
   shoulder_rebate: ShoulderRebate;
@@ -63,6 +68,7 @@ export type State = {
   day_types: DayType[];
   phase: Phase;
   seasonal: SeasonalBin[];
+  monthly?: MonthlyBin[];
 
   activeDay: string;
   // Free-form modelled demand. When non-null the operator has typed a demand %
@@ -129,17 +135,48 @@ function leverVal(snap: State, id: LeverId): number {
 
 /* ─── pure calc engine ──────────────────────────────────────────────────── */
 
+/** The live daily capacity the authority is steering to (operator input). */
+export function targetCapacity(snap: State = requireState()): number {
+  return snap.capacity?.target ?? 50000;
+}
+
+/**
+ * Live demand % — the DPM's demand figures are measured against a baseline
+ * capacity; if the operator lowers the live target, the SAME forecast crowd is a
+ * bigger share of capacity. live% = baseline% × (baseline / target). So setting
+ * target 50k → 40k makes a 100% day read as 125%, reshaping every curve.
+ */
+export function liveDemandPct(baseline_pct: number, snap: State = requireState()): number {
+  const baseline = snap.capacity?.baseline || snap.capacity?.target || 50000;
+  const target = targetCapacity(snap) || baseline;
+  return baseline_pct * (baseline / target);
+}
+
+/**
+ * Fee at a given occupancy %. Two regions:
+ *  • Below target (0…plateau): a RAMP, not a flat line — the earliest visitors
+ *    can be paid to come (negative, down to −credit_floor at 0%) and the price
+ *    climbs to base_fee at the target, so the 30k-th visitor pays more than the
+ *    10k-th. Linear from −floor(0%) → base_fee(target).
+ *  • Above target (plateau…ceiling): the exponential congestion ramp to the cap.
+ * `pct` is the LIVE occupancy (already rebased by target capacity).
+ */
 export function feeAtPct(pct: number, snap: State = requireState()): number {
-  const rebate = snap.shoulder_rebate;
-  if (rebate && rebate.enabled && pct < rebate.applies_below_pct) {
-    return -rebate.credit;
-  }
   const base = leverVal(snap, "base_fee");
   const cap = leverVal(snap, "max_fee_cap");
   const ceiling = leverVal(snap, "ceiling_pct");
-  const plateauEnd = snap.curve.shape.plateau_end_pct;
+  const plateauEnd = snap.curve.shape.plateau_end_pct; // = target occupancy (100%)
   const exp = snap.curve.shape.exponent;
-  if (pct <= plateauEnd) return base;
+
+  if (pct <= plateauEnd) {
+    // Ramp from a credit floor at 0% up to the base fee at the target. The floor
+    // is a discount that pulls the very first off-season visitors in; when the
+    // base fee is itself negative (a credit), the whole low end is a credit.
+    const floor = Math.min(base, base - 12); // e.g. base €10 → floor −€2 at 0%
+    if (plateauEnd <= 0) return base;
+    const t = Math.max(0, pct) / plateauEnd; // 0 at empty, 1 at target
+    return floor + (base - floor) * t;
+  }
   if (pct >= ceiling) return cap;
   const t = (pct - plateauEnd) / (ceiling - plateauEnd);
   const tp = Math.pow(t, exp);
@@ -198,15 +235,23 @@ export function managedDemandPct(raw_pct: number, snap: State = requireState()):
   return target + (raw_pct - target) * compression;
 }
 
-export function dayRevenue(demand_pct: number, snap: State = requireState()): number {
-  const tc = leverVal(snap, "target_capacity");
-  const visitors = tc * (demand_pct / 100);
-  return visitors * feeAtPct(demand_pct, snap);
+/**
+ * Day revenue for a BASELINE demand figure. We rebase to live occupancy (so the
+ * fee reflects the chosen target capacity), then the actual heads = target × the
+ * live %. Both the fee and the headcount move when target capacity changes.
+ */
+export function dayRevenue(baseline_pct: number, snap: State = requireState()): number {
+  const live = liveDemandPct(baseline_pct, snap);
+  const visitors = targetCapacity(snap) * (live / 100);
+  return visitors * feeAtPct(live, snap);
 }
 
 export function annualRevenue(snap: State = requireState()): number {
+  const bins = snap.monthly
+    ? snap.monthly.map((m) => ({ days: 365 / 12, demand_pct: m.demand_pct }))
+    : snap.seasonal;
   let total = 0;
-  for (const s of snap.seasonal) total += s.days * dayRevenue(s.demand_pct, snap);
+  for (const s of bins) total += s.days * dayRevenue(s.demand_pct, snap);
   return total;
 }
 
@@ -336,6 +381,13 @@ export function loadPayload(input: Payload | string): void {
   next.customDate = null;
   next.view = "cost";
   if (typeof next.occupancy_target !== "number") next.occupancy_target = 100;
+  // Baseline = the capacity the DPM demand_pct figures were measured against.
+  // Default it to the initial target so live rebasing starts at 1:1.
+  if (!next.capacity) next.capacity = { target: 50000, baseline: 50000, unit: "visitors/day" };
+  if (typeof next.capacity.baseline !== "number") next.capacity.baseline = next.capacity.target;
+  // target_capacity is an operator INPUT now (capacity.target), not a slider —
+  // drop it from levers if a legacy payload still lists it.
+  next.levers = next.levers.filter((l) => l.id !== "target_capacity");
   // Shoulder-season recirculation has been retired from the product. Force it
   // off on every load so no payload (legacy or uploaded) can re-introduce the
   // credit zone in the curve or revenue.
@@ -356,12 +408,29 @@ export function loadPayload(input: Payload | string): void {
 
 export function setLever(id: LeverId | string, value: number): void {
   const s = requireState();
+  // target_capacity is no longer a slider — redirect old callers (incl. voice).
+  if (id === "target_capacity") {
+    setTargetCapacity(Number(value));
+    return;
+  }
   const l = s.levers.find((x) => x.id === id);
   if (!l) return;
   const v = Math.max(l.min, Math.min(l.max, Number(value)));
   if (l.value === v) return;
   bumpDeltas();
   l.value = v;
+  commitDeltas();
+  notify();
+}
+
+/** Set the live daily target capacity (operator input). Rebases every curve via
+ *  liveDemandPct, so a lower target makes the forecast crowd read as higher %. */
+export function setTargetCapacity(people: number): void {
+  const s = requireState();
+  const v = Math.max(5000, Math.min(200000, Math.round(Number(people) / 1000) * 1000));
+  if (s.capacity.target === v) return;
+  bumpDeltas();
+  s.capacity.target = v;
   commitDeltas();
   notify();
 }
@@ -539,6 +608,7 @@ export type ProjectQApi = {
   setDate: typeof setDate;
   setView: typeof setView;
   setOccupancyTarget: typeof setOccupancyTarget;
+  setTargetCapacity: typeof setTargetCapacity;
   setPhase: typeof setPhase;
   setRebate: typeof setRebate;
   getState: typeof getState;
@@ -549,6 +619,8 @@ export type ProjectQApi = {
   qcashAtPct: (pct: number) => number;
   dayRevenue: (demand_pct: number) => number;
   managedDemandPct: (raw_pct: number) => number;
+  liveDemandPct: (baseline_pct: number) => number;
+  targetCapacity: () => number;
   annualRevenue: () => number;
   /** Parse + apply a natural-language voice/text command; returns the spoken
    *  confirmation string (theme changes are UI-side and a no-op here). */
@@ -578,6 +650,7 @@ export function installGlobalApi(): void {
     setDate,
     setView,
     setOccupancyTarget,
+    setTargetCapacity,
     setPhase,
     setRebate,
     getState,
@@ -588,6 +661,8 @@ export function installGlobalApi(): void {
     qcashAtPct: (pct: number) => qcashAtPct(pct),
     dayRevenue: (demand_pct: number) => dayRevenue(demand_pct),
     managedDemandPct: (raw_pct: number) => managedDemandPct(raw_pct),
+    liveDemandPct: (baseline_pct: number) => liveDemandPct(baseline_pct),
+    targetCapacity: () => targetCapacity(),
     annualRevenue: () => annualRevenue(),
     voiceCommand: (transcript: string) =>
       executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget }),

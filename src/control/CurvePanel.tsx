@@ -1,5 +1,14 @@
 import { useStore } from "./useStore";
-import { feeAtPct, payAtPct, activeDayType, managedDemandPct, setView, type State } from "./state";
+import {
+  feeAtPct,
+  payAtPct,
+  activeDayType,
+  managedDemandPct,
+  liveDemandPct,
+  targetCapacity,
+  setView,
+  type State,
+} from "./state";
 import { fmtEur } from "./format";
 
 function leverV(state: State, id: string): number {
@@ -24,7 +33,7 @@ function CurveChart() {
   const innerW = Math.max(1, w - padL - padR);
   const innerH = Math.max(1, h - padT - padB);
 
-  const xMin = 20;
+  const xMin = 0;
   const xMax = 250;
 
   const cap = leverV(state, "max_fee_cap");
@@ -35,8 +44,11 @@ function CurveChart() {
   const threshold = rebate.enabled ? rebate.applies_below_pct : null;
   const realPayCap = state.phase.real_pay_cap;
 
+  // The fee at 0% occupancy is the credit floor — the earliest visitors may be
+  // PAID to come. Give the y-axis room below zero for it.
+  const feeAtEmpty = feeAtPct(0, state);
   const yMax = Math.max(cap + Math.max(8, cap * 0.1), base + 12);
-  const yMin = rebate.enabled ? -credit - 4 : -3;
+  const yMin = Math.min(-3, Math.floor((feeAtEmpty - 4) / 5) * 5);
 
   const xS = (pct: number) => padL + ((pct - xMin) / (xMax - xMin)) * innerW;
   const yS = (fee: number) => padT + (1 - (fee - yMin) / (yMax - yMin)) * innerH;
@@ -74,12 +86,14 @@ function CurveChart() {
     ];
   }
 
-  // Active day dot + callout.
+  // Active day dot + callout — placed at the LIVE occupancy (rebased by the
+  // chosen target capacity), so the dot moves right when target capacity drops.
   const activeDay =
     activeDayType(state);
-  const activeFee = feeAtPct(activeDay.demand_pct, state);
-  const activePay = payAtPct(activeDay.demand_pct, state);
-  const ax = xS(Math.min(xMax, Math.max(xMin, activeDay.demand_pct)));
+  const activeLive = liveDemandPct(activeDay.demand_pct, state);
+  const activeFee = feeAtPct(activeLive, state);
+  const activePay = payAtPct(activeLive, state);
+  const ax = xS(Math.min(xMax, Math.max(xMin, activeLive)));
   const ay = yS(activeFee);
 
   // Y gridline values (whole €).
@@ -366,7 +380,7 @@ function CurveChart() {
               textTransform: "uppercase",
             }}
           >
-            At {activeDay.demand_pct}% capacity
+            At {Math.round(activeLive)}% capacity
           </text>
           <text
             x="10"
@@ -395,16 +409,11 @@ function CurveChart() {
 
 /* ─── Annual demand profile ("zoom out" — whole-year DPM view) ───────────── */
 
-/** Plain-English crowd descriptor for a demand %, so a non-technical viewer can
- *  read the chart at a glance. Demand % = visitors that day vs. the target/normal
- *  day (100% = a normal full day; 200% = twice as crowded). */
-function crowdLabel(demandPct: number): string {
-  if (demandPct >= 175) return "Very busy";
-  if (demandPct >= 125) return "Busy";
-  if (demandPct >= 85) return "Normal";
-  if (demandPct >= 50) return "Quiet";
-  return "Very quiet";
-}
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Fallback monthly profile if a payload predates the `monthly` field — a smooth
+ *  Venice-style summer bell curve so the zoom-out always reads chronologically. */
+const FALLBACK_MONTHLY = [52, 78, 85, 112, 138, 168, 190, 200, 158, 118, 70, 66];
 
 function YearCurve() {
   const state = useStore();
@@ -419,82 +428,48 @@ function YearCurve() {
   const innerW = Math.max(1, w - padL - padR);
   const innerH = Math.max(1, h - padT - padB);
 
-  const cap = leverV(state, "max_fee_cap");
-  const totalDays = state.seasonal.reduce((a, s) => a + s.days, 0) || 365;
-  const peakDemand = Math.max(100, ...state.seasonal.map((s) => s.demand_pct));
-  const yMax = Math.ceil((peakDemand * 1.12) / 20) * 20;
+  const occTarget = state.occupancy_target ?? 100;
 
-  const xS = (d: number) => padL + (d / totalDays) * innerW;
+  // Chronological monthly profile (Jan → Dec). Each month's BASELINE demand is
+  // rebased to LIVE occupancy by the chosen target capacity, then the pricing
+  // curve deters/attracts it toward the target (managed).
+  const monthsRaw = (state.monthly && state.monthly.length === 12
+    ? state.monthly.map((m) => m.demand_pct)
+    : FALLBACK_MONTHLY);
+  const months = monthsRaw.map((baselinePct, i) => {
+    const live = liveDemandPct(baselinePct, state);
+    const managed = managedDemandPct(live, state);
+    return { name: MONTH_NAMES[i], live, managed, fee: feeAtPct(live, state) };
+  });
+
+  const peak = Math.max(occTarget, ...months.map((m) => Math.max(m.live, m.managed)));
+  const yMax = Math.ceil((peak * 1.12) / 20) * 20;
+
+  // x positions the 12 months evenly across the year (centre of each month).
+  const xAt = (i: number) => padL + ((i + 0.5) / 12) * innerW;
   const yS = (v: number) => padT + (1 - v / yMax) * innerH;
   const baseY = yS(0);
 
-  // Load-duration style: sort the DPM seasonal bins by RAW (forecast) demand and
-  // lay them across the 365-day axis. The pricing curve then deters peak crowds —
-  // managedDemandPct() is where each day actually settles after fees, pulling the
-  // whole year toward the 100% target. We draw both so the levers' effect shows.
-  const bins = [...state.seasonal].sort((a, b) => b.demand_pct - a.demand_pct);
-  type Band = {
-    x0: number;
-    x1: number;
-    yRaw: number;
-    yMan: number;
-    color: string;
-    rawDemand: number;
-    managed: number;
-    days: number;
-    fee: number;
-  };
-  const bands: Band[] = [];
-  const rawPts: string[] = [];
-  const manPts: string[] = [];
-  let cum = 0;
-  for (const b of bins) {
-    const x0 = xS(cum);
-    const x1 = xS(cum + b.days);
-    const fee = feeAtPct(b.demand_pct, state);
-    const managed = managedDemandPct(b.demand_pct, state);
-    const yRaw = yS(Math.min(yMax, b.demand_pct));
-    const yMan = yS(Math.min(yMax, managed));
-    const ratio = cap > 0 ? fee / cap : 0;
-    const color =
-      fee < 0
-        ? "var(--sage)"
-        : ratio > 0.7
-          ? "var(--penalty)"
-          : ratio > 0.3
-            ? "var(--ochre)"
-            : "var(--sage)";
-    bands.push({ x0, x1, yRaw, yMan, color, rawDemand: b.demand_pct, managed, days: b.days, fee });
-    rawPts.push(`${x0.toFixed(1)},${yRaw.toFixed(1)}`, `${x1.toFixed(1)},${yRaw.toFixed(1)}`);
-    manPts.push(`${x0.toFixed(1)},${yMan.toFixed(1)}`, `${x1.toFixed(1)},${yMan.toFixed(1)}`);
-    cum += b.days;
-  }
-  const rawPath = rawPts.map((p, i) => (i ? "L" : "M") + p).join(" ");
-  const stepPath = manPts.map((p, i) => (i ? "L" : "M") + p).join(" ");
-  // Filled area under the MANAGED curve (the outcome the operator controls).
+  const linePath = (key: "live" | "managed") =>
+    months.map((m, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + "," + yS(Math.min(yMax, m[key])).toFixed(1)).join(" ");
+  const rawPath = linePath("live");
+  const manPath = linePath("managed");
   const areaPath =
-    stepPath +
-    ` L ${xS(totalDays).toFixed(1)},${baseY.toFixed(1)} L ${xS(0).toFixed(1)},${baseY.toFixed(1)} Z`;
-  // How close to the occupancy target did we get? Mean absolute deviation from
-  // the target, raw vs managed.
-  const occTarget = state.occupancy_target ?? 100;
-  const totalD = bins.reduce((a, b) => a + b.days, 0) || 1;
-  const rawSpread = bins.reduce((a, b) => a + b.days * Math.abs(b.demand_pct - occTarget), 0) / totalD;
-  const manSpread =
-    bins.reduce((a, b) => a + b.days * Math.abs(managedDemandPct(b.demand_pct, state) - occTarget), 0) / totalD;
+    manPath +
+    ` L ${xAt(11).toFixed(1)},${baseY.toFixed(1)} L ${xAt(0).toFixed(1)},${baseY.toFixed(1)} Z`;
+
+  // How close to target did pricing get us? Mean abs deviation, raw vs managed.
+  const rawSpread = months.reduce((a, m) => a + Math.abs(m.live - occTarget), 0) / 12;
+  const manSpread = months.reduce((a, m) => a + Math.abs(m.managed - occTarget), 0) / 12;
   const flattenPct = rawSpread > 0.5 ? Math.round((1 - manSpread / rawSpread) * 100) : 0;
 
-  // Y gridlines.
   const yStep = yMax > 250 ? 50 : 25;
   const yGrid: number[] = [];
   for (let v = 0; v <= yMax + 0.01; v += yStep) yGrid.push(v);
 
-  // X ticks (quarters of the year).
-  const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(totalDays * f));
-
-  const activeDay =
-    activeDayType(state);
-  const activeY = yS(Math.min(yMax, activeDay.demand_pct));
+  const activeDay = activeDayType(state);
+  const activeLive = liveDemandPct(activeDay.demand_pct, state);
+  const activeY = yS(Math.min(yMax, activeLive));
 
   return (
     <div className="curve-stage">
@@ -504,200 +479,86 @@ function YearCurve() {
             <stop offset="0%" stopColor="#E0763C" stopOpacity="0.18" />
             <stop offset="100%" stopColor="#E3A93C" stopOpacity="0" />
           </linearGradient>
-          <marker id="year-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto">
-            <path d="M1 1 L4 4 L1 7" fill="none" stroke="#E0763C" strokeWidth="1.2" opacity="0.7" />
-          </marker>
         </defs>
 
-        {/* Raw-vs-managed legend + how-flat badge (top-left, fixed slot). */}
-        <g>
-          <text x={padL} y={padT - 14} textAnchor="start" className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
-            <tspan style={{ fill: "var(--penalty)" }}>– – forecast crowd</tspan>
-            {"   "}
-            <tspan style={{ fontWeight: 600 }}>▰ after pricing</tspan>
-            {flattenPct > 1 && (
-              <tspan style={{ fill: "#2c8676", fontWeight: 600 }}>{`   ·  ${flattenPct}% flatter → 100%`}</tspan>
-            )}
-          </text>
-        </g>
+        {/* Legend + how-flat badge (top-left, fixed slot). */}
+        <text x={padL} y={padT - 14} textAnchor="start" className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
+          <tspan style={{ fill: "var(--penalty)" }}>– – forecast crowd</tspan>
+          {"   "}
+          <tspan style={{ fontWeight: 600 }}>▬ after pricing</tspan>
+          {flattenPct > 1 && (
+            <tspan style={{ fill: "#2c8676", fontWeight: 600 }}>{`   ·  ${flattenPct}% closer to ${occTarget}%`}</tspan>
+          )}
+        </text>
 
         {/* Horizontal gridlines + %-axis ticks */}
         {yGrid.map((v) => (
           <g key={"yg-" + v}>
-            <line
-              x1={padL}
-              y1={yS(v)}
-              x2={w - padR}
-              y2={yS(v)}
-              stroke="currentColor"
-              opacity={v === 0 ? 0.18 : 0.07}
-            />
+            <line x1={padL} y1={yS(v)} x2={w - padR} y2={yS(v)} stroke="currentColor" opacity={v === 0 ? 0.18 : 0.07} />
             <text x={padL - 10} y={yS(v) + 4} textAnchor="end" className="curve-tick-label">
               {v}%
             </text>
           </g>
         ))}
 
-        {/* X ticks (cumulative days of the year) */}
-        {xTicks.map((d, i) => (
-          <g key={"xt-" + i}>
-            <line x1={xS(d)} y1={baseY} x2={xS(d)} y2={baseY + 5} stroke="currentColor" opacity="0.25" />
-            <text x={xS(d)} y={baseY + 20} textAnchor="middle" className="curve-tick-label">
-              {d === 0 ? "0" : `${d} days`}
+        {/* X axis — MONTH labels (chronological Jan → Dec) */}
+        {months.map((m, i) => (
+          <g key={"mx-" + i}>
+            <line x1={xAt(i)} y1={baseY} x2={xAt(i)} y2={baseY + 4} stroke="currentColor" opacity="0.2" />
+            <text x={xAt(i)} y={baseY + 18} textAnchor="middle" className="curve-tick-label">
+              {m.name}
             </text>
           </g>
         ))}
 
-        {/* Occupancy-target reference line — the level the authority steers to. */}
-        <line
-          x1={padL}
-          y1={yS(occTarget)}
-          x2={w - padR}
-          y2={yS(occTarget)}
-          stroke="#E3A93C"
-          strokeWidth="1"
-          strokeDasharray="3 4"
-          opacity="0.75"
-        />
+        {/* Occupancy-target reference line */}
+        <line x1={padL} y1={yS(occTarget)} x2={w - padR} y2={yS(occTarget)} stroke="#E3A93C" strokeWidth="1" strokeDasharray="3 4" opacity="0.75" />
         <g transform={`translate(${w - padR - 82}, ${yS(occTarget) - 9})`}>
           <rect x="0" y="0" width="80" height="18" rx="9" fill="#E3A93C" />
-          <text
-            x="40"
-            y="12"
-            textAnchor="middle"
-            style={{
-              fill: "#1C1917",
-              fontFamily: "var(--font-mono)",
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-            }}
-          >
+          <text x="40" y="12" textAnchor="middle" style={{ fill: "#1C1917", fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em" }}>
             TARGET {occTarget}%
           </text>
         </g>
 
-        {/* Warm wash under the MANAGED curve */}
+        {/* Warm wash under the managed curve */}
         <path d={areaPath} fill="url(#year-fill)" />
 
-        {/* Raw forecast crowd (before pricing) — faint dashed reference. The
-            pricing levers pull this DOWN toward the 100% target line. */}
-        <path
-          d={rawPath}
-          fill="none"
-          style={{ stroke: "var(--penalty)" }}
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-          opacity="0.55"
-        />
+        {/* Raw forecast bell curve (before pricing) — dashed */}
+        <path d={rawPath} fill="none" style={{ stroke: "var(--penalty)" }} strokeWidth="2" strokeDasharray="5 4" opacity="0.6" strokeLinejoin="round" />
 
-        {/* Managed demand bands (where each day settles after fees) */}
-        {bands.map((b, i) => (
-          <g key={"band-" + i}>
-            <rect
-              x={b.x0}
-              y={b.yMan}
-              width={Math.max(0, b.x1 - b.x0)}
-              height={Math.max(0, baseY - b.yMan)}
-              style={{ fill: b.color }}
-              opacity="0.22"
-            />
-            <line
-              x1={b.x0}
-              y1={b.yMan}
-              x2={b.x1}
-              y2={b.yMan}
-              style={{ stroke: b.color }}
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            {/* Drop-arrow from the raw forecast down to the managed level. */}
-            {b.yMan - b.yRaw > 10 && (
-              <line
-                x1={(b.x0 + b.x1) / 2}
-                y1={b.yRaw + 2}
-                x2={(b.x0 + b.x1) / 2}
-                y2={b.yMan - 2}
-                style={{ stroke: "var(--penalty)" }}
-                strokeWidth="1"
-                strokeDasharray="2 2"
-                opacity="0.5"
-                markerEnd="url(#year-arrow)"
-              />
-            )}
-            {/* One compact label per band, shown only when the band is wide
-                enough to hold it (so neighbouring labels never overlap) and tall
-                enough to sit inside without spilling into the band below. */}
-            {(() => {
-              const bandW = b.x1 - b.x0;
-              const nextTop = i + 1 < bands.length ? bands[i + 1].yMan : baseY;
-              const room = nextTop - b.yMan; // vertical space before the next step
-              const l1 = `${crowdLabel(b.managed)} · ${Math.round(b.managed)}%`;
-              const l2 = `${b.days}d · ${fmtEur(b.fee)}`;
-              const fits = bandW > Math.max(l1.length, l2.length) * 5.4 + 8;
-              if (!fits || room < 34) return null;
-              return (
-                <g>
-                  <text
-                    x={(b.x0 + b.x1) / 2}
-                    y={b.yMan + 15}
-                    textAnchor="middle"
-                    className="year-band-label"
-                    style={{ fontWeight: 600 }}
-                  >
-                    {l1}
-                  </text>
-                  <text x={(b.x0 + b.x1) / 2} y={b.yMan + 27} textAnchor="middle" className="year-band-label">
-                    {l2}
-                  </text>
-                </g>
-              );
-            })()}
-          </g>
-        ))}
+        {/* Managed curve (after pricing) — solid hero line */}
+        <path d={manPath} fill="none" style={{ stroke: "var(--ink)" }} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
 
-        {/* Managed step outline */}
-        <path d={stepPath} fill="none" style={{ stroke: "var(--ink)" }} strokeWidth="1.5" opacity="0.5" />
+        {/* Month dots on the managed curve + a fee label on the peak month */}
+        {months.map((m, i) => {
+          const cy = yS(Math.min(yMax, m.managed));
+          const isPeak = m.managed === Math.max(...months.map((x) => x.managed));
+          return (
+            <g key={"md-" + i}>
+              {/* drop from forecast → managed where pricing deterred the crowd */}
+              {yS(Math.min(yMax, m.managed)) - yS(Math.min(yMax, m.live)) > 8 && (
+                <line x1={xAt(i)} y1={yS(Math.min(yMax, m.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity="0.45" />
+              )}
+              <circle cx={xAt(i)} cy={cy} r="2.6" style={{ fill: "var(--ink)" }} />
+              {isPeak && (
+                <text x={xAt(i)} y={cy - 9} textAnchor="middle" className="year-band-label" style={{ fontWeight: 600 }}>
+                  {m.name} · {Math.round(m.managed)}% · {fmtEur(m.fee)}
+                </text>
+              )}
+            </g>
+          );
+        })}
 
-        {/* Active modelled-day demand reference */}
-        <line
-          x1={padL}
-          y1={activeY}
-          x2={w - padR}
-          y2={activeY}
-          style={{ stroke: "var(--ink)" }}
-          strokeWidth="1"
-          strokeDasharray="2 4"
-          opacity="0.5"
-        />
-        {/* Small marker where the modelled-day line meets the y-axis. */}
+        {/* Active modelled-day reference */}
+        <line x1={padL} y1={activeY} x2={w - padR} y2={activeY} style={{ stroke: "var(--ink)" }} strokeWidth="1" strokeDasharray="2 4" opacity="0.45" />
         <circle cx={padL} cy={activeY} r="3.5" style={{ fill: "var(--ink)" }} />
-        {/* Modelled-day caption in a fixed BOTTOM-left slot (above the x-axis),
-            separate from the top legend so the two never collide. */}
-        <text
-          x={padL}
-          y={h - 8}
-          textAnchor="start"
-          className="year-band-label"
-          style={{ fill: "var(--ink-mute)", fontWeight: 600 }}
-        >
-          Modelling: {activeDay.label} · {crowdLabel(activeDay.demand_pct)}
+        <text x={padL} y={h - 8} textAnchor="start" className="year-band-label" style={{ fill: "var(--ink-mute)", fontWeight: 600 }}>
+          Modelling: {activeDay.label} · {Math.round(activeLive)}%
         </text>
 
         {/* X-axis caption */}
-        <text
-          x={w - padR}
-          y={h - 8}
-          textAnchor="end"
-          style={{
-            fill: "var(--ink-soft)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-          }}
-        >
-          Days of the year, busiest → quietest →
+        <text x={w - padR} y={h - 8} textAnchor="end" style={{ fill: "var(--ink-soft)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase" }}>
+          Month of the year (summer peak)
         </text>
       </svg>
     </div>
@@ -766,8 +627,8 @@ export function CurvePanel() {
           </div>
           <div className="panel-sub" style={{ marginTop: 4 }}>
             {view === "cost"
-              ? `${activeDay.demand_pct}% of a normal day · ${activeDay.date}`
-              : `Pricing deters peak crowds · dashed = forecast, solid = after fees`}
+              ? `${Math.round(liveDemandPct(activeDay.demand_pct, state))}% of ${(targetCapacity(state) / 1000).toFixed(0)}k capacity · ${activeDay.date}`
+              : `Summer-peak bell curve · dashed = forecast, solid = after pricing`}
           </div>
         </div>
         <div className="curve-legend">

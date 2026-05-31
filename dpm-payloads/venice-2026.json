@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "location": { "id": "venice", "label": "Venice", "currency": "EUR" },
-  "capacity": { "target": 50000, "unit": "visitors/day" },
+  "capacity": { "target": 50000, "baseline": 50000, "unit": "visitors/day" },
   "confidence": 42,
   "curve": {
     "base_fee_at_target": 10,
@@ -11,7 +11,6 @@
   },
   "shoulder_rebate": { "enabled": false, "credit": 8, "applies_below_pct": 28 },
   "levers": [
-    { "id": "target_capacity", "min": 20000, "max": 70000, "step": 1000, "value": 50000 },
     { "id": "base_fee",        "min": -20,   "max": 50,    "step": 1,    "value": 10 },
     { "id": "max_fee_cap",     "min": 10,    "max": 150,   "step": 5,    "value": 50 },
     { "id": "ceiling_pct",     "min": 120,   "max": 220,   "step": 5,    "value": 200 }
@@ -23,6 +22,20 @@
     { "id": "carnival_sat",   "label": "Carnival Saturday",    "date": "Sat 14 Feb",  "demand_pct": 160 }
   ],
   "phase": { "year": 1, "real_pay_cap": 20 },
+  "monthly": [
+    { "month": "Jan", "demand_pct": 52  },
+    { "month": "Feb", "demand_pct": 78  },
+    { "month": "Mar", "demand_pct": 85  },
+    { "month": "Apr", "demand_pct": 112 },
+    { "month": "May", "demand_pct": 138 },
+    { "month": "Jun", "demand_pct": 168 },
+    { "month": "Jul", "demand_pct": 190 },
+    { "month": "Aug", "demand_pct": 200 },
+    { "month": "Sep", "demand_pct": 158 },
+    { "month": "Oct", "demand_pct": 118 },
+    { "month": "Nov", "demand_pct": 70  },
+    { "month": "Dec", "demand_pct": 66  }
+  ],
   "seasonal": [
     { "days": 30,  "demand_pct": 200 },
     { "days": 60,  "demand_pct": 150 },
