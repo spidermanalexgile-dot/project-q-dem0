@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getState, setLever, setDemand, setDayType, setDate, setView } from "./state";
+import { getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget } from "./state";
 import { tryVoiceCommand } from "./voice";
 
 type VoiceProps = {
@@ -196,6 +196,7 @@ export function VoiceControl({ dark, onSetDark }: VoiceProps) {
       setDayType,
       setDate,
       setView,
+      setOccupancyTarget,
       setDark: onSetDark,
     });
 

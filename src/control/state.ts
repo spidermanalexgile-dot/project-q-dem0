@@ -73,6 +73,9 @@ export type State = {
   customDate: string | null;
   // Which hero chart is showing: the cost curve or the annual "zoom out" view.
   view: "cost" | "year";
+  // Desired occupancy the authority is steering toward (% of capacity). Pricing
+  // deters crowds above it and the curve flattens toward it. Default 100%.
+  occupancy_target: number;
 
   // delta-tracking internals
   __lastDayRev: number;
@@ -84,7 +87,7 @@ export type State = {
 
 export type Payload = Omit<
   State,
-  "activeDay" | "customDemand" | "customDate" | "__lastDayRev" | "__lastAnnualRev" | "__prevDayRev" | "__prevAnnualRev" | "__deltaSeq"
+  "activeDay" | "customDemand" | "customDate" | "occupancy_target" | "__lastDayRev" | "__lastAnnualRev" | "__prevDayRev" | "__prevAnnualRev" | "__deltaSeq"
 > & {
   activeDay?: string;
   // payload may omit phase; defaults to Year 1 / real pay cap 20
@@ -166,20 +169,25 @@ export const DEMAND_REF_EUR = 30;
 /**
  * Managed demand — the crowd level a day actually settles at AFTER the pricing
  * curve deters (or, on quiet days, fails to deter) visitors. This is the whole
- * point of dynamic pricing: it flattens the year toward 100% capacity. The fee is
- * set from the day's forecast (raw) demand; that fee then compresses the day's
- * deviation from 100% — peak days carry the highest fee so they compress most,
- * while quiet days sit near the base fee and barely move.
+ * point of dynamic pricing: it steers the year toward the OCCUPANCY TARGET. The
+ * fee is set from the day's forecast (raw) demand; that fee then compresses the
+ * day's deviation from the target — busy days carry the highest fee so they
+ * compress most, while quiet days sit near the base fee and barely move.
  *
- * managed = 100 + (raw − 100) · e^(−fee / DEMAND_REF_EUR)
+ * managed = target + (raw − target) · e^(−fee / DEMAND_REF_EUR)
  *
  * Raising base_fee / max_fee_cap, or lowering ceiling_pct, all raise the fees and
- * therefore flatten the curve toward 100%. Pure + deterministic.
+ * therefore pull the curve toward the target. Pure + deterministic.
  */
+export function occupancyTarget(snap: State = requireState()): number {
+  return snap.occupancy_target ?? 100;
+}
+
 export function managedDemandPct(raw_pct: number, snap: State = requireState()): number {
   const fee = Math.max(0, feeAtPct(raw_pct, snap));
+  const target = occupancyTarget(snap);
   const compression = Math.exp(-fee / DEMAND_REF_EUR); // 1 at €0 fee → →0 as fee climbs
-  return 100 + (raw_pct - 100) * compression;
+  return target + (raw_pct - target) * compression;
 }
 
 export function dayRevenue(demand_pct: number, snap: State = requireState()): number {
@@ -319,6 +327,7 @@ export function loadPayload(input: Payload | string): void {
   next.customDemand = null;
   next.customDate = null;
   next.view = "cost";
+  if (typeof next.occupancy_target !== "number") next.occupancy_target = 100;
   // Shoulder-season recirculation has been retired from the product. Force it
   // off on every load so no payload (legacy or uploaded) can re-introduce the
   // credit zone in the curve or revenue.
@@ -408,6 +417,49 @@ export function setView(view: "cost" | "year"): void {
   notify();
 }
 
+/**
+ * Set the desired occupancy (% of capacity) the authority wants to hold today,
+ * and AUTO-TUNE the fee levers so the busiest forecast day is deterred down to
+ * that target. Deters crowds above the target (higher fees the further over),
+ * while leaving quiet days near the base fee so they're never over-penalised.
+ *
+ * We solve for the fee the peak day must carry to land at the target —
+ *   managed(peakRaw) = target  ⇒  fee* = −DEMAND_REF_EUR · ln((target−peakRaw)/(target−peakRaw))…
+ * — then set max_fee_cap so the curve actually charges fee* at the peak. Pure +
+ * deterministic; clamps to the lever's bounds. Pass null to clear (back to 100%).
+ */
+export function setOccupancyTarget(pct: number | null): void {
+  const s = requireState();
+  const next = pct == null ? 100 : Math.max(0, Math.min(300, Math.round(pct)));
+  bumpDeltas();
+  s.occupancy_target = next;
+
+  // Auto-tune: find the fee the busiest day needs so it settles AT the target.
+  const peakRaw = Math.max(100, ...s.seasonal.map((b) => b.demand_pct), activeDayType(s).demand_pct);
+  if (peakRaw > next) {
+    // managed = target + (raw−target)·e^(−fee/REF) ⇒ to reach exactly `target`
+    // the fee must be very large; aim for landing within ~1% of target instead.
+    const desiredGap = Math.max(0.01, 1 / Math.max(1, peakRaw - next)); // fraction of the over-shoot left
+    const feeStar = -DEMAND_REF_EUR * Math.log(desiredGap);
+    const cap = s.levers.find((l) => l.id === "max_fee_cap");
+    const ceiling = s.levers.find((l) => l.id === "ceiling_pct");
+    const base = s.levers.find((l) => l.id === "base_fee");
+    // The peak day charges ~max_fee_cap (it sits at/above the ceiling), so set the
+    // cap to the fee we need, clamped to its bounds.
+    if (cap) {
+      const wanted = Math.round(feeStar / (cap.step || 1)) * (cap.step || 1);
+      cap.value = Math.max(cap.min, Math.min(cap.max, Math.max(wanted, base ? base.value + (cap.step || 1) : wanted)));
+    }
+    // Make sure the ceiling isn't so high the peak never reaches the cap fee.
+    if (ceiling && peakRaw < ceiling.value) {
+      ceiling.value = Math.max(ceiling.min, Math.min(ceiling.value, Math.max(peakRaw, ceiling.min)));
+    }
+  }
+
+  commitDeltas();
+  notify();
+}
+
 export function setPhase(year: 1 | 2 | 3): void {
   const s = requireState();
   if (s.phase.year === year) return;
@@ -478,6 +530,7 @@ export type ProjectQApi = {
   setDemand: typeof setDemand;
   setDate: typeof setDate;
   setView: typeof setView;
+  setOccupancyTarget: typeof setOccupancyTarget;
   setPhase: typeof setPhase;
   setRebate: typeof setRebate;
   getState: typeof getState;
@@ -506,6 +559,7 @@ export function installGlobalApi(): void {
     setDemand,
     setDate,
     setView,
+    setOccupancyTarget,
     setPhase,
     setRebate,
     getState,
@@ -518,7 +572,7 @@ export function installGlobalApi(): void {
     managedDemandPct: (raw_pct: number) => managedDemandPct(raw_pct),
     annualRevenue: () => annualRevenue(),
     voiceCommand: (transcript: string) =>
-      executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView }),
+      executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget }),
     askAnalyst: (question: string) => {
       const s = getState();
       return s ? ask(question, s).answer : "No payload loaded yet.";

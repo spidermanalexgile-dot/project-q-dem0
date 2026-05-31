@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setDayType, setDemand, setDate, loadPayload, getState } from "./state";
+import { setDayType, setDemand, setDate, setOccupancyTarget, loadPayload, getState } from "./state";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
 
@@ -220,6 +220,38 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
                   setDemand(v === "" ? null : Number(v));
                 }}
                 aria-label="Crowd level percentage versus a normal day"
+              />
+              <span className="tb-demand-suffix">%</span>
+            </div>
+          </div>
+
+          <div className="tb-divider" />
+
+          <div className="tb-field">
+            <div className="tb-label">
+              Occupancy target
+              <span
+                className="tb-help"
+                tabIndex={0}
+                role="note"
+                aria-label="Occupancy target: the share of capacity the city wants to hold. Setting it auto-tunes the fees to deter crowds above it."
+                title="The occupancy the authority wants to hold (% of capacity). Setting it auto-tunes the fees to deter crowds above it — e.g. 80% prices the busy days down toward 80%."
+              >
+                ?
+              </span>
+            </div>
+            <div className={"tb-demand-input" + (state.occupancy_target !== 100 ? " custom" : "")}>
+              <input
+                type="number"
+                min={10}
+                max={200}
+                step={5}
+                value={state.occupancy_target}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setOccupancyTarget(v === "" ? null : Number(v));
+                }}
+                aria-label="Desired occupancy as a percentage of capacity"
               />
               <span className="tb-demand-suffix">%</span>
             </div>

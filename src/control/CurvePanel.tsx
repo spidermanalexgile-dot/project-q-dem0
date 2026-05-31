@@ -475,11 +475,13 @@ function YearCurve() {
   const areaPath =
     stepPath +
     ` L ${xS(totalDays).toFixed(1)},${baseY.toFixed(1)} L ${xS(0).toFixed(1)},${baseY.toFixed(1)} Z`;
-  // How flat did we get? Mean absolute deviation from 100%, raw vs managed.
+  // How close to the occupancy target did we get? Mean absolute deviation from
+  // the target, raw vs managed.
+  const occTarget = state.occupancy_target ?? 100;
   const totalD = bins.reduce((a, b) => a + b.days, 0) || 1;
-  const rawSpread = bins.reduce((a, b) => a + b.days * Math.abs(b.demand_pct - 100), 0) / totalD;
+  const rawSpread = bins.reduce((a, b) => a + b.days * Math.abs(b.demand_pct - occTarget), 0) / totalD;
   const manSpread =
-    bins.reduce((a, b) => a + b.days * Math.abs(managedDemandPct(b.demand_pct, state) - 100), 0) / totalD;
+    bins.reduce((a, b) => a + b.days * Math.abs(managedDemandPct(b.demand_pct, state) - occTarget), 0) / totalD;
   const flattenPct = rawSpread > 0.5 ? Math.round((1 - manSpread / rawSpread) * 100) : 0;
 
   // Y gridlines.
@@ -546,21 +548,21 @@ function YearCurve() {
           </g>
         ))}
 
-        {/* Target (100%) reference line */}
+        {/* Occupancy-target reference line — the level the authority steers to. */}
         <line
           x1={padL}
-          y1={yS(100)}
+          y1={yS(occTarget)}
           x2={w - padR}
-          y2={yS(100)}
+          y2={yS(occTarget)}
           stroke="#E3A93C"
           strokeWidth="1"
           strokeDasharray="3 4"
           opacity="0.75"
         />
-        <g transform={`translate(${w - padR - 62}, ${yS(100) - 9})`}>
-          <rect x="0" y="0" width="60" height="18" rx="9" fill="#E3A93C" />
+        <g transform={`translate(${w - padR - 82}, ${yS(occTarget) - 9})`}>
+          <rect x="0" y="0" width="80" height="18" rx="9" fill="#E3A93C" />
           <text
-            x="30"
+            x="40"
             y="12"
             textAnchor="middle"
             style={{
@@ -568,10 +570,10 @@ function YearCurve() {
               fontFamily: "var(--font-mono)",
               fontSize: 10,
               fontWeight: 600,
-              letterSpacing: "0.1em",
+              letterSpacing: "0.08em",
             }}
           >
-            TARGET
+            TARGET {occTarget}%
           </text>
         </g>
 
@@ -758,7 +760,9 @@ export function CurvePanel() {
       <header className="panel-header">
         <div>
           <div className="panel-title">
-            {view === "cost" ? "Consumer cost curve" : "Flattening the year toward 100%"}
+            {view === "cost"
+              ? "Consumer cost curve"
+              : `Steering the year toward ${state.occupancy_target ?? 100}% capacity`}
           </div>
           <div className="panel-sub" style={{ marginTop: 4 }}>
             {view === "cost"

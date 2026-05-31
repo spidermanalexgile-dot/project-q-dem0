@@ -20,6 +20,7 @@ export type Intent =
   | { kind: "demand"; value: number }
   | { kind: "dayType"; id: string; label: string }
   | { kind: "date"; iso: string }
+  | { kind: "occupancy"; value: number }
   | { kind: "theme"; dark: boolean }
   | { kind: "view"; view: "cost" | "year" }
   | { kind: "reset" };
@@ -112,6 +113,18 @@ export function interpretCommand(transcript: string, snap: State): Intent | null
   if (/\b(dark mode|dark theme|go dark|lights off|night mode)\b/.test(t)) return { kind: "theme", dark: true };
   if (/\b(light mode|light theme|go light|lights on|day mode)\b/.test(t)) return { kind: "theme", dark: false };
 
+  // Occupancy target: "we only want 80% capacity today", "hold occupancy at 80",
+  // "target 80 percent capacity", "limit crowds to 80%". Checked before levers so
+  // a capacity-target phrase doesn't get read as a target_capacity lever change.
+  if (
+    /\b(occupancy|capacity|crowd|crowds|busy|full|fill|hold|limit|cap it|keep it|only want|aim for|target)\b/.test(t) &&
+    /\b(target|occupancy|hold|limit|keep|only|aim|want|deter|no more than|under|below|at most|max)\b/.test(t) &&
+    !/\b(target capacity|capacity target|visitors|max fee|fee cap|base fee|ceiling)\b/.test(t)
+  ) {
+    const n = parseNumber(t);
+    if (n != null && n >= 10 && n <= 200) return { kind: "occupancy", value: n };
+  }
+
   // Curve view.
   if (/\b(zoom out|annual|whole year|year view|full year)\b/.test(t)) return { kind: "view", view: "year" };
   if (/\b(zoom in|cost curve|cost view|back to (the )?curve)\b/.test(t)) return { kind: "view", view: "cost" };
@@ -192,6 +205,7 @@ export type VoiceDeps = {
   setDayType: (id: string) => void;
   setDate: (iso: string | null) => void;
   setView: (view: "cost" | "year") => void;
+  setOccupancyTarget?: (pct: number | null) => void;
   setDark?: (dark: boolean) => void;
 };
 
@@ -267,6 +281,13 @@ export function tryVoiceCommand(transcript: string, deps: VoiceDeps): VoiceResul
       return {
         recognized: true,
         reply: intent.view === "year" ? "Showing the annual demand profile." : "Showing the cost curve.",
+      };
+    }
+    case "occupancy": {
+      deps.setOccupancyTarget?.(intent.value);
+      return {
+        recognized: true,
+        reply: `Occupancy target set to ${intent.value} percent. Adjusting fees to deter crowds above ${intent.value} percent of capacity.`,
       };
     }
     case "theme": {
