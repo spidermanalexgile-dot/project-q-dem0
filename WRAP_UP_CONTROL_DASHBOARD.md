@@ -746,3 +746,23 @@ error or quota issue. `usingPremiumVoice()` reports which engine is active.
 **Security:** a key embedded in the browser is visible in dev-tools — fine for a
 local pitch demo, but for production route TTS through a small server proxy that
 holds the key and returns the audio.
+
+---
+
+## Day capacity rendering (2026-05-31)
+
+Surfaced Venice's actual capacity in plain numbers, and switched the Capacity
+ceiling lever from a bare percentage to a visitor count.
+
+- **Top bar** now shows the day capacity: the Location field reads
+  *"Location · 50k visitors/day"* (target capacity) and the Crowd-level field reads
+  *"Crowd level · 100k today"* — the real headcount for the modelled day
+  (target capacity × today's crowd level, e.g. 50,000 × 200% = 100,000 on a peak
+  Saturday).
+- **Capacity ceiling lever** now displays an absolute count — *100,000/day* at 200%
+  of a 50,000 target — with its tick bounds converted to people (60k / 150k) and the
+  original percentage kept in the sub-line (*"Crowd limit · 200% of target"*) for
+  context. The stored lever value remains a percentage, so the cost-curve math, the
+  slider, and voice commands ("set capacity ceiling to 250") are unchanged. Verified
+  live: ceiling 150% → "75,000/day", voice still applies, occupancy + demand
+  regressions pass, 0 console errors.
