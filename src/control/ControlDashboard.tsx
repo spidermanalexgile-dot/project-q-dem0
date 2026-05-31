@@ -3,8 +3,7 @@ import { TopBar } from "./TopBar";
 import { CurvePanel } from "./CurvePanel";
 import { RevenuePanel } from "./RevenuePanel";
 import { LeversPanel } from "./LeversPanel";
-import { VoiceControl } from "./VoiceControl";
-import { AnalystPanel } from "./AnalystPanel";
+import { AssistantPanel } from "./AnalystPanel";
 import { installGlobalApi, loadPayload, getState } from "./state";
 import { PAYLOAD_VENICE } from "./payload-venice";
 import "./control.css";
@@ -54,8 +53,7 @@ export function ControlDashboard() {
           <LeversPanel />
         </div>
       </main>
-      <VoiceControl dark={dark} onSetDark={(d) => setDark(d)} />
-      <AnalystPanel />
+      <AssistantPanel onSetDark={(d) => setDark(d)} />
     </div>
   );
 }

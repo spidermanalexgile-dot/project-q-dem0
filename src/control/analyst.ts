@@ -16,6 +16,9 @@ import {
   feeAtPct,
   dayRevenue,
   annualRevenue,
+  managedDemandPct,
+  occupancyTarget,
+  activeDayType,
   type LeverId,
   type State,
 } from "./state";
@@ -83,6 +86,19 @@ function leverObj(snap: State, id: LeverId) {
   return snap.levers.find((l) => l.id === id);
 }
 
+/** Apply several lever overrides at once (for what-if projection). */
+function withLevers(snap: State, recs: { id: LeverId; value: number }[]): State {
+  const map = new Map(recs.map((r) => [r.id, r.value]));
+  return { ...snap, levers: snap.levers.map((l) => (map.has(l.id) ? { ...l, value: map.get(l.id)! } : l)) };
+}
+
+/** Clamp a value to a lever's [min,max] and snap to its step. */
+function clampStep(value: number, lever: { min: number; max: number; step?: number }): number {
+  const step = lever.step || 1;
+  const snapped = Math.round(value / step) * step;
+  return Math.max(lever.min, Math.min(lever.max, snapped));
+}
+
 /**
  * Bisection solver: find the lever value that makes metric(state) === target.
  * Works for monotonic metrics in either direction (we detect the sign from the
@@ -126,7 +142,9 @@ function snapToStep(value: number, step?: number): number {
 
 /* ─── intent + result types ─────────────────────────────────────────────── */
 
-export type AnalystAction = { setLever: { id: LeverId; value: number } };
+export type AnalystAction =
+  | { setLever: { id: LeverId; value: number } }
+  | { setLevers: { id: LeverId; value: number }[]; label: string };
 
 export type AnalystResult = {
   answer: string; // markdown-ish plain text (we render line breaks)
@@ -169,6 +187,62 @@ function findMonth(text: string): number | null {
 export function ask(qRaw: string, snap: State): AnalystResult {
   const q = " " + qRaw.toLowerCase().trim() + " ";
   const year = MODELLING_YEAR;
+
+  // ── 0. SUGGEST lever settings for a day, and explain ──────────────────────
+  if (/\b(suggest|recommend|propose|what should|best|optimal|ideal|set up|tune|advise)\b/.test(q) &&
+      /\b(lever|levers|setting|settings|fee|fees|price|prices|config|configuration)\b/.test(q)) {
+    // Which day? A spoken date, else the day currently modelled.
+    const iso = parseSpokenDate(q, year);
+    const day = iso
+      ? { demand: demandForISO(iso, snap.day_types) ?? 100, label: formatISO(iso) }
+      : { demand: activeDayType(snap).demand_pct, label: activeDayType(snap).label };
+    const target = occupancyTarget(snap);
+    const base = leverObj(snap, "base_fee")!;
+    const cap = leverObj(snap, "max_fee_cap")!;
+    const ceiling = leverObj(snap, "ceiling_pct")!;
+
+    // Solve the fee the day needs to settle at the target (same model as the
+    // occupancy auto-tune), then propose concrete lever values.
+    const over = day.demand - target;
+    const recs: { id: LeverId; value: number }[] = [];
+    let rationale: string;
+    if (over <= 2) {
+      // Already at/under target — keep fees gentle, don't over-penalise.
+      recs.push({ id: "base_fee", value: base.value });
+      recs.push({ id: "max_fee_cap", value: cap.value });
+      rationale =
+        `${day.label} is forecast at ${Math.round(day.demand)}% — at or under your ${target}% target, ` +
+        `so no extra deterrence is needed. Keep the base fee around ${eur(base.value)} and the cap at ` +
+        `${eur(cap.value)}; pushing fees higher would just turn away visitors you actually want.`;
+    } else {
+      // Need a deterrent fee on this day. fee* compresses (demand-target) to ~target.
+      const desiredGap = Math.max(0.02, 2 / over); // leave ~2% of the overshoot
+      const feeStar = Math.max(base.value + (cap.step || 1), -30 * Math.log(desiredGap));
+      const capV = clampStep(feeStar, cap);
+      // Tighten the ceiling so the day actually reaches the cap fee.
+      const ceilV = clampStep(Math.max(ceiling.min, Math.min(ceiling.value, Math.round(day.demand))), ceiling);
+      recs.push({ id: "base_fee", value: base.value });
+      recs.push({ id: "max_fee_cap", value: capV });
+      recs.push({ id: "ceiling_pct", value: ceilV });
+      const projected = managedDemandPct(
+        day.demand,
+        withLevers(snap, recs),
+      );
+      rationale =
+        `${day.label} is forecast at ${Math.round(day.demand)}% — that's ${Math.round(over)} points over your ` +
+        `${target}% target, so the pricing curve needs to bite. I'd set:\n` +
+        `• Max-fee cap → ${eur(capV)} (the deterrent the busiest hours pay)\n` +
+        `• Capacity ceiling → ${ceilV}% (so the curve reaches that cap by this day's crowd level)\n` +
+        `• Base fee → ${eur(base.value)} (keep the entry price gentle for normal days)\n\n` +
+        `That settles ${day.label} at about ${Math.round(projected)}% of capacity — right on your ${target}% ` +
+        `target — while quiet days stay near the base fee. Higher fee on the busy day deters the overflow; ` +
+        `the cheap base keeps the shoulder days welcoming.`;
+    }
+    return {
+      answer: rationale,
+      action: { setLevers: recs, label: `the suggested settings for ${day.label}` },
+    };
+  }
 
   // ── 1. WHY IS <date> DEMAND N%? ───────────────────────────────────────────
   if (/\b(why|how come|explain|what makes)\b/.test(q) && /\b(demand|busy|crowd|%|percent|capacity)\b/.test(q)) {

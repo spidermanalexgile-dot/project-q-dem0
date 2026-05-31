@@ -1386,3 +1386,32 @@
 .qctl-analyst-speak svg { width: 17px; height: 17px; }
 .qctl-analyst-speak:hover { color: var(--ink); background: rgba(127,127,127,0.12); }
 .qctl-analyst-speak.on { color: var(--teal); }
+
+/* In-chat mic button (assistant input row) + live indicator */
+.qctl-analyst-mic {
+  flex: none;
+  width: 38px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.06);
+  color: var(--ink-mute);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.qctl-analyst-mic svg { width: 17px; height: 17px; }
+.qctl-analyst-mic:hover { color: var(--ink); border-color: var(--hairline-strong); }
+.qctl-analyst-mic.listening {
+  color: var(--penalty);
+  border-color: var(--penalty);
+  background: rgba(224, 118, 60, 0.12);
+}
+.qctl-analyst-mic.listening svg { animation: qctl-voice-pulse 1.2s ease-in-out infinite; }
+/* Header dot turns teal+pulsing while the mic is live. */
+.qctl-analyst-dot.live {
+  background: var(--penalty);
+  box-shadow: 0 0 0 3px rgba(224, 118, 60, 0.2);
+  animation: qctl-voice-pulse 1.2s ease-in-out infinite;
+}

@@ -50,11 +50,16 @@ function ensureVoice(): SpeechSynthesisVoice | null {
   return cachedVoice;
 }
 
-/** Speak text once with the shared warm voice. Cancels any in-progress speech. */
-export function speak(text: string): void {
+/** Speak text once with the shared warm voice. Cancels any in-progress speech.
+ *  onDone fires when speech ends/errors (or immediately if unavailable) so the
+ *  caller can resume the mic. */
+export function speak(text: string, onDone?: () => void): void {
   try {
     const synth = window.speechSynthesis;
-    if (!synth) return;
+    if (!synth) {
+      onDone?.();
+      return;
+    }
     synth.cancel();
     const u = new SpeechSynthesisUtterance(text);
     const v = ensureVoice();
@@ -62,9 +67,13 @@ export function speak(text: string): void {
     u.rate = 0.95;
     u.pitch = 1.05;
     u.volume = 0.85;
+    if (onDone) {
+      u.onend = onDone;
+      u.onerror = onDone;
+    }
     synth.speak(u);
   } catch {
-    /* speech synthesis unavailable — silent no-op */
+    onDone?.();
   }
 }
 
