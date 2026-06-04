@@ -640,8 +640,8 @@ export function CurvePanel() {
 
   return (
     <section className="panel panel-pad curve-panel">
-      <header className="panel-header">
-        <div>
+      <header className="panel-header curve-head">
+        <div className="curve-head-left">
           <div className="panel-title">
             {view === "cost"
               ? "Consumer cost curve"
@@ -654,23 +654,26 @@ export function CurvePanel() {
           </div>
           {state.provenance && <div className="curve-provenance">{state.provenance}</div>}
         </div>
+
+        {/* View toggle — centred between the two graph modes. */}
+        <div className="curve-view-toggle" role="tablist" aria-label="Curve view">
+          <button
+            className={view === "cost" ? "on" : ""}
+            onClick={() => setView("cost")}
+            aria-pressed={view === "cost"}
+          >
+            Cost curve
+          </button>
+          <button
+            className={view === "year" ? "on" : ""}
+            onClick={() => setView("year")}
+            aria-pressed={view === "year"}
+          >
+            Zoom out · year
+          </button>
+        </div>
+
         <div className="curve-legend">
-          <div className="curve-view-toggle" role="tablist" aria-label="Curve view">
-            <button
-              className={view === "cost" ? "on" : ""}
-              onClick={() => setView("cost")}
-              aria-pressed={view === "cost"}
-            >
-              Cost curve
-            </button>
-            <button
-              className={view === "year" ? "on" : ""}
-              onClick={() => setView("year")}
-              aria-pressed={view === "year"}
-            >
-              Zoom out · year
-            </button>
-          </div>
           {view === "cost" && (
             <span className="legend-swatch" style={{ color: "#E3A93C" }}>
               <i /> Fee

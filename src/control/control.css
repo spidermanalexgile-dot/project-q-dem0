@@ -1844,3 +1844,89 @@
 .qctl-root .tb-date-input input::-webkit-datetime-edit {
   padding: 2px 0;
 }
+
+/* ─── Curve header: centre the view toggle between the two graph modes ───── */
+.qctl-root .curve-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.qctl-root .curve-head .curve-head-left { justify-self: start; min-width: 0; }
+.qctl-root .curve-head > .curve-view-toggle { justify-self: center; }
+.qctl-root .curve-head .curve-legend { justify-self: end; }
+
+/* ─── Innovative day selector: stepper + calendar pill ──────────────────── */
+.qctl-root .tb-dayselect {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid var(--hairline);
+  border-radius: 13px;
+  background: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.qctl-root .tb-dayselect:hover { border-color: var(--hairline-strong); }
+.qctl-root .tb-dayselect.custom {
+  border-color: var(--ochre);
+  background: rgba(227, 169, 60, 0.06);
+}
+.qctl-root .tb-day-step {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-mute);
+  font-size: 19px;
+  line-height: 1;
+  width: 28px;
+  height: 36px;
+  cursor: pointer;
+  border-radius: 11px;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.qctl-root .tb-day-step:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(128, 128, 128, 0.14);
+}
+.qctl-root .tb-day-step:disabled { opacity: 0.28; cursor: default; }
+.qctl-root .tb-dayselect-main {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.qctl-root .tb-day-cal {
+  width: 15px;
+  height: 15px;
+  color: var(--ochre);
+  flex: none;
+}
+.qctl-root .tb-dayselect-text {
+  font-family: var(--font-mono);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+/* Native picker overlays the pill text (transparent) so a click opens it. */
+.qctl-root .tb-dayselect-native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.qctl-root .tb-dayselect-native::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}

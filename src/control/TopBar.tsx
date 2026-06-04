@@ -15,9 +15,18 @@ import {
 } from "./state";
 import { isBundleFilenames } from "./bundle";
 import { fmtNumber } from "./format";
+import { formatISO } from "./dateutil";
 import { AssistantPanel } from "./AnalystPanel";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
+
+/** Step an ISO date by whole days. Pure (built from explicit Y/M/D, never
+ *  Date.now), so it's safe in this UI handler. */
+function stepISO(iso: string, delta: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return dt.toISOString().slice(0, 10);
+}
 
 type TopBarProps = {
   dark: boolean;
@@ -218,15 +227,44 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
             }}
           />
 
+          {/* Innovative day selector — a stepper + calendar pill that shows the
+              day in plain language; clicking opens the native picker. */}
           <div className="tb-field">
-            <div className="tb-label">Selected day</div>
-            <div className={"tb-date-input" + (state.customDate ? " custom" : "")}>
-              <input
-                type="date"
-                value={state.customDate ?? ""}
-                onChange={(e) => setDate(e.target.value === "" ? null : e.target.value)}
-                aria-label="Model a specific calendar date"
-              />
+            <div className={"tb-dayselect" + (state.customDate ? " custom" : "")}>
+              <button
+                type="button"
+                className="tb-day-step"
+                onClick={() => state.customDate && setDate(stepISO(state.customDate, -1))}
+                disabled={!state.customDate}
+                aria-label="Previous day"
+              >
+                ‹
+              </button>
+              <div className="tb-dayselect-main">
+                <svg className="tb-day-cal" viewBox="0 0 16 16" aria-hidden="true">
+                  <rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                  <path d="M2 6.4h12M5.2 1.8v2.4M10.8 1.8v2.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+                <span className="tb-dayselect-text">
+                  {state.customDate ? formatISO(state.customDate) : activeDay.date}
+                </span>
+                <input
+                  type="date"
+                  className="tb-dayselect-native"
+                  value={state.customDate ?? ""}
+                  onChange={(e) => setDate(e.target.value === "" ? null : e.target.value)}
+                  aria-label="Pick a day"
+                />
+              </div>
+              <button
+                type="button"
+                className="tb-day-step"
+                onClick={() => state.customDate && setDate(stepISO(state.customDate, 1))}
+                disabled={!state.customDate}
+                aria-label="Next day"
+              >
+                ›
+              </button>
             </div>
           </div>
 
@@ -240,17 +278,18 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
 
           <div className="tb-divider" />
 
-          {/* Projected visitors highlight + Suggest-levers action. */}
+          {/* Projected visitors — just the number (no label / caption), with the
+              sustainable read-out only when the v2 bundle is loaded. */}
           <div className="tb-field tb-projected">
-            <div className="tb-label">Projected visitors · {activeDay.date}</div>
             <div className="tb-projected-row">
               <div className={"tb-projected-figure" + cpiClass}>{fmtNumber(projected)}</div>
               <div className="tb-projected-meta">
-                <span className="tb-projected-sub">
-                  {threshold != null
-                    ? `after pricing ${fmtNumber(managed)} · sustainable ${fmtNumber(threshold)}/day${cpi != null ? ` · CPI ${cpi.toFixed(2)}` : ""}`
-                    : "visitors on the selected day"}
-                </span>
+                {threshold != null && (
+                  <span className="tb-projected-sub">
+                    after pricing {fmtNumber(managed)} · sustainable {fmtNumber(threshold)}/day
+                    {cpi != null ? ` · CPI ${cpi.toFixed(2)}` : ""}
+                  </span>
+                )}
                 <button
                   type="button"
                   className="tb-suggest"
