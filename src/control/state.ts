@@ -14,6 +14,7 @@ import { demandForISO, formatISO } from "./dateutil";
 import { executeVoiceCommand } from "./voice";
 import { ask } from "./analyst";
 import { setElevenCredentials, setElevenVoice, listFemaleVoices, voiceStatus } from "./speech";
+import { parseBundle } from "./bundle";
 
 export type LeverId =
   | "target_capacity"
@@ -53,6 +54,49 @@ export type SeasonalBin = { days: number; demand_pct: number };
 
 export type MonthlyBin = { month: string; demand_pct: number };
 
+/* ─── DPM v2 bundle types (all additive / optional on State) ─────────────── */
+
+export type DailyRow = {
+  date: string; // ISO yyyy-mm-dd
+  dow: string;
+  week: number;
+  month: string;
+  base_visitors: number;
+  growth_factor: number;
+  predicted_visitors: number;
+  shock_pct: number;
+  shock_label: string;
+  adjusted_visitors: number;
+  cpi: number;
+  notes: string;
+};
+
+/** Bundle monthly summary. Stored under `monthly_summary` (NOT `monthly`) so the
+ *  v1 `monthly: {month, demand_pct}[]` the year-curve reads is never broken. */
+export type MonthlySummaryRow = {
+  month: string; // "January".."December" | "TOTAL"
+  days: number;
+  total_visitors: number;
+  avg_daily: number;
+  peak_day: number;
+  min_day: number;
+  breaches: number;
+  avg_cpi: number;
+};
+
+export type Shock = {
+  id: string;
+  label: string;
+  duration_days: number;
+  demand_shock_pct: number; // signed: -10 = -10% demand, +40 = surge
+  visitors_delta: number; // signed: positive = lost (Ollie's convention, preserved)
+  revenue_impact_usd: number; // signed: positive = revenue lost
+  avg_daily_during: number;
+  cpi_during: number;
+};
+
+export type Assumption = { param: string; value: string; source: string; confidence: number };
+
 export type Phase = { year: 1 | 2 | 3; real_pay_cap: number };
 
 export type State = {
@@ -60,7 +104,9 @@ export type State = {
   // target = the live daily capacity the authority is steering to (operator input).
   // baseline = the capacity the DPM's demand_pct figures were measured against; we
   // rebase live demand by baseline/target so changing target reshapes every curve.
-  capacity: { target: number; baseline: number; unit: string };
+  // threshold = the CPI denominator (sustainable carrying capacity); distinct
+  // from target (the curve's policy 100% anchor). Both exist; don't conflate.
+  capacity: { target: number; baseline: number; unit: string; threshold?: number };
   confidence: number;
   curve: CurveSpec;
   shoulder_rebate: ShoulderRebate;
@@ -69,6 +115,17 @@ export type State = {
   phase: Phase;
   seasonal: SeasonalBin[];
   monthly?: MonthlyBin[];
+
+  // ── DPM v2 bundle (optional; absent for v1 payloads) ──────────────────────
+  daily?: DailyRow[];
+  monthly_summary?: MonthlySummaryRow[];
+  monthly_total?: MonthlySummaryRow | null;
+  shocks?: Shock[];
+  assumptions?: Assumption[];
+  run_confidence?: number; // overall run confidence (e.g. 58); display honestly
+  active_shock?: string | null; // applied shock id, null/undefined = baseline
+  eur_usd_rate?: number; // from Assumptions; for USD→EUR shock impact conversion
+  provenance?: string; // "Curve params: … · Daily data: …" merge note
 
   activeDay: string;
   // Free-form modelled demand. When non-null the operator has typed a demand %
@@ -250,13 +307,93 @@ export function dayRevenue(baseline_pct: number, snap: State = requireState()): 
   return visitors * feeAtPct(live, snap);
 }
 
-export function annualRevenue(snap: State = requireState()): number {
+/**
+ * Baseline annual revenue (no stress overlay).
+ *  • PREFERRED: when daily granularity is present (DPM v2 bundle), sum the real
+ *    365 day predictions — each day's visitors × the fee at its % of target,
+ *    where %ofTarget = adjusted_visitors / capacity.target × 100.
+ *  • BACKWARD-COMPAT: with no daily data, fall back to the monthly(demand_pct)
+ *    or coarse seasonal-bucket rollup exactly as v1 did.
+ */
+function baselineAnnualRevenue(snap: State): number {
+  if (snap.daily && snap.daily.length > 0) {
+    const target = targetCapacity(snap) || 1;
+    let total = 0;
+    for (const d of snap.daily) {
+      const pctOfTarget = (d.adjusted_visitors / target) * 100;
+      total += d.adjusted_visitors * feeAtPct(pctOfTarget, snap);
+    }
+    return total;
+  }
   const bins = snap.monthly
     ? snap.monthly.map((m) => ({ days: 365 / 12, demand_pct: m.demand_pct }))
     : snap.seasonal;
   let total = 0;
   for (const s of bins) total += s.days * dayRevenue(s.demand_pct, snap);
   return total;
+}
+
+export function annualRevenue(snap: State = requireState()): number {
+  const base = baselineAnnualRevenue(snap);
+  const shock = activeShockObj(snap);
+  if (shock) {
+    // Ollie reports Revenue_Impact_USD signed (positive = revenue LOST). Convert
+    // USD→EUR and subtract, so a loss lowers revenue and a surge (negative) lifts it.
+    return base - shock.revenue_impact_usd / eurUsdRate(snap);
+  }
+  return base;
+}
+
+/* ─── DPM v2: capacity-pressure (CPI) + stress-test overlay ──────────────── */
+
+/** USD→EUR rate from the bundle's Assumptions; 1.0 when absent. */
+export function eurUsdRate(snap: State = requireState()): number {
+  return snap.eur_usd_rate && snap.eur_usd_rate > 0 ? snap.eur_usd_rate : 1.0;
+}
+
+/** Sustainable carrying-capacity threshold (CPI denominator), or undefined for
+ *  v1 payloads that carry no threshold. */
+export function capacityThreshold(snap: State = requireState()): number | undefined {
+  return snap.capacity?.threshold;
+}
+
+/** The currently-applied shock object, or null at baseline. */
+export function activeShockObj(snap: State = requireState()): Shock | null {
+  if (!snap.active_shock || !snap.shocks) return null;
+  return snap.shocks.find((s) => s.id === snap.active_shock) ?? null;
+}
+
+/** The active day's modelled demand %, after any stress overlay
+ *  (adjusted = baseline × (1 + demand_shock_pct/100)). */
+export function effectiveActiveDemandPct(snap: State = requireState()): number {
+  const base = activeDayType(snap).demand_pct;
+  const shock = activeShockObj(snap);
+  return shock ? base * (1 + shock.demand_shock_pct / 100) : base;
+}
+
+/** Active day's headcount = effective % of target capacity × target. */
+export function activeAdjustedVisitors(snap: State = requireState()): number {
+  return (effectiveActiveDemandPct(snap) / 100) * targetCapacity(snap);
+}
+
+/**
+ * Capacity Pressure Index for the active day. null when no threshold is loaded.
+ *  • Under a stress test → the scenario's CPI_During_Shock (Ollie's figure).
+ *  • Else if a daily row matches the active date → that row's CPI.
+ *  • Else computed: (demand%/100 × target) / threshold.
+ */
+export function activeCPI(snap: State = requireState()): number | null {
+  const threshold = capacityThreshold(snap);
+  if (!threshold || threshold <= 0) return null;
+  const shock = activeShockObj(snap);
+  if (shock) return shock.cpi_during;
+  // Match a real daily row by the active day's date if one lines up.
+  const date = snap.customDate;
+  if (date && snap.daily) {
+    const row = snap.daily.find((d) => d.date === date);
+    if (row) return row.cpi;
+  }
+  return ((activeDayType(snap).demand_pct / 100) * targetCapacity(snap)) / threshold;
 }
 
 export function activeDayType(snap: State = requireState()): DayType {
@@ -277,7 +414,7 @@ export function activeDayType(snap: State = requireState()): DayType {
 
 function bumpDeltas() {
   const s = requireState();
-  prevDayRev = s.__lastDayRev ?? dayRevenue(activeDayType().demand_pct);
+  prevDayRev = s.__lastDayRev ?? dayRevenue(effectiveActiveDemandPct());
   prevAnnualRev = s.__lastAnnualRev ?? annualRevenue();
   if (deltaTimer) clearTimeout(deltaTimer);
   s.__deltaSeq = (s.__deltaSeq || 0) + 1;
@@ -285,7 +422,7 @@ function bumpDeltas() {
 
 function commitDeltas() {
   const s = requireState();
-  s.__lastDayRev = dayRevenue(activeDayType().demand_pct);
+  s.__lastDayRev = dayRevenue(effectiveActiveDemandPct());
   s.__lastAnnualRev = annualRevenue();
   s.__prevDayRev = prevDayRev;
   s.__prevAnnualRev = prevAnnualRev;
@@ -372,8 +509,9 @@ function normalizeCurveExponent(shape: { exponent: number }): void {
   }
 }
 
-export function loadPayload(input: Payload | string): void {
-  const parsed: Payload = isMarkdownString(input) ? parseMarkdownPayload(input) : input;
+/** Validate + normalize a v1 payload into a fresh State (does NOT touch the
+ *  global store). Shared by loadPayload and the bundle's base-layer resolution. */
+function normalizePayloadToState(parsed: Payload): State {
   validatePayload(parsed);
   // Defensive deep clone so we don't mutate a caller's object.
   const next = JSON.parse(JSON.stringify(parsed)) as State;
@@ -397,16 +535,87 @@ export function loadPayload(input: Payload | string): void {
   // credit zone in the curve or revenue.
   if (next.shoulder_rebate) next.shoulder_rebate.enabled = false;
   if (!next.phase) next.phase = { year: 1, real_pay_cap: 20 };
+  next.active_shock = null;
   // Initialise delta-tracking fields against the new state.
   next.__lastDayRev = 0;
   next.__lastAnnualRev = 0;
   next.__prevDayRev = 0;
   next.__prevAnnualRev = 0;
+  return next;
+}
+
+/** Install a freshly-built State as the live store + seed delta tracking. */
+function commitState(next: State): void {
   state = next;
-  state.__lastDayRev = dayRevenue(activeDayType().demand_pct);
+  state.__lastDayRev = dayRevenue(effectiveActiveDemandPct());
   state.__lastAnnualRev = annualRevenue();
   state.__prevDayRev = state.__lastDayRev;
   state.__prevAnnualRev = state.__lastAnnualRev;
+  notify();
+}
+
+export function loadPayload(input: Payload | string): void {
+  const parsed: Payload = isMarkdownString(input) ? parseMarkdownPayload(input) : input;
+  commitState(normalizePayloadToState(parsed));
+}
+
+/**
+ * Load Ollie's DPM v2 four-CSV bundle and layer it onto a v1 base payload.
+ *
+ * `files` is the dropped/selected set ({name,text}). Parsing + validation live in
+ * bundle.ts (throws on failure → caller keeps previous state, red toast). Base
+ * resolution (the v1 curve params / levers / day_types the bundle doesn't carry):
+ *   1. a .json / .md in the dropped set → use it as the base;
+ *   2. else the currently-loaded v1 state (boot default venice-2026.json);
+ *   3. else error (nothing to layer onto).
+ * Then the bundle's additive fields (threshold, daily, monthly_summary, shocks,
+ * assumptions, run_confidence, eur_usd_rate) overlay on top.
+ */
+export function loadBundle(files: { name: string; text: string }[]): void {
+  const data = parseBundle(files); // throws on validation failure
+
+  const jsonFile = files.find((f) => /\.(json|md)$/i.test(f.name));
+  let base: State;
+  let curveSource: string;
+  if (jsonFile) {
+    const parsed = /\.md$/i.test(jsonFile.name)
+      ? parseMarkdownPayload(jsonFile.text)
+      : (JSON.parse(jsonFile.text) as Payload);
+    base = normalizePayloadToState(parsed);
+    curveSource = jsonFile.name;
+  } else if (state) {
+    // Layer onto the live v1 payload (keeps its confidence, curve, day_types).
+    base = JSON.parse(JSON.stringify(state)) as State;
+    curveSource = "venice-2026.json";
+  } else {
+    throw new Error("no v1 base payload to layer the bundle onto");
+  }
+
+  // Overlay the additive bundle fields.
+  base.capacity.threshold = data.threshold;
+  base.daily = data.daily;
+  base.monthly_summary = data.monthly_summary;
+  base.monthly_total = data.monthly_total;
+  base.shocks = data.shocks;
+  base.assumptions = data.assumptions;
+  base.run_confidence = data.run_confidence;
+  base.eur_usd_rate = data.eur_usd_rate;
+  base.active_shock = null;
+  const year = data.daily[0]?.date?.slice(0, 4) ?? "2027";
+  base.provenance = `Curve params: ${curveSource} · Daily data: venice-${year} bundle`;
+
+  commitState(base);
+}
+
+/** Apply a stress-test scenario (or null = baseline). All live-displayed
+ *  numbers reflect the scenario via the calc helpers. */
+export function setActiveShock(id: string | null): void {
+  const s = requireState();
+  const next = id && s.shocks?.some((sh) => sh.id === id) ? id : null;
+  if ((s.active_shock ?? null) === next) return;
+  bumpDeltas();
+  s.active_shock = next;
+  commitDeltas();
   notify();
 }
 
@@ -592,7 +801,9 @@ export function compute(): Computed {
   const dt = activeDayType(s);
   return {
     activeDay: dt,
-    dayRevenue: dayRevenue(dt.demand_pct, s),
+    // Use the stress-adjusted active demand so the day-revenue card reflects an
+    // applied shock; equals the baseline demand when no shock is active.
+    dayRevenue: dayRevenue(effectiveActiveDemandPct(s), s),
     annualRevenue: annualRevenue(s),
     prevDayRev: s.__prevDayRev,
     prevAnnualRev: s.__prevAnnualRev,
@@ -606,6 +817,8 @@ export function compute(): Computed {
 
 export type ProjectQApi = {
   loadPayload: typeof loadPayload;
+  /** Load Ollie's DPM v2 four-CSV bundle ({name,text}[]) onto the v1 base. */
+  loadBundle: typeof loadBundle;
   setLever: typeof setLever;
   setDayType: typeof setDayType;
   setDemand: typeof setDemand;
@@ -613,6 +826,8 @@ export type ProjectQApi = {
   setView: typeof setView;
   setOccupancyTarget: typeof setOccupancyTarget;
   setTargetCapacity: typeof setTargetCapacity;
+  /** Apply a stress-test scenario by id (or null = baseline). */
+  setActiveShock: typeof setActiveShock;
   setPhase: typeof setPhase;
   setRebate: typeof setRebate;
   getState: typeof getState;
@@ -626,6 +841,12 @@ export type ProjectQApi = {
   liveDemandPct: (baseline_pct: number) => number;
   targetCapacity: () => number;
   annualRevenue: () => number;
+  /** DPM v2: Capacity Pressure Index for the active day (null if no threshold). */
+  activeCPI: () => number | null;
+  /** DPM v2: sustainable capacity threshold (CPI denominator), or undefined. */
+  capacityThreshold: () => number | undefined;
+  /** DPM v2: the active stress scenario object, or null at baseline. */
+  activeShock: () => Shock | null;
   /** Parse + apply a natural-language voice/text command; returns the spoken
    *  confirmation string (theme changes are UI-side and a no-op here). */
   voiceCommand: (transcript: string) => string;
@@ -652,6 +873,7 @@ export function installGlobalApi(): void {
   if (typeof window === "undefined") return;
   const api: ProjectQApi = {
     loadPayload,
+    loadBundle,
     setLever,
     setDayType,
     setDemand,
@@ -659,6 +881,7 @@ export function installGlobalApi(): void {
     setView,
     setOccupancyTarget,
     setTargetCapacity,
+    setActiveShock,
     setPhase,
     setRebate,
     getState,
@@ -672,6 +895,9 @@ export function installGlobalApi(): void {
     liveDemandPct: (baseline_pct: number) => liveDemandPct(baseline_pct),
     targetCapacity: () => targetCapacity(),
     annualRevenue: () => annualRevenue(),
+    activeCPI: () => activeCPI(),
+    capacityThreshold: () => capacityThreshold(),
+    activeShock: () => activeShockObj(),
     voiceCommand: (transcript: string) =>
       executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget }),
     askAnalyst: (question: string) => {
