@@ -255,9 +255,9 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
                   type="button"
                   className="tb-suggest"
                   onClick={handleSuggest}
-                  title="Auto-tune the fee levers so the managed crowd is held at the sustainable capacity (CPI 1.0)"
+                  title="Let Q auto-tune the fee levers so the managed crowd is held at the sustainable capacity (CPI 1.0)"
                 >
-                  Suggest levers
+                  Let Q fix this
                 </button>
               </div>
             </div>

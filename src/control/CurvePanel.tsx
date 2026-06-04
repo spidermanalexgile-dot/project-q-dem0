@@ -425,7 +425,9 @@ function YearCurve() {
   if (!state) return <div className="curve-stage" />;
 
   const w = 1000;
-  const h = 580;
+  // Taller canvas than the cost view: with the explainer paragraph removed, the
+  // zoom-out fills the freed vertical space (aspect closer to the stage's).
+  const h = 760;
   const padL = 56;
   const padR = 28;
   const padT = 30;
@@ -707,16 +709,7 @@ export function CurvePanel() {
           <BucketStrip />
         </>
       ) : (
-        <>
-          <YearCurve />
-          <p className="year-explainer">
-            The <strong style={{ color: "var(--penalty)" }}>dashed line</strong> is the forecast
-            crowd; the <strong>solid blocks</strong> are where each day actually settles once the
-            fee deters peak visitors. The goal is a flat year at <strong>100% capacity</strong> —
-            raise the <strong>base fee</strong> or <strong>max-fee cap</strong> (or lower the
-            <strong> ceiling</strong>) and the busy days get pulled down toward the target line.
-          </p>
-        </>
+        <YearCurve />
       )}
 
       {/* Assumptions register — tucked-away slide-out (scrolls internally only) */}

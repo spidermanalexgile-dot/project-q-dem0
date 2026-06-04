@@ -233,7 +233,8 @@ export function AssistantPanel({ onSetDark, inline }: AssistantProps) {
     try {
       rec.start();
       setListening(true);
-      respond("Listening. How can I help?");
+      // No greeting box on start — the pulsing orb is the only "I'm listening"
+      // signal; the status pill only appears once there's something to show.
     } catch {
       /* already running */
     }

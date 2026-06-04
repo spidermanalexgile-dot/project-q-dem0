@@ -133,9 +133,12 @@
 .qctl-root .tb-context {
   display: flex;
   align-items: center;
-  gap: clamp(10px, 1.2vw, 18px);
+  gap: clamp(14px, 2vw, 40px);
   flex-wrap: nowrap;
-  justify-content: center;
+  /* Spread the controls across the full width of the bar rather than clustering
+     them in the centre — uses the horizontal space along the top. */
+  justify-content: space-between;
+  width: 100%;
 }
 .qctl-root .tb-divider {
   width: 1px;
@@ -1822,3 +1825,22 @@
   transform: translateY(-1px);
 }
 .qctl-root .tb-suggest:active { transform: translateY(0); }
+
+/* ─── Day selector — larger, clearer (spread along the top) ─────────────── */
+.qctl-root .tb-field-mic,
+.qctl-root .tb-projected,
+.qctl-root .tb-field {
+  flex: 0 0 auto;
+}
+.qctl-root .tb-date-input {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border-width: 1.5px;
+}
+.qctl-root .tb-date-input input {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.qctl-root .tb-date-input input::-webkit-datetime-edit {
+  padding: 2px 0;
+}
