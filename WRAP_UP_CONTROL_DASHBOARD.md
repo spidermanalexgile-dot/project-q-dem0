@@ -994,3 +994,90 @@ Verified live: suggest computes, goal-seek computes, brain falls back to null
 (graceful) with 0 console errors. **To switch her onto Sonnet 4.6**, set
 `ANTHROPIC_API_KEY` in Vercel → Settings → Environment Variables (no `VITE_`
 prefix) and redeploy. Until then she runs the deterministic fallback.
+
+---
+
+## DPM v2 bundle integration — daily + CPI + stress scenarios (2026-06-04)
+
+Ollie's DPM now emits a **four-CSV bundle** per city/year instead of a single v1
+JSON. The Venice 2027 bundle (`./dpm-payloads/venice-2027/`) is wired in, fully
+backward-compatible with the v1 single-JSON loader. Deployed; prod 200; the new
+`index-*.js` is live and production sanity passed (daily 365, shocks 6,
+threshold 52111, CPI peak_sat 1.92, 0 console errors).
+
+### Bundle ingestion + merge order
+- **Detection** is by *filename* (we peek at names, not content): a folder
+  drag-drop, a multi-file pick, or a set containing the four `ProjectQ_Venice_*`
+  CSVs routes through `bundle.ts` → `parseBundle()`. A dependency-free CSV parser
+  (~60 lines) handles quoted-comma fields (`"5,880,000"`, `"52,111 /day"`).
+- **Merge / fallback chain** (the bundle carries no curve params / levers /
+  day_types): **(1)** a `.json`/`.md` in the dropped set is used as the v1 base;
+  **(2)** else the currently-loaded v1 state (boot default `venice-2026.json`,
+  confidence **42**); **(3)** else error. The bundle's additive fields then
+  overlay. The merge is surfaced visibly as a header note and in the assumptions
+  panel footer: **"Curve params: venice-2026.json · Daily data: venice-2027
+  bundle"** (`state.provenance`).
+- **Validation** (failure → red toast, previous state kept): 365 ±10 daily rows;
+  daily `Adjusted_Visitors` sum within 1% of Monthly `TOTAL.Total_Visitors`
+  (verified exact: 32,708,724); `threshold > 0`; every shock has required fields;
+  assumptions register carries threshold + base_year + growth keys.
+- **Schema note (backward-compat):** the bundle's rich monthly summary is stored
+  as **`monthly_summary`** (+ a separate `monthly_total` flag for the TOTAL row),
+  NOT `monthly` — the existing `monthly: {month, demand_pct}[]` that the year
+  "zoom-out" curve reads is left untouched, so v1 payloads never break.
+
+### CPI mapping (target ≠ threshold — do not conflate)
+- `capacity.target` = the pricing curve's **policy 100% anchor** (Venice 50,000).
+- `capacity.threshold` = the **sustainable carrying capacity** = CPI denominator
+  (Venice **52,111/day**, Bertocchi & Camatti Ca' Foscari TCC model).
+- The **cost-curve x-axis is target-relative** (% of target). The capacity-pressure
+  reference line therefore sits at `threshold / target × 100` = **104.2%**, a
+  stone dashed line + "CPI 1.0" label **between** the TARGET (100%) and CEILING
+  (200%) markers (label dropped below the top pills so the three never collide).
+- **Active-day CPI**: under a stress test → the scenario's `CPI_During_Shock`;
+  else a matching daily row's CPI; else computed `(demand%/100 × target)/threshold`.
+  Sanity: peak_sat 200% → 1.92; dec_weekday 45% → 0.43.
+- **Annual revenue** now prefers **daily granularity** when present: Σ over 365
+  days of `adjusted_visitors × feeAtPct(adjusted_visitors/target×100)`. With no
+  daily data it falls back to the v1 monthly/seasonal rollup (transparent if/else,
+  daily path marked preferred).
+
+### Signed conventions (kept exactly as Ollie reports — NOT flipped)
+- `Visitors_Lost`: **positive = visitors lost** (negative shock); negative = gained
+  (surge). Stored verbatim in `shock.visitors_delta`.
+- `Revenue_Impact_USD`: **positive = revenue lost**; negative = gained. Applied as
+  `annual = baseline − revenue_impact_usd / EUR_USD_Rate` (USD→EUR via the
+  Assumptions rate 1.1635; fallback 1.0). So a loss lowers revenue, a surge lifts
+  it. Verified: pandemic −€694.68M (808,255,642 USD / 1.1635); surge +€41.7M.
+
+### Operating the stress-test selector (pitch)
+- A **"Stress test"** dropdown sits right of the Modelling-day dropdown (hidden
+  until a bundle with shocks is loaded). Pick **Baseline** or any of the 6
+  scenarios. A non-baseline pick: recomputes the active CPI / visitors / day
+  revenue, shifts the revenue cards' delta chips vs. baseline, and shows an
+  earth banner under the curve: **"⚠ Stress test active — {label} · {n}d · CPI
+  {cpi}"**. Select **Baseline** to clear.
+- **Verbal agent path:** `window.ProjectQ.setActiveShock('peak-season-surge-redentore-heatwave')`
+  triggers it (ids are slugified scenario names); `setActiveShock(null)` → baseline.
+  So the live concierge can verbalise "what if there's a flood" and fire it.
+
+### Confidence — displayed honestly, values unmodified
+- Model confidence **42** (from `venice-2026.json`) and run confidence **58 / 100**
+  (Overall_Run_Confidence) are both shown verbatim; neither is fudged. Per-row
+  assumption confidence lives in the tucked-away **ⓘ assumptions register**
+  slide-out (31 rows: Parameter / Value / Source / Confidence; internal scroll only
+  so the main screen never scrolls; Esc / outside-click closes).
+
+### Notes / back-pocket
+- **.zip drop:** without adding a zip dependency we can't inflate compressed
+  entries in-browser; a `.zip` drop shows a toast guiding the operator to drop the
+  **folder** or the four CSVs together (folder drag-drop is walked via
+  `webkitGetAsEntry`). Multi-file picker + folder drop are the supported paths.
+- **TODO — next Ollie sync (v3 schema):** have the DPM emit a **single JSON/MD**
+  where `capacity.threshold`, `daily[]`, `shocks[]`, and `assumptions[]` are
+  first-class fields, so one file carries everything and the upload UX matches the
+  v1 flow. The CSV-bundle path stays as backward compat.
+- No new dependency added; no charting library; curve formula unchanged (daily
+  granularity affects only the annual SUM). No-scroll holds at 1280×800 and
+  1920×1200 (measured overflow 0) with the stress dropdown, threshold marker,
+  CPI pill, banner, and ⓘ all present.
