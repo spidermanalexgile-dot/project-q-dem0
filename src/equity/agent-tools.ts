@@ -9,9 +9,11 @@
 import {
   DECISIONS,
   deliberate,
+  footfallPct,
   rankDecisions,
   SCENARIO_PRESETS,
   STAKEHOLDERS,
+  touristFeeBurden,
   type ScenarioPresetId,
   type StakeholderId,
 } from "./engine";
@@ -31,7 +33,7 @@ export const EQUITY_TOOLS = [
   {
     name: "get_equity_state",
     description:
-      "Read the live equity board: scenario (fee €, crowding %), applied decisions, every stakeholder's score/verdict/delta, the overall equity index, and who is worst off.",
+      "Read the live equity board: scenario (fee €, forecast crowding %), footfall after the fee's deterrence, deterred share, the tourist fee-burden verdicts (fee as % of trip cost, with the € thresholds where it turns heavy-burden/regressive), applied decisions, every stakeholder's score/verdict/delta, the overall equity index, and who is worst off.",
     input_schema: { type: "object", properties: {}, required: [] },
   },
   {
@@ -102,9 +104,15 @@ export const EQUITY_TOOLS = [
 export function stateSummary(): string {
   const st = getEquityState();
   const r = getResult();
+  const foot = Math.round(footfallPct(st.scenario));
+  const burden = touristFeeBurden(st.scenario)
+    .map((b) => `${b.label}: fee is ${b.burdenPct}% of a €${b.avgTripEUR} trip (${b.verdict}; heavy-burden past €${b.inequitableAboveEUR}, regressive past €${b.regressiveAboveEUR})`)
+    .join("; ");
   const lines = r.scores.map((x) => `${x.id}=${x.score}(${x.verdict})`).join(", ");
   return [
-    `Scenario: fee €${st.scenario.feeEUR}/visitor (negative = city pays visitors), crowding ${st.scenario.crowding}% of capacity${st.presetId ? ` [preset: ${st.presetId}]` : ""}.`,
+    `Scenario: fee €${st.scenario.feeEUR}/visitor (negative = city pays visitors), forecast crowding ${st.scenario.crowding}% of capacity${st.presetId ? ` [preset: ${st.presetId}]` : ""}.`,
+    `Footfall after the fee's deterrence: ${foot}% (${Math.max(0, st.scenario.crowding - foot)} pts of crowd deterred — those are lost customers for vendors and shops).`,
+    `Tourist fee-burden: ${burden}.`,
     `Applied decisions: ${st.applied.length ? st.applied.join(", ") : "none"}.`,
     `Equity index ${r.equityIndex} (mean ${r.mean}, spread ${r.spread}). Worst off: ${r.worstOff}.`,
     `Scores: ${lines}.`,
@@ -119,9 +127,13 @@ export function runTool(
     case "get_equity_state": {
       const st = getEquityState();
       const r = getResult();
+      const foot = Math.round(footfallPct(st.scenario));
       return {
         result: {
           scenario: st.scenario,
+          footfallAfterFee: foot,
+          deterredPts: Math.max(0, st.scenario.crowding - foot),
+          touristFeeBurden: touristFeeBurden(st.scenario),
           preset: st.presetId,
           applied: st.applied,
           equityIndex: r.equityIndex,
@@ -139,6 +151,7 @@ export function runTool(
           id: d.id,
           label: d.label,
           detail: d.detail,
+          justification: d.justification,
           deltas: d.deltas,
           feeScaled: !!d.feeScaled,
           treatment: d.treatment,

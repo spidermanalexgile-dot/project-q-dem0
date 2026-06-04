@@ -17,7 +17,8 @@ const DECISION_KEYWORDS: { id: string; words: string[] }[] = [
   { id: "cruise_levy", words: ["cruise", "berth", "ship", "port"] },
   { id: "essential_cap", words: ["essential", "nurse", "teacher", "student"] },
   { id: "smallbiz_grants", words: ["grant", "small business", "shop", "off-season", "bridge"] },
-  { id: "transparency_board", words: ["transparen", "board", "seat", "vote", "algorithm", "voice"] },
+  { id: "tourist_panel", words: ["exit poll", "poll", "panel", "survey", "tourist voice", "what tourists think", "ask the tourists", "seat tourists"] },
+  { id: "transparency_board", words: ["transparen", "board", "vote", "algorithm"] },
   { id: "surge_notice_cap", words: ["notice", "cap the surge", "hard cap", "warn", "ambush"] },
 ];
 

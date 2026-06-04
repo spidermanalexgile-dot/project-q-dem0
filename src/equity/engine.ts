@@ -40,6 +40,12 @@ export type Stakeholder = {
   wUnder: number;
   wFeePos: number;
   wFeeNeg: number;
+  /**
+   * Lost-customer penalty per unit of DETERRED crowd (forecast − footfall).
+   * The vendor double-bind: commerce stakeholders pay the fee AND lose the
+   * customers the fee turns away when deterrence overshoots.
+   */
+  wLost: number;
 };
 
 export const STAKEHOLDERS: Stakeholder[] = [
@@ -48,56 +54,56 @@ export const STAKEHOLDERS: Stakeholder[] = [
     label: "Local residents",
     short: "Residents",
     note: "Live with the crowds year-round; the fee is meant to protect them.",
-    base: 70, wOver: -38, wUnder: 6, wFeePos: 10, wFeeNeg: -6,
+    base: 70, wOver: -38, wUnder: 6, wFeePos: 10, wFeeNeg: -6, wLost: 0,
   },
   {
     id: "vendors",
     label: "Commuting vendors & workers",
     short: "Vendors",
-    note: "Cross into the zone daily to work — a flat visitor fee taxes their livelihood.",
-    base: 66, wOver: -6, wUnder: -14, wFeePos: -24, wFeeNeg: 4,
+    note: "Pay the fee to reach their own stalls while low-spend day-trippers buy nothing — and when the fee deters the crowds, their customers vanish too.",
+    base: 66, wOver: -6, wUnder: -14, wFeePos: -24, wFeeNeg: 4, wLost: -18,
   },
   {
     id: "small_biz",
     label: "Small local businesses",
     short: "Small biz",
     note: "Need steady footfall; over-tourism brings churn, the dead season brings ruin.",
-    base: 64, wOver: -8, wUnder: -26, wFeePos: -10, wFeeNeg: 10,
+    base: 64, wOver: -8, wUnder: -26, wFeePos: -10, wFeeNeg: 10, wLost: -16,
   },
   {
     id: "operators",
     label: "Large operators",
     short: "Operators",
     note: "Hotels, cruise lines, coach tours — fees on their guests suppress bookings.",
-    base: 62, wOver: 6, wUnder: -24, wFeePos: -14, wFeeNeg: 8,
+    base: 62, wOver: 6, wUnder: -24, wFeePos: -14, wFeeNeg: 8, wLost: -14,
   },
   {
     id: "day_tourists",
     label: "Budget & day-trip tourists",
     short: "Day tourists",
     note: "A flat fee is regressive — €40 on an €8 train ticket, a rounding error on a suite.",
-    base: 60, wOver: -10, wUnder: 4, wFeePos: -34, wFeeNeg: 10,
+    base: 60, wOver: -10, wUnder: 4, wFeePos: -34, wFeeNeg: 10, wLost: 0,
   },
   {
     id: "overnight_tourists",
     label: "Overnight & premium tourists",
     short: "Overnight",
     note: "The fee is a small share of their trip; crowding ruins what they paid for.",
-    base: 68, wOver: -14, wUnder: 6, wFeePos: -8, wFeeNeg: 2,
+    base: 68, wOver: -14, wUnder: 6, wFeePos: -8, wFeeNeg: 2, wLost: 0,
   },
   {
     id: "government",
     label: "City government",
     short: "Government",
     note: "Owns the fee, the revenue, and the political heat when capacity breaches.",
-    base: 58, wOver: -16, wUnder: -8, wFeePos: 20, wFeeNeg: -16,
+    base: 58, wOver: -16, wUnder: -8, wFeePos: 20, wFeeNeg: -16, wLost: 0,
   },
   {
     id: "environment",
     label: "Environment & heritage",
     short: "Environment",
     note: "The destination itself — lagoons, old stone, future generations.",
-    base: 52, wOver: -36, wUnder: 16, wFeePos: 14, wFeeNeg: -10,
+    base: 52, wOver: -36, wUnder: 16, wFeePos: 14, wFeeNeg: -10, wLost: 0,
   },
 ];
 
@@ -129,14 +135,75 @@ export function clampScenario(s: Scenario): Scenario {
   };
 }
 
-/** Four normalised pressures, each roughly 0–1 (feePos can exceed 1 in a surge). */
+/* Deterrence — the fee acts on the crowd before anyone scores it.
+ * `crowding` is the FORECAST (unmanaged) crowd; footfall is what actually shows
+ * up once the fee deters over-target days (€-scale DETER_REF_EUR) or a credit
+ * attracts visitors on quiet days (€-scale ATTRACT_REF_EUR). Mirrors
+ * managedDemandPct in src/control/state.ts. Pure + deterministic. */
+
+export const DETER_REF_EUR = 80;
+export const ATTRACT_REF_EUR = 15;
+
+export function footfallPct(s: Scenario): number {
+  const c = clampScenario(s);
+  if (c.crowding > 100 && c.feeEUR > 0) {
+    return 100 + (c.crowding - 100) * Math.exp(-c.feeEUR / DETER_REF_EUR);
+  }
+  if (c.crowding < 100 && c.feeEUR < 0) {
+    // feeEUR < 0 here, so the exponent is already negative: e^(−|credit|/REF).
+    return 100 + (c.crowding - 100) * Math.exp(c.feeEUR / ATTRACT_REF_EUR);
+  }
+  return c.crowding;
+}
+
+/**
+ * Five normalised pressures, each roughly 0–1 (feePos can exceed 1 in a surge).
+ * over/under read FOOTFALL (post-deterrence — what residents and shopkeepers
+ * actually experience); `lost` is the deterred share — the customers the fee
+ * turned away, which is a real cost to commerce stakeholders (wLost).
+ */
 function pressures(s: Scenario) {
+  const footfall = footfallPct(s);
   return {
-    over: Math.max(0, s.crowding - 100) / 100,
-    under: Math.max(0, 90 - s.crowding) / 90,
+    over: Math.max(0, footfall - 100) / 100,
+    under: Math.max(0, 90 - footfall) / 90,
     feePos: Math.max(0, s.feeEUR) / 150,
     feeNeg: Math.max(0, -s.feeEUR) / 20,
+    lost: Math.max(0, s.crowding - footfall) / 100,
   };
+}
+
+/* ─── tourist fee-burden — when does the fee turn inequitable? ──────────── */
+
+/**
+ * The fee weighed against what the trip itself costs — same framing and
+ * thresholds as the Venice day-tourist equity chart (fair-share <10%,
+ * proportional <30%, heavy-burden <100%, regressive ≥100% of trip cost).
+ * Answers, deterministically: "at what point is the fee inequitable for the
+ * tourists coming in?" — past 30% of trip cost it's heavy-burden; past 100%
+ * they pay more to be tolerated than to travel. Trip costs are illustrative.
+ */
+export const TOURIST_SEGMENTS = [
+  { id: "day_tourists" as const, label: "budget day-tripper", avgTripEUR: 40 },
+  { id: "overnight_tourists" as const, label: "overnight visitor", avgTripEUR: 320 },
+];
+
+export type BurdenVerdict = "fair-share" | "proportional" | "heavy-burden" | "regressive";
+
+export function touristFeeBurden(s: Scenario) {
+  const fee = Math.max(0, clampScenario(s).feeEUR);
+  return TOURIST_SEGMENTS.map((seg) => {
+    const burdenPct = Math.round((fee / seg.avgTripEUR) * 100);
+    const verdict: BurdenVerdict =
+      burdenPct < 10 ? "fair-share" : burdenPct < 30 ? "proportional" : burdenPct < 100 ? "heavy-burden" : "regressive";
+    return {
+      ...seg,
+      burdenPct,
+      verdict,
+      inequitableAboveEUR: Math.round(seg.avgTripEUR * 0.3),
+      regressiveAboveEUR: seg.avgTripEUR,
+    };
+  });
 }
 
 /* ─── decisions ─────────────────────────────────────────────────────────── */
@@ -145,6 +212,8 @@ export type Decision = {
   id: string;
   label: string;
   detail: string;
+  /** The case FOR this decision — the reasoning an operator weighs before selecting it. */
+  justification: string;
   /** Per-stakeholder score deltas (omitted = 0). */
   deltas: Partial<Record<StakeholderId, number>>;
   /**
@@ -163,6 +232,8 @@ export type Decision = {
 export const DECISIONS: Decision[] = [
   {
     id: "exempt_vendors",
+    justification:
+      "A commute is not a holiday. The fee exists to manage discretionary visits — a vendor crossing to their own stall has no choice to make, so charging them turns crowd-management into a tax on livelihoods, and it bites hardest exactly when the surge does.",
     label: "Exempt daily-commuting vendors & workers",
     detail: "Anyone who crosses into the zone to work pays nothing — the fee targets visitors, not livelihoods.",
     deltas: { vendors: 22, small_biz: 4, residents: 2, government: -4 },
@@ -173,6 +244,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "resident_guest_pass",
+    justification:
+      "Residents' visiting family are not over-tourism. If hosting friends costs money, the fee starts policing residents' private lives instead of visitor volumes — eroding the consent of the very group it exists to protect.",
     label: "Resident guest passes",
     detail: "Residents host friends and family fee-free — their social life isn't a tourism externality.",
     deltas: { residents: 14, overnight_tourists: 2, government: -3 },
@@ -183,6 +256,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "earmark_revenue",
+    justification:
+      "A deterrent that quietly becomes a general budget line stops being trusted as a deterrent. Ring-fencing the revenue to visible local repair is what makes a soaring surge fee read as legitimate rather than extractive.",
     label: "Earmark ≥70% of fee revenue locally",
     detail: "Surge revenue is ring-fenced for housing, transit and heritage repair — not the general budget.",
     deltas: { residents: 12, environment: 10, small_biz: 3, government: -6 },
@@ -193,6 +268,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "tiered_fee",
+    justification:
+      "A flat fee is regressive by construction — 500% of a regional train ticket, a rounding error on a suite. Tiering to arrival cost charges the trip, not the traveller's wallet class.",
     label: "Tier the fee to arrival cost",
     detail: "No flat fee on budget travel — the €8 regional-train rider never pays the same as the suite guest.",
     deltas: { day_tourists: 18, government: -5, overnight_tourists: -4 },
@@ -203,6 +280,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "low_season_credit",
+    justification:
+      "If the city will charge €240 to keep people out, it should be willing to pay €8 to invite them in when the streets are empty — funded by the peak days, so the smoothing pays for itself instead of falling on taxpayers.",
     label: "Fund low-season credits from surge revenue",
     detail: "The negative fee that fills the quiet months is paid for by the busiest days, not by taxpayers.",
     deltas: { small_biz: 12, operators: 10, vendors: 8, government: -8, environment: -4 },
@@ -212,6 +291,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "cruise_levy",
+    justification:
+      "The marginal crowd arrives 3,000 at a time on one boardroom decision, not as 3,000 individual choices at a gate. Pricing the berth aims the incentive at the decision-maker who can actually reroute a ship.",
     label: "Levy cruise lines at berth, not passengers at gate",
     detail: "The operator with the 3,000-berth ship pays per call; their passengers stop subsidising everyone else.",
     deltas: { day_tourists: 8, government: 6, environment: 6, operators: -12 },
@@ -221,6 +302,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "essential_cap",
+    justification:
+      "A surge fee that prices a nurse out of her shift has failed at its own purpose. Capping essential workers keeps the deterrent pointed at optional trips, never at the city's ability to function.",
     label: "Cap fees for essential workers & students",
     detail: "Nurses, teachers and students pay a fixed token fee no matter how high the surge climbs.",
     deltas: { vendors: 10, residents: 6, government: -3 },
@@ -231,6 +314,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "smallbiz_grants",
+    justification:
+      "Deterrence has a payroll cost the chart would otherwise hide — shops lose the very customers the fee turns away. A bridge from the fee fund returns part of that externality to the people who bear it.",
     label: "Off-season grants for small businesses",
     detail: "A slice of the fee fund bridges the dead months for independent shops and trattorie.",
     deltas: { small_biz: 14, vendors: 4, government: -7 },
@@ -239,7 +324,21 @@ export const DECISIONS: Decision[] = [
     voicesMissing: ["New businesses without a trading history to qualify on"],
   },
   {
+    id: "tourist_panel",
+    justification:
+      "Every other group at this table can organise and lobby; tourists are a different crowd every day, so what they collectively consider just treatment is guessed at, never collected. Exit polls and a standing panel turn the missing voice into data.",
+    label: "Seat tourists at the table — exit polls & visitor panel",
+    detail:
+      "A standing visitor panel plus exit polling at gates, stations and ports — tourists collectively define what they consider just treatment, published quarterly and fed back into the fee board.",
+    deltas: { day_tourists: 7, overnight_tourists: 5, government: 2 },
+    treatment: "uniform",
+    voicesIncluded: ["Visitor panel", "Exit polls at gates & stations", "Booking-platform surveys"],
+    voicesMissing: ["The deterred — would-be visitors the fee already turned away never reach the poll"],
+  },
+  {
     id: "transparency_board",
+    justification:
+      "People accept prices they can see being set. An open algorithm and a seat for every group trades a little control for a lot of legitimacy — procedural equity that pays dividends on every later decision.",
     label: "Open the algorithm — stakeholder seats on the fee board",
     detail: "The pricing curve is published and every group at this table votes on changes. Procedural equity.",
     deltas: { residents: 6, vendors: 5, small_biz: 5, day_tourists: 4, environment: 4, operators: 3, overnight_tourists: 3, government: 2 },
@@ -249,6 +348,8 @@ export const DECISIONS: Decision[] = [
   },
   {
     id: "surge_notice_cap",
+    justification:
+      "Ambushing a family at the gate with a €240 charge punishes them for not reading dashboards. Notice and a hard cap keep the deterrent predictable and humane — at the cost of blunting it on the worst breach days.",
     label: "48-hour notice + hard cap on surge fees",
     detail: "No traveller is ambushed at the gate — but a capped surge deters fewer arrivals on breach days.",
     deltas: { day_tourists: 9, overnight_tourists: 6, operators: 5, government: -2, residents: -4, environment: -6 },
@@ -308,7 +409,12 @@ function clamp01_100(n: number): number {
 export function baselineScore(st: Stakeholder, scenario: Scenario): number {
   const p = pressures(scenario);
   return clamp01_100(
-    st.base + st.wOver * p.over + st.wUnder * p.under + st.wFeePos * p.feePos + st.wFeeNeg * p.feeNeg,
+    st.base +
+      st.wOver * p.over +
+      st.wUnder * p.under +
+      st.wFeePos * p.feePos +
+      st.wFeeNeg * p.feeNeg +
+      st.wLost * p.lost,
   );
 }
 
@@ -391,7 +497,7 @@ export function rankDecisions(
  * not model output. The advisor narrates this object; it never invents it.
  */
 export type Deliberation = {
-  decision: { id: string; label: string; detail: string };
+  decision: { id: string; label: string; detail: string; justification: string };
   affected: { id: StakeholderId; label: string; delta: number }[];
   agrees: { id: StakeholderId; label: string; delta: number; why: string }[];
   concerned: { id: StakeholderId; label: string; delta: number; why: string }[];
@@ -431,7 +537,7 @@ export function deliberate(decisionId: string, scenario: Scenario, appliedIds: s
   const worstAfter = after.scores.find((x) => x.id === after.worstOff)!;
 
   return {
-    decision: { id: d.id, label: d.label, detail: d.detail },
+    decision: { id: d.id, label: d.label, detail: d.detail, justification: d.justification },
     affected: moved.map((x) => ({ id: x.id, label: x.label, delta: x.change })),
     agrees: moved.filter((x) => x.change > 0).map((x) => ({ id: x.id, label: x.label, delta: x.change, why: why(x.label, x.change) })),
     concerned: moved.filter((x) => x.change < 0).map((x) => ({ id: x.id, label: x.label, delta: x.change, why: why(x.label, x.change) })),

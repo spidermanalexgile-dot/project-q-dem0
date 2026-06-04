@@ -38,11 +38,22 @@ const idxAfter = Number(await page.locator(".qeq-hero-num").innerText().then((t)
 ok("index moves when decision applied", idxAfter !== idxBefore);
 await page.screenshot({ path: join(OUT, "equity-decision-applied.png") });
 
-// Open deliberation panel (click card body).
+// Stats strip: footfall + tourist burden thresholds (surge → regressive for day-trippers).
+const stats = await page.locator(".qeq-stats").innerText();
+ok("footfall-after-fee readout", /footfall after fee/i.test(stats));
+ok("tourist burden verdict shown", /regressive/i.test(stats) && /inequitable past/i.test(stats));
+
+// Open deliberation panel (click card body) → justification + circle grid + embedded Ask Claude.
 await page.locator(".qeq-card").first().click();
-await page.waitForSelector(".qeq-delib");
-ok("circle-of-viewpoints panel renders", await page.locator(".qeq-delib h4").count() >= 4);
+await page.waitForSelector(".qeq-justification");
+ok("justification shown on select", /the case for this decision/i.test(await page.locator(".qeq-justification h4").innerText()));
+ok("circle-of-viewpoints grid renders", (await page.locator(".qeq-delib-grid h4").count()) >= 4);
+ok("Ask Claude lives inside the circle panel", (await page.locator(".qeq-delib .qeq-advisor").count()) === 1);
+await page.locator(".qeq-delib").scrollIntoViewIfNeeded();
 await page.screenshot({ path: join(OUT, "equity-deliberation.png") });
+
+// Reasoning trail: three seeded design justifications at the bottom.
+ok("trail seeded with 3 justifications", (await page.locator(".qeq-trail-entry.justification").count()) === 3);
 
 // Fallback advisor (no /api/agent on this static server → deterministic engine).
 await page.locator(".qeq-chat-input input").fill("we won't charge vendors who commute every day");
@@ -51,6 +62,7 @@ await page.waitForSelector(".qeq-msg.advisor:not(.qeq-thinking)", { timeout: 800
 const reply = await page.locator(".qeq-msg.advisor").last().innerText();
 ok("fallback advisor deliberates with evidence", /equity index/i.test(reply) && /voices/i.test(reply));
 console.log("  advisor said:", reply.slice(0, 220));
+ok("prompt logged to reasoning trail", (await page.locator(".qeq-trail-entry.prompt").count()) >= 1);
 await page.screenshot({ path: join(OUT, "equity-advisor.png") });
 
 // Low-season preset: negative fee credit shows.
