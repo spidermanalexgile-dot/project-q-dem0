@@ -1,7 +1,6 @@
 import { useStore } from "./useStore";
 import {
   feeAtPct,
-  payAtPct,
   activeDayType,
   managedDemandPct,
   liveDemandPct,
@@ -42,7 +41,6 @@ function CurveChart() {
   const rebate = state.shoulder_rebate;
   const credit = rebate.enabled ? rebate.credit : 0;
   const threshold = rebate.enabled ? rebate.applies_below_pct : null;
-  const realPayCap = state.phase.real_pay_cap;
 
   // The fee at 0% occupancy is the credit floor — the earliest visitors may be
   // PAID to come. Give the y-axis room below zero for it.
@@ -63,28 +61,6 @@ function CurveChart() {
   const pathD = pts
     .map((p, i) => (i ? "L" : "M") + p.x.toFixed(1) + "," + p.y.toFixed(1))
     .join(" ");
-  const payD = pts
-    .map(
-      (p, i) =>
-        (i ? "L" : "M") +
-        p.x.toFixed(1) +
-        "," +
-        yS(Math.min(p.fee, realPayCap)).toFixed(1),
-    )
-    .join(" ");
-
-  // Q-Cash band polygon (between fee curve and pay-line where fee > realPayCap).
-  let qcashPolyPoints: string[] = [];
-  const overCap = pts.filter((p) => p.fee > realPayCap);
-  if (overCap.length > 1) {
-    qcashPolyPoints = [
-      ...overCap.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`),
-      ...overCap
-        .slice()
-        .reverse()
-        .map((p) => `${p.x.toFixed(1)},${yS(realPayCap).toFixed(1)}`),
-    ];
-  }
 
   // Active day dot + callout — placed at the LIVE occupancy (rebased by the
   // chosen target capacity), so the dot moves right when target capacity drops.
@@ -92,7 +68,6 @@ function CurveChart() {
     activeDayType(state);
   const activeLive = liveDemandPct(activeDay.demand_pct, state);
   const activeFee = feeAtPct(activeLive, state);
-  const activePay = payAtPct(activeLive, state);
   const ax = xS(Math.min(xMax, Math.max(xMin, activeLive)));
   const ay = yS(activeFee);
 
@@ -143,36 +118,6 @@ function CurveChart() {
           </g>
         ))}
 
-        {/* Real-pay cap dashed line */}
-        {realPayCap < cap && (
-          <g>
-            <line
-              x1={padL}
-              y1={yS(realPayCap)}
-              x2={w - padR}
-              y2={yS(realPayCap)}
-              stroke="#54C9B5"
-              strokeWidth="1"
-              strokeDasharray="2 4"
-              opacity="0.6"
-            />
-            <text
-              x={padL + 4}
-              y={yS(realPayCap) - 5}
-              textAnchor="start"
-              style={{
-                fill: "#2c8676",
-                fontFamily: "var(--font-mono)",
-                fontSize: 9.5,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Real pay cap · €{realPayCap}
-            </text>
-          </g>
-        )}
-
         {/* X ticks */}
         {[20, 50, 100, 150, 200, 250].map((p) => (
           <g key={"xt-" + p}>
@@ -210,11 +155,6 @@ function CurveChart() {
         >
           Capacity vs. target
         </text>
-
-        {/* Q-Cash band */}
-        {qcashPolyPoints.length > 0 && (
-          <polygon points={qcashPolyPoints.join(" ")} fill="#54C9B5" opacity="0.18" />
-        )}
 
         {/* Filled area under fee curve (warm wash) */}
         <path
@@ -266,16 +206,6 @@ function CurveChart() {
             </text>
           </g>
         )}
-
-        {/* Pay-line (real out-of-pocket) */}
-        <path
-          d={payD}
-          fill="none"
-          style={{ stroke: "var(--ink)" }}
-          strokeWidth="1.5"
-          strokeDasharray="5 5"
-          opacity="0.42"
-        />
 
         {/* Fee curve — main hero stroke (glow under + crisp top) */}
         <path
@@ -394,12 +324,6 @@ function CurveChart() {
             }}
           >
             Fee {fmtEur(activeFee)}
-            {activeFee > realPayCap && (
-              <tspan style={{ fill: "#54C9B5", fontSize: 10.5, fontWeight: 400 }}>
-                {" "}
-                · pay {fmtEur(activePay)}
-              </tspan>
-            )}
           </text>
         </g>
       </svg>
@@ -650,14 +574,9 @@ export function CurvePanel() {
             </button>
           </div>
           {view === "cost" && (
-            <>
-              <span className="legend-swatch" style={{ color: "#E3A93C" }}>
-                <i /> Fee
-              </span>
-              <span className="legend-swatch" style={{ color: "#54C9B5" }}>
-                <i /> Q-Cash
-              </span>
-            </>
+            <span className="legend-swatch" style={{ color: "#E3A93C" }}>
+              <i /> Fee
+            </span>
           )}
           <span className="confidence-pill">
             <span className="dot" /> Model confidence {state.confidence}%

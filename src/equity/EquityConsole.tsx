@@ -364,30 +364,38 @@ function AdvisorDock() {
 
 const KIND_LABEL = { justification: "design justification", prompt: "your prompt", action: "manual action" } as const;
 
-function ReasoningTrail() {
+function ReasoningTrail({ compact }: { compact: boolean }) {
   useSyncExternalStore(subscribeTrail, getTrailVersion);
   const [open, setOpen] = useState(true);
   const entries = getTrail();
   const sessionCount = entries.filter((e) => !e.seeded).length;
+  // While a deliberation is open the trail folds to its header so the main
+  // board never scrolls; it springs back when the circle closes.
+  const showList = open && !compact;
 
   return (
     <section className="qeq-panel qeq-trail" aria-label="Reasoning trail">
       <div className="qeq-trail-head">
         <h2>
-          Reasoning trail <span className="qeq-trail-sub">justification → action → measured outcome</span>
+          Reasoning trail{" "}
+          <span className="qeq-trail-sub">
+            {compact ? `folded while deliberating · ${entries.length} entries` : "justification → action → measured outcome"}
+          </span>
         </h2>
         <div className="qeq-trail-actions">
-          {sessionCount > 0 && (
+          {sessionCount > 0 && !compact && (
             <button className="qeq-trail-btn" onClick={clearTrail}>
               clear session
             </button>
           )}
-          <button className="qeq-trail-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-            {open ? "collapse" : `expand (${entries.length})`}
-          </button>
+          {!compact && (
+            <button className="qeq-trail-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+              {open ? "collapse" : `expand (${entries.length})`}
+            </button>
+          )}
         </div>
       </div>
-      {open && (
+      {showList && (
         <div className="qeq-trail-list">
           {entries.map((e, i) => (
             <div key={i} className={`qeq-trail-entry ${e.kind}`}>
@@ -492,7 +500,8 @@ export function EquityConsole() {
       <main className="qeq-main">
         <div className="qeq-left">
           <EquityBar index={result.equityIndex} mean={result.mean} spread={result.spread} scenario={state.scenario} />
-          <StakeholderChart scores={result.scores} worstOff={result.worstOff} />
+          {/* The chart and the Circle of Viewpoints swap — no stacking, no scroll. */}
+          {!del && <StakeholderChart scores={result.scores} worstOff={result.worstOff} />}
           <DeliberationPanel del={del} onClose={() => setSelected(null)} />
         </div>
         <div className="qeq-right">
@@ -503,7 +512,7 @@ export function EquityConsole() {
           />
         </div>
       </main>
-      <ReasoningTrail />
+      <ReasoningTrail compact={!!del} />
     </div>
   );
 }

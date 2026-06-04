@@ -195,6 +195,12 @@
   flex-direction: column;
   gap: clamp(10px, 1.2vh, 16px);
   min-height: 0;
+}
+/* The left column never scrolls — the chart and the Circle of Viewpoints swap. */
+.qeq-left {
+  overflow: hidden;
+}
+.qeq-right {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(242, 236, 227, 0.18) transparent;
@@ -415,6 +421,11 @@
 }
 
 /* DELIBERATION --------------------------------------------------------------- */
+.qeq-delib {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .qeq-delib-head {
   display: flex;
   justify-content: space-between;
@@ -578,10 +589,10 @@
 .qeq-advisor {
   display: flex;
   flex-direction: column;
-  min-height: 150px;
-  max-height: 260px;
-  margin-top: 12px;
-  padding-top: 12px;
+  min-height: 120px;
+  max-height: 240px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--hairline);
 }
 .qeq-advisor-head {
