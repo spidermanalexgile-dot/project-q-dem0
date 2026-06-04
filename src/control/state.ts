@@ -371,9 +371,33 @@ export function effectiveActiveDemandPct(snap: State = requireState()): number {
   return shock ? base * (1 + shock.demand_shock_pct / 100) : base;
 }
 
-/** Active day's headcount = effective % of target capacity × target. */
+/** Active day's PROJECTED (forecast) headcount = effective % of target × target. */
 export function activeAdjustedVisitors(snap: State = requireState()): number {
   return (effectiveActiveDemandPct(snap) / 100) * targetCapacity(snap);
+}
+
+/** Active day's MANAGED headcount — the crowd that actually shows up AFTER the
+ *  pricing curve deters peak visitors. Drops toward the sustainable line as the
+ *  fees bite, so it reflects "Suggest levers". */
+export function activeManagedVisitors(snap: State = requireState()): number {
+  const live = liveDemandPct(effectiveActiveDemandPct(snap), snap);
+  return (managedDemandPct(live, snap) / 100) * targetCapacity(snap);
+}
+
+/**
+ * "Suggest levers" — auto-tune the pricing levers so the busiest forecast day's
+ * MANAGED demand is held at the sustainable capacity threshold (CPI ≤ 1.0). We
+ * express the threshold as a % of the policy target and reuse the deterministic
+ * occupancy auto-tuner, which raises the max-fee cap / tightens the ceiling until
+ * the peak settles there. Falls back to 100% when no threshold is loaded (v1).
+ */
+export function suggestSustainableLevers(): number {
+  const s = requireState();
+  const threshold = capacityThreshold(s);
+  const target = targetCapacity(s);
+  const pct = threshold && target ? Math.round((threshold / target) * 100) : 100;
+  setOccupancyTarget(pct);
+  return pct;
 }
 
 /**
@@ -847,6 +871,12 @@ export type ProjectQApi = {
   capacityThreshold: () => number | undefined;
   /** DPM v2: the active stress scenario object, or null at baseline. */
   activeShock: () => Shock | null;
+  /** DPM v2: projected (forecast) vs managed (post-pricing) headcount today. */
+  activeAdjustedVisitors: () => number;
+  activeManagedVisitors: () => number;
+  /** Auto-tune the levers to hold managed demand at the sustainable threshold
+   *  (CPI 1.0). Returns the sustainable % it steered to. */
+  suggestSustainableLevers: () => number;
   /** Parse + apply a natural-language voice/text command; returns the spoken
    *  confirmation string (theme changes are UI-side and a no-op here). */
   voiceCommand: (transcript: string) => string;
@@ -898,6 +928,9 @@ export function installGlobalApi(): void {
     activeCPI: () => activeCPI(),
     capacityThreshold: () => capacityThreshold(),
     activeShock: () => activeShockObj(),
+    activeAdjustedVisitors: () => activeAdjustedVisitors(),
+    activeManagedVisitors: () => activeManagedVisitors(),
+    suggestSustainableLevers: () => suggestSustainableLevers(),
     voiceCommand: (transcript: string) =>
       executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget }),
     askAnalyst: (question: string) => {

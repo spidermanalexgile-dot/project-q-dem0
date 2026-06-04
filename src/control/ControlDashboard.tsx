@@ -3,7 +3,6 @@ import { TopBar } from "./TopBar";
 import { CurvePanel } from "./CurvePanel";
 import { RevenuePanel } from "./RevenuePanel";
 import { LeversPanel } from "./LeversPanel";
-import { AssistantPanel } from "./AnalystPanel";
 import { installGlobalApi, loadPayload, getState } from "./state";
 import { initServerVoice } from "./speech";
 import { PAYLOAD_VENICE } from "./payload-venice";
@@ -47,7 +46,11 @@ export function ControlDashboard() {
 
   return (
     <div className={"qctl-root" + (dark ? " dark" : "")}>
-      <TopBar dark={dark} onToggleDark={() => setDark((d) => !d)} />
+      <TopBar
+        dark={dark}
+        onToggleDark={() => setDark((d) => !d)}
+        onSetDark={(d) => setDark(d)}
+      />
       <main className="qctl-main">
         <CurvePanel />
         <div className="qctl-right-rail">
@@ -55,7 +58,6 @@ export function ControlDashboard() {
           <LeversPanel />
         </div>
       </main>
-      <AssistantPanel onSetDark={(d) => setDark(d)} />
     </div>
   );
 }

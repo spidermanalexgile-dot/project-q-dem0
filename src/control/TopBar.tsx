@@ -1,27 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
 import {
-  setDayType,
-  setDemand,
   setDate,
-  setOccupancyTarget,
   setActiveShock,
-  targetCapacity,
-  liveDemandPct,
+  activeDayType,
+  activeAdjustedVisitors,
+  activeManagedVisitors,
+  activeCPI,
+  capacityThreshold,
+  suggestSustainableLevers,
   loadPayload,
   loadBundle,
   getState,
 } from "./state";
 import { isBundleFilenames } from "./bundle";
+import { fmtNumber } from "./format";
+import { AssistantPanel } from "./AnalystPanel";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
 
 type TopBarProps = {
   dark: boolean;
   onToggleDark: () => void;
+  /** Lets the embedded mic flip the theme by voice ("dark mode"). */
+  onSetDark: (dark: boolean) => void;
 };
 
-export function TopBar({ dark, onToggleDark }: TopBarProps) {
+export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
   const state = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<Toast>(null);
@@ -147,20 +152,45 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
   }, []);
 
   if (!state) return null;
-  const selectedDay =
-    state.day_types.find((d) => d.id === state.activeDay) || state.day_types[0];
-  const isCustom = state.customDemand != null;
-  // Baseline modelled demand: the typed free-form value, else the preset day's.
-  const demand = isCustom ? (state.customDemand as number) : selectedDay.demand_pct;
-  const targetCap = targetCapacity(state);
-  // Live demand % is the baseline rebased by the chosen target capacity; the
-  // headcount = the forecast crowd for that day (independent of target — fewer
-  // "slots" just makes the same crowd a higher % of capacity).
-  const liveDemand = Math.round(liveDemandPct(demand, state));
-  const baseline = state.capacity.baseline || targetCap;
-  const dayHeadcount = Math.round((baseline * demand) / 100);
-  const fmtPeople = (n: number) =>
-    n >= 1000 ? (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1).replace(/\.0$/, "") + "k" : String(n);
+
+  // The selected day (driven by the date picker, else the default preset) and
+  // its PROJECTED forecast headcount — the figure we highlight. `managed` is the
+  // post-pricing crowd; `threshold` is the sustainable capacity (CPI 1.0).
+  const activeDay = activeDayType(state);
+  const projected = Math.round(activeAdjustedVisitors(state));
+  const managed = Math.round(activeManagedVisitors(state));
+  const threshold = capacityThreshold(state);
+  const cpi = activeCPI(state);
+  // Colour the highlight by whether the MANAGED (post-pricing) crowd stays at the
+  // sustainable line — so "Suggest levers" visibly turns it green. Falls back to
+  // raw CPI bands on v1 payloads that carry no threshold.
+  const ratio = threshold && threshold > 0 ? managed / threshold : null;
+  const cpiClass =
+    ratio != null
+      ? ratio <= 1.05
+        ? " slack"
+        : ratio <= 1.4
+          ? " warn"
+          : " over"
+      : cpi == null
+        ? ""
+        : cpi < 0.8
+          ? " slack"
+          : cpi < 1.0
+            ? ""
+            : cpi < 1.5
+              ? " warn"
+              : " over";
+
+  function handleSuggest() {
+    const pct = suggestSustainableLevers();
+    showToast(
+      "ok",
+      threshold
+        ? `Levers tuned — holding the peak near ${pct}% of capacity (sustainable ${fmtNumber(threshold)}/day · CPI 1.0).`
+        : `Levers tuned to hold ${pct}% occupancy.`,
+    );
+  }
 
   return (
     <>
@@ -174,86 +204,62 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
         </div>
 
         <div className="tb-context">
+          {/* Hidden input retained so ⌘/Ctrl+O + drag-drop still load payloads
+              and the DPM v2 bundle (the visible Location selector was removed). */}
+          <input
+            ref={fileRef}
+            type="file"
+            className="tb-file-input"
+            multiple
+            accept=".json,.md,.csv,.zip,application/json,text/markdown,text/csv,application/zip"
+            onChange={(e) => {
+              void handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+
           <div className="tb-field">
-            <div className="tb-label">Location</div>
-            <div className="tb-location-row">
-              <div className="tb-select">
-                <select
-                  value={state.location.id}
-                  onChange={() => {
-                    /* placeholder for loadPayload(otherCity) */
-                  }}
-                >
-                  <option value={state.location.id}>{state.location.label}</option>
-                  <option value="dubrovnik" disabled>
-                    Dubrovnik (load payload)
-                  </option>
-                  <option value="barcelona" disabled>
-                    Barcelona (load payload)
-                  </option>
-                </select>
-              </div>
-              <button
-                type="button"
-                className="tb-upload"
-                onClick={openPicker}
-                title="Load DPM payload  ·  ⌘/Ctrl+O  ·  or drag a .json / .md file in"
-                aria-label="Load DPM payload"
-              >
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                  <path
-                    d="M8 10.2V2.6M8 2.6 5 5.6M8 2.6l3 3"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M2.6 10v2.4a1 1 0 0 0 1 1h8.8a1 1 0 0 0 1-1V10"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+            <div className="tb-label">Selected day</div>
+            <div className={"tb-date-input" + (state.customDate ? " custom" : "")}>
               <input
-                ref={fileRef}
-                type="file"
-                className="tb-file-input"
-                multiple
-                accept=".json,.md,.csv,.zip,application/json,text/markdown,text/csv,application/zip"
-                onChange={(e) => {
-                  void handleFiles(e.target.files);
-                  // Allow re-selecting the same file(s) to fire onChange again.
-                  e.target.value = "";
-                }}
+                type="date"
+                value={state.customDate ?? ""}
+                onChange={(e) => setDate(e.target.value === "" ? null : e.target.value)}
+                aria-label="Model a specific calendar date"
               />
             </div>
           </div>
 
           <div className="tb-divider" />
 
-          <div className="tb-field">
-            <div className="tb-label">Modelling day</div>
-            <div className="tb-select">
-              <select
-                value={isCustom ? "__custom" : state.activeDay}
-                onChange={(e) => setDayType(e.target.value)}
-              >
-                {isCustom && (
-                  <option value="__custom">
-                    {state.customDate ? "Calendar day" : "Custom demand"} · {demand}%
-                  </option>
-                )}
-                {state.day_types.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.label} · {d.date}
-                  </option>
-                ))}
-              </select>
+          {/* AI assistant mic — relocated here, next to the date. */}
+          <div className="tb-field tb-field-mic">
+            <div className="tb-label">Ask Q</div>
+            <AssistantPanel inline onSetDark={onSetDark} />
+          </div>
+
+          <div className="tb-divider" />
+
+          {/* Projected visitors highlight + Suggest-levers action. */}
+          <div className="tb-field tb-projected">
+            <div className="tb-label">Projected visitors · {activeDay.date}</div>
+            <div className="tb-projected-row">
+              <div className={"tb-projected-figure" + cpiClass}>{fmtNumber(projected)}</div>
+              <div className="tb-projected-meta">
+                <span className="tb-projected-sub">
+                  {threshold != null
+                    ? `after pricing ${fmtNumber(managed)} · sustainable ${fmtNumber(threshold)}/day${cpi != null ? ` · CPI ${cpi.toFixed(2)}` : ""}`
+                    : "visitors on the selected day"}
+                </span>
+                <button
+                  type="button"
+                  className="tb-suggest"
+                  onClick={handleSuggest}
+                  title="Auto-tune the fee levers so the managed crowd is held at the sustainable capacity (CPI 1.0)"
+                >
+                  Suggest levers
+                </button>
+              </div>
             </div>
           </div>
 
@@ -282,89 +288,37 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
               </div>
             </>
           )}
-
-          <div className="tb-divider" />
-
-          <div className="tb-field">
-            <div className="tb-label">Pick a date</div>
-            <div className={"tb-date-input" + (state.customDate ? " custom" : "")}>
-              <input
-                type="date"
-                value={state.customDate ?? ""}
-                onChange={(e) => setDate(e.target.value === "" ? null : e.target.value)}
-                aria-label="Model a specific calendar date"
-              />
-            </div>
-          </div>
-
-          <div className="tb-divider" />
-
-          <div className="tb-field">
-            <div className="tb-label">
-              Crowd level · {liveDemand}% ({fmtPeople(dayHeadcount)})
-              <span
-                className="tb-help"
-                tabIndex={0}
-                role="note"
-                aria-label="What is crowd level? It's how busy the day is versus a normal day. 100 percent is a normal day, 200 percent is twice as crowded, 50 percent is half-empty. The headcount shown is target capacity times this level."
-                title="How busy the day is vs. a normal day. 100% = a normal day · 200% = twice as crowded · 50% = half-empty. The figure shown is the actual visitors that day = target capacity × this level."
-              >
-                ?
-              </span>
-            </div>
-            <div className={"tb-demand-input" + (isCustom ? " custom" : "")}>
-              <input
-                type="number"
-                min={0}
-                max={400}
-                step={5}
-                value={demand}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setDemand(v === "" ? null : Number(v));
-                }}
-                aria-label="Crowd level percentage versus a normal day"
-              />
-              <span className="tb-demand-suffix">%</span>
-            </div>
-          </div>
-
-          <div className="tb-divider" />
-
-          <div className="tb-field">
-            <div className="tb-label">
-              Occupancy target
-              <span
-                className="tb-help"
-                tabIndex={0}
-                role="note"
-                aria-label="Occupancy target: the share of capacity the city wants to hold. Setting it auto-tunes the fees to deter crowds above it."
-                title="The occupancy the authority wants to hold (% of capacity). Setting it auto-tunes the fees to deter crowds above it — e.g. 80% prices the busy days down toward 80%."
-              >
-                ?
-              </span>
-            </div>
-            <div className={"tb-demand-input" + (state.occupancy_target !== 100 ? " custom" : "")}>
-              <input
-                type="number"
-                min={10}
-                max={200}
-                step={5}
-                value={state.occupancy_target}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setOccupancyTarget(v === "" ? null : Number(v));
-                }}
-                aria-label="Desired occupancy as a percentage of capacity"
-              />
-              <span className="tb-demand-suffix">%</span>
-            </div>
-          </div>
-
         </div>
 
         <div className="tb-field tb-field-right">
-          <div className="tb-label">Theme</div>
+          <div className="tb-label">Load · theme</div>
+          <div className="tb-right-actions">
+          <button
+            type="button"
+            className="tb-upload"
+            onClick={openPicker}
+            title="Load a DPM payload or the v2 CSV bundle  ·  ⌘/Ctrl+O  ·  or drag files in"
+            aria-label="Load DPM payload or bundle"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M8 10.2V2.6M8 2.6 5 5.6M8 2.6l3 3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2.6 10v2.4a1 1 0 0 0 1 1h8.8a1 1 0 0 0 1-1V10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
           <button
             type="button"
             className="tb-upload tb-theme"
@@ -397,6 +351,7 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
               </svg>
             )}
           </button>
+          </div>
         </div>
       </header>
 

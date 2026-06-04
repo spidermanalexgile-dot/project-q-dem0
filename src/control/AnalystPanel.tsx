@@ -15,6 +15,8 @@ import { speak, cancelSpeech, usingPremiumVoice } from "./speech";
 
 type AssistantProps = {
   onSetDark: (dark: boolean) => void;
+  /** Render the mic inline (e.g. in the TopBar) instead of as a floating dock. */
+  inline?: boolean;
 };
 
 /** Condense an answer to a sentence or two for speaking aloud. */
@@ -61,7 +63,7 @@ function getRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
  * analyst. Everything comes back AUDIBLY — there's no chat log or text box, just
  * a compact status pill showing what it heard / said and any lever it changed.
  */
-export function AssistantPanel({ onSetDark }: AssistantProps) {
+export function AssistantPanel({ onSetDark, inline }: AssistantProps) {
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState("");
   const [said, setSaid] = useState("");
@@ -258,7 +260,7 @@ export function AssistantPanel({ onSetDark }: AssistantProps) {
   if (!recSupported) return null;
 
   return (
-    <div className="qctl-assistant-dock">
+    <div className={"qctl-assistant-dock" + (inline ? " inline" : "")}>
       {(heard || said) && (
         <div className="qctl-assistant-status" role="status" aria-live="polite">
           {heard && <div className="qctl-assistant-heard">“{heard}”</div>}
