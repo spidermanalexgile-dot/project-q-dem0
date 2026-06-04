@@ -1,0 +1,366 @@
+Date,Day,Week,Month,Base_Daily_Visitors,Growth_Factor,Predicted_Visitors_2027,Shock_Pct,Shock_Label,Adjusted_Visitors,CPI,Notes
+2027-01-01,Fri,53,Jan,48168,1.0612,51116,0,,51116,0.981,
+2027-01-02,Sat,53,Jan,55910,1.0612,59331,0,,59331,1.139,Above sustainable threshold
+2027-01-03,Sun,53,Jan,45158,1.0612,47921,0,,47921,0.92,
+2027-01-04,Mon,1,Jan,37846,1.0612,40163,0,,40163,0.771,
+2027-01-05,Tue,1,Jan,36556,1.0612,38793,0,,38793,0.744,
+2027-01-06,Wed,1,Jan,36986,1.0612,39250,0,,39250,0.753,
+2027-01-07,Thu,1,Jan,39567,1.0612,41988,0,,41988,0.806,
+2027-01-08,Fri,1,Jan,48168,1.0612,51116,0,,51116,0.981,
+2027-01-09,Sat,1,Jan,55910,1.0612,59331,0,,59331,1.139,Above sustainable threshold
+2027-01-10,Sun,1,Jan,45158,1.0612,47921,0,,47921,0.92,
+2027-01-11,Mon,2,Jan,37846,1.0612,40163,0,,40163,0.771,
+2027-01-12,Tue,2,Jan,36556,1.0612,38793,0,,38793,0.744,
+2027-01-13,Wed,2,Jan,36986,1.0612,39250,0,,39250,0.753,
+2027-01-14,Thu,2,Jan,39567,1.0612,41988,0,,41988,0.806,
+2027-01-15,Fri,2,Jan,48168,1.0612,51116,0,,51116,0.981,
+2027-01-16,Sat,2,Jan,55910,1.0612,59331,0,,59331,1.139,Above sustainable threshold
+2027-01-17,Sun,2,Jan,45158,1.0612,47921,0,,47921,0.92,
+2027-01-18,Mon,3,Jan,37846,1.0612,40163,0,,40163,0.771,
+2027-01-19,Tue,3,Jan,36556,1.0612,38793,0,,38793,0.744,
+2027-01-20,Wed,3,Jan,36986,1.0612,39250,0,,39250,0.753,
+2027-01-21,Thu,3,Jan,39567,1.0612,41988,0,,41988,0.806,
+2027-01-22,Fri,3,Jan,48168,1.0612,51116,0,,51116,0.981,
+2027-01-23,Sat,3,Jan,55910,1.0612,59331,0,,59331,1.139,Above sustainable threshold
+2027-01-24,Sun,3,Jan,45158,1.0612,47921,0,,47921,0.92,
+2027-01-25,Mon,4,Jan,37846,1.0612,40163,0,,40163,0.771,
+2027-01-26,Tue,4,Jan,36556,1.0612,38793,0,,38793,0.744,
+2027-01-27,Wed,4,Jan,36986,1.0612,39250,0,,39250,0.753,
+2027-01-28,Thu,4,Jan,39567,1.0612,41988,0,,41988,0.806,
+2027-01-29,Fri,4,Jan,48168,1.0612,51116,0,,51116,0.981,
+2027-01-30,Sat,4,Jan,55910,1.0612,59331,35,Carnival of Venice,80097,1.537,Carnival of Venice [web search - 2026-06-04]
+2027-01-31,Sun,4,Jan,45158,1.0612,47921,35,Carnival of Venice,64694,1.241,Carnival of Venice [web search - 2026-06-04]
+2027-02-01,Mon,5,Feb,47278,1.0612,50171,35,Carnival of Venice,67731,1.3,Carnival of Venice [web search - 2026-06-04]
+2027-02-02,Tue,5,Feb,45666,1.0612,48461,35,Carnival of Venice,65422,1.255,Carnival of Venice [web search - 2026-06-04]
+2027-02-03,Wed,5,Feb,46203,1.0612,49031,35,Carnival of Venice,66192,1.27,Carnival of Venice [web search - 2026-06-04]
+2027-02-04,Thu,5,Feb,49427,1.0612,52452,35,Carnival of Venice,70810,1.359,Carnival of Venice [web search - 2026-06-04]
+2027-02-05,Fri,5,Feb,60172,1.0612,63854,35,Carnival of Venice,86203,1.654,Carnival of Venice [web search - 2026-06-04]
+2027-02-06,Sat,5,Feb,69842,1.0612,74117,35,Carnival of Venice,100058,1.92,Carnival of Venice [web search - 2026-06-04]
+2027-02-07,Sun,5,Feb,56411,1.0612,59864,35,Carnival of Venice,80816,1.551,Carnival of Venice [web search - 2026-06-04]
+2027-02-08,Mon,6,Feb,47278,1.0612,50171,35,Carnival of Venice,67731,1.3,Carnival of Venice [web search - 2026-06-04]
+2027-02-09,Tue,6,Feb,45666,1.0612,48461,35,Carnival of Venice,65422,1.255,Carnival of Venice [web search - 2026-06-04]
+2027-02-10,Wed,6,Feb,46203,1.0612,49031,35,Carnival of Venice,66192,1.27,Carnival of Venice [web search - 2026-06-04]
+2027-02-11,Thu,6,Feb,49427,1.0612,52452,35,Carnival of Venice,70810,1.359,Carnival of Venice [web search - 2026-06-04]
+2027-02-12,Fri,6,Feb,60172,1.0612,63854,35,Carnival of Venice,86203,1.654,Carnival of Venice [web search - 2026-06-04]
+2027-02-13,Sat,6,Feb,69842,1.0612,74117,35,Carnival of Venice,100058,1.92,Carnival of Venice [web search - 2026-06-04]
+2027-02-14,Sun,6,Feb,56411,1.0612,59864,35,Carnival of Venice,80816,1.551,Carnival of Venice [web search - 2026-06-04]
+2027-02-15,Mon,7,Feb,47278,1.0612,50171,35,Carnival of Venice,67731,1.3,Carnival of Venice [web search - 2026-06-04]
+2027-02-16,Tue,7,Feb,45666,1.0612,48461,35,Carnival of Venice,65422,1.255,Carnival of Venice [web search - 2026-06-04]
+2027-02-17,Wed,7,Feb,46203,1.0612,49031,0,,49031,0.941,
+2027-02-18,Thu,7,Feb,49427,1.0612,52452,0,,52452,1.007,Above sustainable threshold
+2027-02-19,Fri,7,Feb,60172,1.0612,63854,0,,63854,1.225,Above sustainable threshold
+2027-02-20,Sat,7,Feb,69842,1.0612,74117,0,,74117,1.422,Above sustainable threshold
+2027-02-21,Sun,7,Feb,56411,1.0612,59864,0,,59864,1.149,Above sustainable threshold
+2027-02-22,Mon,8,Feb,47278,1.0612,50171,0,,50171,0.963,
+2027-02-23,Tue,8,Feb,45666,1.0612,48461,0,,48461,0.93,
+2027-02-24,Wed,8,Feb,46203,1.0612,49031,0,,49031,0.941,
+2027-02-25,Thu,8,Feb,49427,1.0612,52452,0,,52452,1.007,Above sustainable threshold
+2027-02-26,Fri,8,Feb,60172,1.0612,63854,0,,63854,1.225,Above sustainable threshold
+2027-02-27,Sat,8,Feb,69842,1.0612,74117,0,,74117,1.422,Above sustainable threshold
+2027-02-28,Sun,8,Feb,56411,1.0612,59864,0,,59864,1.149,Above sustainable threshold
+2027-03-01,Mon,9,Mar,62301,1.0612,66114,0,,66114,1.269,Above sustainable threshold
+2027-03-02,Tue,9,Mar,60177,1.0612,63860,0,,63860,1.225,Above sustainable threshold
+2027-03-03,Wed,9,Mar,60885,1.0612,64611,0,,64611,1.24,Above sustainable threshold
+2027-03-04,Thu,9,Mar,65133,1.0612,69119,0,,69119,1.326,Above sustainable threshold
+2027-03-05,Fri,9,Mar,79292,1.0612,84145,0,,84145,1.615,Severe overcapacity
+2027-03-06,Sat,9,Mar,92035,1.0612,97668,0,,97668,1.874,Severe overcapacity
+2027-03-07,Sun,9,Mar,74336,1.0612,78886,0,,78886,1.514,Severe overcapacity
+2027-03-08,Mon,10,Mar,62301,1.0612,66114,0,,66114,1.269,Above sustainable threshold
+2027-03-09,Tue,10,Mar,60177,1.0612,63860,0,,63860,1.225,Above sustainable threshold
+2027-03-10,Wed,10,Mar,60885,1.0612,64611,0,,64611,1.24,Above sustainable threshold
+2027-03-11,Thu,10,Mar,65133,1.0612,69119,0,,69119,1.326,Above sustainable threshold
+2027-03-12,Fri,10,Mar,79292,1.0612,84145,0,,84145,1.615,Severe overcapacity
+2027-03-13,Sat,10,Mar,92035,1.0612,97668,0,,97668,1.874,Severe overcapacity
+2027-03-14,Sun,10,Mar,74336,1.0612,78886,0,,78886,1.514,Severe overcapacity
+2027-03-15,Mon,11,Mar,62301,1.0612,66114,0,,66114,1.269,Above sustainable threshold
+2027-03-16,Tue,11,Mar,60177,1.0612,63860,0,,63860,1.225,Above sustainable threshold
+2027-03-17,Wed,11,Mar,60885,1.0612,64611,0,,64611,1.24,Above sustainable threshold
+2027-03-18,Thu,11,Mar,65133,1.0612,69119,0,,69119,1.326,Above sustainable threshold
+2027-03-19,Fri,11,Mar,79292,1.0612,84145,0,,84145,1.615,Severe overcapacity
+2027-03-20,Sat,11,Mar,92035,1.0612,97668,0,,97668,1.874,Severe overcapacity
+2027-03-21,Sun,11,Mar,74336,1.0612,78886,0,,78886,1.514,Severe overcapacity
+2027-03-22,Mon,12,Mar,62301,1.0612,66114,0,,66114,1.269,Above sustainable threshold
+2027-03-23,Tue,12,Mar,60177,1.0612,63860,0,,63860,1.225,Above sustainable threshold
+2027-03-24,Wed,12,Mar,60885,1.0612,64611,0,,64611,1.24,Above sustainable threshold
+2027-03-25,Thu,12,Mar,65133,1.0612,69119,0,,69119,1.326,Above sustainable threshold
+2027-03-26,Fri,12,Mar,79292,1.0612,84145,25,Easter weekend,105181,2.018,Easter weekend [web search - 2026-06-04]
+2027-03-27,Sat,12,Mar,92035,1.0612,97668,25,Easter weekend,122085,2.343,Easter weekend [web search - 2026-06-04]
+2027-03-28,Sun,12,Mar,74336,1.0612,78886,25,Easter weekend,98607,1.892,Easter weekend [web search - 2026-06-04]
+2027-03-29,Mon,13,Mar,62301,1.0612,66114,25,Easter weekend,82642,1.586,Easter weekend [web search - 2026-06-04]
+2027-03-30,Tue,13,Mar,60177,1.0612,63860,0,,63860,1.225,Above sustainable threshold
+2027-03-31,Wed,13,Mar,60885,1.0612,64611,0,,64611,1.24,Above sustainable threshold
+2027-04-01,Thu,13,Apr,90280,1.0612,95806,0,,95806,1.838,Severe overcapacity
+2027-04-02,Fri,13,Apr,109907,1.0612,116633,0,,116633,2.238,Severe overcapacity
+2027-04-03,Sat,13,Apr,127570,1.0612,135377,0,,135377,2.598,Severe overcapacity
+2027-04-04,Sun,13,Apr,103037,1.0612,109343,0,,109343,2.098,Severe overcapacity
+2027-04-05,Mon,14,Apr,86355,1.0612,91640,0,,91640,1.759,Severe overcapacity
+2027-04-06,Tue,14,Apr,83411,1.0612,88516,0,,88516,1.699,Severe overcapacity
+2027-04-07,Wed,14,Apr,84393,1.0612,89557,0,,89557,1.719,Severe overcapacity
+2027-04-08,Thu,14,Apr,90280,1.0612,95806,0,,95806,1.838,Severe overcapacity
+2027-04-09,Fri,14,Apr,109907,1.0612,116633,0,,116633,2.238,Severe overcapacity
+2027-04-10,Sat,14,Apr,127570,1.0612,135377,0,,135377,2.598,Severe overcapacity
+2027-04-11,Sun,14,Apr,103037,1.0612,109343,0,,109343,2.098,Severe overcapacity
+2027-04-12,Mon,15,Apr,86355,1.0612,91640,0,,91640,1.759,Severe overcapacity
+2027-04-13,Tue,15,Apr,83411,1.0612,88516,0,,88516,1.699,Severe overcapacity
+2027-04-14,Wed,15,Apr,84393,1.0612,89557,0,,89557,1.719,Severe overcapacity
+2027-04-15,Thu,15,Apr,90280,1.0612,95806,0,,95806,1.838,Severe overcapacity
+2027-04-16,Fri,15,Apr,109907,1.0612,116633,0,,116633,2.238,Severe overcapacity
+2027-04-17,Sat,15,Apr,127570,1.0612,135377,0,,135377,2.598,Severe overcapacity
+2027-04-18,Sun,15,Apr,103037,1.0612,109343,0,,109343,2.098,Severe overcapacity
+2027-04-19,Mon,16,Apr,86355,1.0612,91640,0,,91640,1.759,Severe overcapacity
+2027-04-20,Tue,16,Apr,83411,1.0612,88516,0,,88516,1.699,Severe overcapacity
+2027-04-21,Wed,16,Apr,84393,1.0612,89557,0,,89557,1.719,Severe overcapacity
+2027-04-22,Thu,16,Apr,90280,1.0612,95806,0,,95806,1.838,Severe overcapacity
+2027-04-23,Fri,16,Apr,109907,1.0612,116633,0,,116633,2.238,Severe overcapacity
+2027-04-24,Sat,16,Apr,127570,1.0612,135377,0,,135377,2.598,Severe overcapacity
+2027-04-25,Sun,16,Apr,103037,1.0612,109343,0,,109343,2.098,Severe overcapacity
+2027-04-26,Mon,17,Apr,86355,1.0612,91640,0,,91640,1.759,Severe overcapacity
+2027-04-27,Tue,17,Apr,83411,1.0612,88516,0,,88516,1.699,Severe overcapacity
+2027-04-28,Wed,17,Apr,84393,1.0612,89557,0,,89557,1.719,Severe overcapacity
+2027-04-29,Thu,17,Apr,90280,1.0612,95806,0,,95806,1.838,Severe overcapacity
+2027-04-30,Fri,17,Apr,109907,1.0612,116633,0,,116633,2.238,Severe overcapacity
+2027-05-01,Sat,17,May,131461,1.0612,139506,20,May Day / Sensa,167407,3.213,May Day / Sensa [web search - 2026-06-04]
+2027-05-02,Sun,17,May,106180,1.0612,112678,20,May Day / Sensa,135214,2.595,May Day / Sensa [web search - 2026-06-04]
+2027-05-03,Mon,18,May,88989,1.0612,94435,0,,94435,1.812,Severe overcapacity
+2027-05-04,Tue,18,May,85955,1.0612,91216,0,,91216,1.75,Severe overcapacity
+2027-05-05,Wed,18,May,86966,1.0612,92289,0,,92289,1.771,Severe overcapacity
+2027-05-06,Thu,18,May,93034,1.0612,98727,0,,98727,1.895,Severe overcapacity
+2027-05-07,Fri,18,May,113258,1.0612,120190,0,,120190,2.306,Severe overcapacity
+2027-05-08,Sat,18,May,131461,1.0612,139506,0,,139506,2.677,Severe overcapacity
+2027-05-09,Sun,18,May,106180,1.0612,112678,0,,112678,2.162,Severe overcapacity
+2027-05-10,Mon,19,May,88989,1.0612,94435,0,,94435,1.812,Severe overcapacity
+2027-05-11,Tue,19,May,85955,1.0612,91216,0,,91216,1.75,Severe overcapacity
+2027-05-12,Wed,19,May,86966,1.0612,92289,0,,92289,1.771,Severe overcapacity
+2027-05-13,Thu,19,May,93034,1.0612,98727,0,,98727,1.895,Severe overcapacity
+2027-05-14,Fri,19,May,113258,1.0612,120190,0,,120190,2.306,Severe overcapacity
+2027-05-15,Sat,19,May,131461,1.0612,139506,0,,139506,2.677,Severe overcapacity
+2027-05-16,Sun,19,May,106180,1.0612,112678,0,,112678,2.162,Severe overcapacity
+2027-05-17,Mon,20,May,88989,1.0612,94435,0,,94435,1.812,Severe overcapacity
+2027-05-18,Tue,20,May,85955,1.0612,91216,0,,91216,1.75,Severe overcapacity
+2027-05-19,Wed,20,May,86966,1.0612,92289,0,,92289,1.771,Severe overcapacity
+2027-05-20,Thu,20,May,93034,1.0612,98727,0,,98727,1.895,Severe overcapacity
+2027-05-21,Fri,20,May,113258,1.0612,120190,0,,120190,2.306,Severe overcapacity
+2027-05-22,Sat,20,May,131461,1.0612,139506,0,,139506,2.677,Severe overcapacity
+2027-05-23,Sun,20,May,106180,1.0612,112678,0,,112678,2.162,Severe overcapacity
+2027-05-24,Mon,21,May,88989,1.0612,94435,0,,94435,1.812,Severe overcapacity
+2027-05-25,Tue,21,May,85955,1.0612,91216,0,,91216,1.75,Severe overcapacity
+2027-05-26,Wed,21,May,86966,1.0612,92289,0,,92289,1.771,Severe overcapacity
+2027-05-27,Thu,21,May,93034,1.0612,98727,0,,98727,1.895,Severe overcapacity
+2027-05-28,Fri,21,May,113258,1.0612,120190,0,,120190,2.306,Severe overcapacity
+2027-05-29,Sat,21,May,131461,1.0612,139506,0,,139506,2.677,Severe overcapacity
+2027-05-30,Sun,21,May,106180,1.0612,112678,0,,112678,2.162,Severe overcapacity
+2027-05-31,Mon,22,May,88989,1.0612,94435,0,,94435,1.812,Severe overcapacity
+2027-06-01,Tue,22,Jun,92946,1.0612,98635,0,,98635,1.893,Severe overcapacity
+2027-06-02,Wed,22,Jun,94040,1.0612,99795,0,,99795,1.915,Severe overcapacity
+2027-06-03,Thu,22,Jun,100601,1.0612,106758,0,,106758,2.049,Severe overcapacity
+2027-06-04,Fri,22,Jun,122470,1.0612,129966,18,Biennale opening weekend,153359,2.943,Biennale opening weekend [web search - 2026-06-04]
+2027-06-05,Sat,22,Jun,142153,1.0612,150853,18,Biennale opening weekend,178007,3.416,Biennale opening weekend [web search - 2026-06-04]
+2027-06-06,Sun,22,Jun,114816,1.0612,121843,18,Biennale opening weekend,143775,2.759,Biennale opening weekend [web search - 2026-06-04]
+2027-06-07,Mon,23,Jun,96227,1.0612,102116,0,,102116,1.96,Severe overcapacity
+2027-06-08,Tue,23,Jun,92946,1.0612,98635,0,,98635,1.893,Severe overcapacity
+2027-06-09,Wed,23,Jun,94040,1.0612,99795,0,,99795,1.915,Severe overcapacity
+2027-06-10,Thu,23,Jun,100601,1.0612,106758,0,,106758,2.049,Severe overcapacity
+2027-06-11,Fri,23,Jun,122470,1.0612,129966,0,,129966,2.494,Severe overcapacity
+2027-06-12,Sat,23,Jun,142153,1.0612,150853,0,,150853,2.895,Severe overcapacity
+2027-06-13,Sun,23,Jun,114816,1.0612,121843,0,,121843,2.338,Severe overcapacity
+2027-06-14,Mon,24,Jun,96227,1.0612,102116,0,,102116,1.96,Severe overcapacity
+2027-06-15,Tue,24,Jun,92946,1.0612,98635,0,,98635,1.893,Severe overcapacity
+2027-06-16,Wed,24,Jun,94040,1.0612,99795,0,,99795,1.915,Severe overcapacity
+2027-06-17,Thu,24,Jun,100601,1.0612,106758,0,,106758,2.049,Severe overcapacity
+2027-06-18,Fri,24,Jun,122470,1.0612,129966,0,,129966,2.494,Severe overcapacity
+2027-06-19,Sat,24,Jun,142153,1.0612,150853,0,,150853,2.895,Severe overcapacity
+2027-06-20,Sun,24,Jun,114816,1.0612,121843,0,,121843,2.338,Severe overcapacity
+2027-06-21,Mon,25,Jun,96227,1.0612,102116,0,,102116,1.96,Severe overcapacity
+2027-06-22,Tue,25,Jun,92946,1.0612,98635,0,,98635,1.893,Severe overcapacity
+2027-06-23,Wed,25,Jun,94040,1.0612,99795,0,,99795,1.915,Severe overcapacity
+2027-06-24,Thu,25,Jun,100601,1.0612,106758,0,,106758,2.049,Severe overcapacity
+2027-06-25,Fri,25,Jun,122470,1.0612,129966,0,,129966,2.494,Severe overcapacity
+2027-06-26,Sat,25,Jun,142153,1.0612,150853,0,,150853,2.895,Severe overcapacity
+2027-06-27,Sun,25,Jun,114816,1.0612,121843,0,,121843,2.338,Severe overcapacity
+2027-06-28,Mon,26,Jun,96227,1.0612,102116,0,,102116,1.96,Severe overcapacity
+2027-06-29,Tue,26,Jun,92946,1.0612,98635,0,,98635,1.893,Severe overcapacity
+2027-06-30,Wed,26,Jun,94040,1.0612,99795,0,,99795,1.915,Severe overcapacity
+2027-07-01,Thu,26,Jul,101536,1.0612,107749,0,,107749,2.068,Severe overcapacity
+2027-07-02,Fri,26,Jul,123608,1.0612,131173,0,,131173,2.517,Severe overcapacity
+2027-07-03,Sat,26,Jul,143474,1.0612,152255,0,,152255,2.922,Severe overcapacity
+2027-07-04,Sun,26,Jul,115883,1.0612,122975,0,,122975,2.36,Severe overcapacity
+2027-07-05,Mon,27,Jul,97121,1.0612,103065,0,,103065,1.978,Severe overcapacity
+2027-07-06,Tue,27,Jul,93810,1.0612,99551,0,,99551,1.91,Severe overcapacity
+2027-07-07,Wed,27,Jul,94914,1.0612,100722,0,,100722,1.933,Severe overcapacity
+2027-07-08,Thu,27,Jul,101536,1.0612,107749,0,,107749,2.068,Severe overcapacity
+2027-07-09,Fri,27,Jul,123608,1.0612,131173,0,,131173,2.517,Severe overcapacity
+2027-07-10,Sat,27,Jul,143474,1.0612,152255,0,,152255,2.922,Severe overcapacity
+2027-07-11,Sun,27,Jul,115883,1.0612,122975,0,,122975,2.36,Severe overcapacity
+2027-07-12,Mon,28,Jul,97121,1.0612,103065,0,,103065,1.978,Severe overcapacity
+2027-07-13,Tue,28,Jul,93810,1.0612,99551,0,,99551,1.91,Severe overcapacity
+2027-07-14,Wed,28,Jul,94914,1.0612,100722,0,,100722,1.933,Severe overcapacity
+2027-07-15,Thu,28,Jul,101536,1.0612,107749,0,,107749,2.068,Severe overcapacity
+2027-07-16,Fri,28,Jul,123608,1.0612,131173,0,,131173,2.517,Severe overcapacity
+2027-07-17,Sat,28,Jul,143474,1.0612,152255,40,Festa del Redentore,213157,4.09,Festa del Redentore [web search - 2026-06-04]
+2027-07-18,Sun,28,Jul,115883,1.0612,122975,40,Festa del Redentore,172165,3.304,Festa del Redentore [web search - 2026-06-04]
+2027-07-19,Mon,29,Jul,97121,1.0612,103065,0,,103065,1.978,Severe overcapacity
+2027-07-20,Tue,29,Jul,93810,1.0612,99551,0,,99551,1.91,Severe overcapacity
+2027-07-21,Wed,29,Jul,94914,1.0612,100722,0,,100722,1.933,Severe overcapacity
+2027-07-22,Thu,29,Jul,101536,1.0612,107749,0,,107749,2.068,Severe overcapacity
+2027-07-23,Fri,29,Jul,123608,1.0612,131173,0,,131173,2.517,Severe overcapacity
+2027-07-24,Sat,29,Jul,143474,1.0612,152255,0,,152255,2.922,Severe overcapacity
+2027-07-25,Sun,29,Jul,115883,1.0612,122975,0,,122975,2.36,Severe overcapacity
+2027-07-26,Mon,30,Jul,97121,1.0612,103065,0,,103065,1.978,Severe overcapacity
+2027-07-27,Tue,30,Jul,93810,1.0612,99551,0,,99551,1.91,Severe overcapacity
+2027-07-28,Wed,30,Jul,94914,1.0612,100722,0,,100722,1.933,Severe overcapacity
+2027-07-29,Thu,30,Jul,101536,1.0612,107749,0,,107749,2.068,Severe overcapacity
+2027-07-30,Fri,30,Jul,123608,1.0612,131173,0,,131173,2.517,Severe overcapacity
+2027-07-31,Sat,30,Jul,143474,1.0612,152255,0,,152255,2.922,Severe overcapacity
+2027-08-01,Sun,30,Aug,112866,1.0612,119774,0,,119774,2.298,Severe overcapacity
+2027-08-02,Mon,31,Aug,94593,1.0612,100382,0,,100382,1.926,Severe overcapacity
+2027-08-03,Tue,31,Aug,91368,1.0612,96960,0,,96960,1.861,Severe overcapacity
+2027-08-04,Wed,31,Aug,92443,1.0612,98101,0,,98101,1.883,Severe overcapacity
+2027-08-05,Thu,31,Aug,98893,1.0612,104945,0,,104945,2.014,Severe overcapacity
+2027-08-06,Fri,31,Aug,120391,1.0612,127759,0,,127759,2.452,Severe overcapacity
+2027-08-07,Sat,31,Aug,139739,1.0612,148291,0,,148291,2.846,Severe overcapacity
+2027-08-08,Sun,31,Aug,112866,1.0612,119774,0,,119774,2.298,Severe overcapacity
+2027-08-09,Mon,32,Aug,94593,1.0612,100382,0,,100382,1.926,Severe overcapacity
+2027-08-10,Tue,32,Aug,91368,1.0612,96960,0,,96960,1.861,Severe overcapacity
+2027-08-11,Wed,32,Aug,92443,1.0612,98101,0,,98101,1.883,Severe overcapacity
+2027-08-12,Thu,32,Aug,98893,1.0612,104945,0,,104945,2.014,Severe overcapacity
+2027-08-13,Fri,32,Aug,120391,1.0612,127759,0,,127759,2.452,Severe overcapacity
+2027-08-14,Sat,32,Aug,139739,1.0612,148291,22,Ferragosto,180916,3.472,Ferragosto [web search - 2026-06-04]
+2027-08-15,Sun,32,Aug,112866,1.0612,119774,22,Ferragosto,146124,2.804,Ferragosto [web search - 2026-06-04]
+2027-08-16,Mon,33,Aug,94593,1.0612,100382,22,Ferragosto,122466,2.35,Ferragosto [web search - 2026-06-04]
+2027-08-17,Tue,33,Aug,91368,1.0612,96960,0,,96960,1.861,Severe overcapacity
+2027-08-18,Wed,33,Aug,92443,1.0612,98101,0,,98101,1.883,Severe overcapacity
+2027-08-19,Thu,33,Aug,98893,1.0612,104945,0,,104945,2.014,Severe overcapacity
+2027-08-20,Fri,33,Aug,120391,1.0612,127759,0,,127759,2.452,Severe overcapacity
+2027-08-21,Sat,33,Aug,139739,1.0612,148291,0,,148291,2.846,Severe overcapacity
+2027-08-22,Sun,33,Aug,112866,1.0612,119774,0,,119774,2.298,Severe overcapacity
+2027-08-23,Mon,34,Aug,94593,1.0612,100382,0,,100382,1.926,Severe overcapacity
+2027-08-24,Tue,34,Aug,91368,1.0612,96960,0,,96960,1.861,Severe overcapacity
+2027-08-25,Wed,34,Aug,92443,1.0612,98101,0,,98101,1.883,Severe overcapacity
+2027-08-26,Thu,34,Aug,98893,1.0612,104945,0,,104945,2.014,Severe overcapacity
+2027-08-27,Fri,34,Aug,120391,1.0612,127759,0,,127759,2.452,Severe overcapacity
+2027-08-28,Sat,34,Aug,139739,1.0612,148291,0,,148291,2.846,Severe overcapacity
+2027-08-29,Sun,34,Aug,112866,1.0612,119774,0,,119774,2.298,Severe overcapacity
+2027-08-30,Mon,35,Aug,94593,1.0612,100382,28,Venice Film Festival,128489,2.466,Venice Film Festival [web search - 2026-06-04]
+2027-08-31,Tue,35,Aug,91368,1.0612,96960,28,Venice Film Festival,124109,2.382,Venice Film Festival [web search - 2026-06-04]
+2027-09-01,Wed,35,Sep,86869,1.0612,92185,28,Venice Film Festival,117997,2.264,Venice Film Festival [web search - 2026-06-04]
+2027-09-02,Thu,35,Sep,92929,1.0612,98617,28,Venice Film Festival,126229,2.422,Venice Film Festival [web search - 2026-06-04]
+2027-09-03,Fri,35,Sep,113131,1.0612,120055,28,Venice Film Festival,153670,2.949,Venice Film Festival [web search - 2026-06-04]
+2027-09-04,Sat,35,Sep,131313,1.0612,139349,18,Historical Regatta,164432,3.155,Historical Regatta [web search - 2026-06-04]
+2027-09-05,Sun,35,Sep,106061,1.0612,112552,18,Historical Regatta,132811,2.549,Historical Regatta [web search - 2026-06-04]
+2027-09-06,Mon,36,Sep,88889,1.0612,94329,0,,94329,1.81,Severe overcapacity
+2027-09-07,Tue,36,Sep,85859,1.0612,91113,0,,91113,1.748,Severe overcapacity
+2027-09-08,Wed,36,Sep,86869,1.0612,92185,0,,92185,1.769,Severe overcapacity
+2027-09-09,Thu,36,Sep,92929,1.0612,98617,0,,98617,1.892,Severe overcapacity
+2027-09-10,Fri,36,Sep,113131,1.0612,120055,0,,120055,2.304,Severe overcapacity
+2027-09-11,Sat,36,Sep,131313,1.0612,139349,0,,139349,2.674,Severe overcapacity
+2027-09-12,Sun,36,Sep,106061,1.0612,112552,0,,112552,2.16,Severe overcapacity
+2027-09-13,Mon,37,Sep,88889,1.0612,94329,0,,94329,1.81,Severe overcapacity
+2027-09-14,Tue,37,Sep,85859,1.0612,91113,0,,91113,1.748,Severe overcapacity
+2027-09-15,Wed,37,Sep,86869,1.0612,92185,0,,92185,1.769,Severe overcapacity
+2027-09-16,Thu,37,Sep,92929,1.0612,98617,0,,98617,1.892,Severe overcapacity
+2027-09-17,Fri,37,Sep,113131,1.0612,120055,0,,120055,2.304,Severe overcapacity
+2027-09-18,Sat,37,Sep,131313,1.0612,139349,0,,139349,2.674,Severe overcapacity
+2027-09-19,Sun,37,Sep,106061,1.0612,112552,0,,112552,2.16,Severe overcapacity
+2027-09-20,Mon,38,Sep,88889,1.0612,94329,0,,94329,1.81,Severe overcapacity
+2027-09-21,Tue,38,Sep,85859,1.0612,91113,0,,91113,1.748,Severe overcapacity
+2027-09-22,Wed,38,Sep,86869,1.0612,92185,0,,92185,1.769,Severe overcapacity
+2027-09-23,Thu,38,Sep,92929,1.0612,98617,0,,98617,1.892,Severe overcapacity
+2027-09-24,Fri,38,Sep,113131,1.0612,120055,0,,120055,2.304,Severe overcapacity
+2027-09-25,Sat,38,Sep,131313,1.0612,139349,0,,139349,2.674,Severe overcapacity
+2027-09-26,Sun,38,Sep,106061,1.0612,112552,0,,112552,2.16,Severe overcapacity
+2027-09-27,Mon,39,Sep,88889,1.0612,94329,0,,94329,1.81,Severe overcapacity
+2027-09-28,Tue,39,Sep,85859,1.0612,91113,0,,91113,1.748,Severe overcapacity
+2027-09-29,Wed,39,Sep,86869,1.0612,92185,0,,92185,1.769,Severe overcapacity
+2027-09-30,Thu,39,Sep,92929,1.0612,98617,0,,98617,1.892,Severe overcapacity
+2027-10-01,Fri,39,Oct,96336,1.0612,102232,0,,102232,1.962,Severe overcapacity
+2027-10-02,Sat,39,Oct,111819,1.0612,118662,0,,118662,2.277,Severe overcapacity
+2027-10-03,Sun,39,Oct,90315,1.0612,95843,0,,95843,1.839,Severe overcapacity
+2027-10-04,Mon,40,Oct,75693,1.0612,80325,0,,80325,1.541,Severe overcapacity
+2027-10-05,Tue,40,Oct,73112,1.0612,77587,0,,77587,1.489,Above sustainable threshold
+2027-10-06,Wed,40,Oct,73973,1.0612,78500,0,,78500,1.506,Severe overcapacity
+2027-10-07,Thu,40,Oct,79133,1.0612,83976,0,,83976,1.611,Severe overcapacity
+2027-10-08,Fri,40,Oct,96336,1.0612,102232,0,,102232,1.962,Severe overcapacity
+2027-10-09,Sat,40,Oct,111819,1.0612,118662,0,,118662,2.277,Severe overcapacity
+2027-10-10,Sun,40,Oct,90315,1.0612,95843,0,,95843,1.839,Severe overcapacity
+2027-10-11,Mon,41,Oct,75693,1.0612,80325,0,,80325,1.541,Severe overcapacity
+2027-10-12,Tue,41,Oct,73112,1.0612,77587,0,,77587,1.489,Above sustainable threshold
+2027-10-13,Wed,41,Oct,73973,1.0612,78500,0,,78500,1.506,Severe overcapacity
+2027-10-14,Thu,41,Oct,79133,1.0612,83976,0,,83976,1.611,Severe overcapacity
+2027-10-15,Fri,41,Oct,96336,1.0612,102232,0,,102232,1.962,Severe overcapacity
+2027-10-16,Sat,41,Oct,111819,1.0612,118662,0,,118662,2.277,Severe overcapacity
+2027-10-17,Sun,41,Oct,90315,1.0612,95843,0,,95843,1.839,Severe overcapacity
+2027-10-18,Mon,42,Oct,75693,1.0612,80325,0,,80325,1.541,Severe overcapacity
+2027-10-19,Tue,42,Oct,73112,1.0612,77587,0,,77587,1.489,Above sustainable threshold
+2027-10-20,Wed,42,Oct,73973,1.0612,78500,0,,78500,1.506,Severe overcapacity
+2027-10-21,Thu,42,Oct,79133,1.0612,83976,0,,83976,1.611,Severe overcapacity
+2027-10-22,Fri,42,Oct,96336,1.0612,102232,0,,102232,1.962,Severe overcapacity
+2027-10-23,Sat,42,Oct,111819,1.0612,118662,0,,118662,2.277,Severe overcapacity
+2027-10-24,Sun,42,Oct,90315,1.0612,95843,0,,95843,1.839,Severe overcapacity
+2027-10-25,Mon,43,Oct,75693,1.0612,80325,0,,80325,1.541,Severe overcapacity
+2027-10-26,Tue,43,Oct,73112,1.0612,77587,0,,77587,1.489,Above sustainable threshold
+2027-10-27,Wed,43,Oct,73973,1.0612,78500,0,,78500,1.506,Severe overcapacity
+2027-10-28,Thu,43,Oct,79133,1.0612,83976,0,,83976,1.611,Severe overcapacity
+2027-10-29,Fri,43,Oct,96336,1.0612,102232,0,,102232,1.962,Severe overcapacity
+2027-10-30,Sat,43,Oct,111819,1.0612,118662,0,,118662,2.277,Severe overcapacity
+2027-10-31,Sun,43,Oct,90315,1.0612,95843,0,,95843,1.839,Severe overcapacity
+2027-11-01,Mon,44,Nov,51642,1.0612,54803,0,,54803,1.052,Above sustainable threshold
+2027-11-02,Tue,44,Nov,49882,1.0612,52935,0,,52935,1.016,Above sustainable threshold
+2027-11-03,Wed,44,Nov,50469,1.0612,53557,0,,53557,1.028,Above sustainable threshold
+2027-11-04,Thu,44,Nov,53990,1.0612,57294,0,,57294,1.099,Above sustainable threshold
+2027-11-05,Fri,44,Nov,65727,1.0612,69749,0,,69749,1.338,Above sustainable threshold
+2027-11-06,Sat,44,Nov,76290,1.0612,80959,0,,80959,1.554,Severe overcapacity
+2027-11-07,Sun,44,Nov,61619,1.0612,65390,0,,65390,1.255,Above sustainable threshold
+2027-11-08,Mon,45,Nov,51642,1.0612,54803,0,,54803,1.052,Above sustainable threshold
+2027-11-09,Tue,45,Nov,49882,1.0612,52935,0,,52935,1.016,Above sustainable threshold
+2027-11-10,Wed,45,Nov,50469,1.0612,53557,-15,Acqua alta disruption,45524,0.874,Acqua alta disruption [web search - 2026-06-04]
+2027-11-11,Thu,45,Nov,53990,1.0612,57294,-15,Acqua alta disruption,48700,0.935,Acqua alta disruption [web search - 2026-06-04]
+2027-11-12,Fri,45,Nov,65727,1.0612,69749,-15,Acqua alta disruption,59287,1.138,Acqua alta disruption [web search - 2026-06-04]
+2027-11-13,Sat,45,Nov,76290,1.0612,80959,-15,Acqua alta disruption,68815,1.321,Acqua alta disruption [web search - 2026-06-04]
+2027-11-14,Sun,45,Nov,61619,1.0612,65390,-15,Acqua alta disruption,55581,1.067,Acqua alta disruption [web search - 2026-06-04]
+2027-11-15,Mon,46,Nov,51642,1.0612,54803,-15,Acqua alta disruption,46583,0.894,Acqua alta disruption [web search - 2026-06-04]
+2027-11-16,Tue,46,Nov,49882,1.0612,52935,-15,Acqua alta disruption,44995,0.863,Acqua alta disruption [web search - 2026-06-04]
+2027-11-17,Wed,46,Nov,50469,1.0612,53557,-15,Acqua alta disruption,45524,0.874,Acqua alta disruption [web search - 2026-06-04]
+2027-11-18,Thu,46,Nov,53990,1.0612,57294,-15,Acqua alta disruption,48700,0.935,Acqua alta disruption [web search - 2026-06-04]
+2027-11-19,Fri,46,Nov,65727,1.0612,69749,-15,Acqua alta disruption,59287,1.138,Acqua alta disruption [web search - 2026-06-04]
+2027-11-20,Sat,46,Nov,76290,1.0612,80959,-15,Acqua alta disruption,68815,1.321,Acqua alta disruption [web search - 2026-06-04]
+2027-11-21,Sun,46,Nov,61619,1.0612,65390,0,,65390,1.255,Above sustainable threshold
+2027-11-22,Mon,47,Nov,51642,1.0612,54803,0,,54803,1.052,Above sustainable threshold
+2027-11-23,Tue,47,Nov,49882,1.0612,52935,0,,52935,1.016,Above sustainable threshold
+2027-11-24,Wed,47,Nov,50469,1.0612,53557,0,,53557,1.028,Above sustainable threshold
+2027-11-25,Thu,47,Nov,53990,1.0612,57294,0,,57294,1.099,Above sustainable threshold
+2027-11-26,Fri,47,Nov,65727,1.0612,69749,0,,69749,1.338,Above sustainable threshold
+2027-11-27,Sat,47,Nov,76290,1.0612,80959,0,,80959,1.554,Severe overcapacity
+2027-11-28,Sun,47,Nov,61619,1.0612,65390,0,,65390,1.255,Above sustainable threshold
+2027-11-29,Mon,48,Nov,51642,1.0612,54803,0,,54803,1.052,Above sustainable threshold
+2027-11-30,Tue,48,Nov,49882,1.0612,52935,0,,52935,1.016,Above sustainable threshold
+2027-12-01,Wed,48,Dec,41019,1.0612,43529,0,,43529,0.835,
+2027-12-02,Thu,48,Dec,43881,1.0612,46566,0,,46566,0.894,
+2027-12-03,Fri,48,Dec,53420,1.0612,56689,0,,56689,1.088,Above sustainable threshold
+2027-12-04,Sat,48,Dec,62005,1.0612,65800,0,,65800,1.263,Above sustainable threshold
+2027-12-05,Sun,48,Dec,50081,1.0612,53146,0,,53146,1.02,Above sustainable threshold
+2027-12-06,Mon,49,Dec,41973,1.0612,44541,0,,44541,0.855,
+2027-12-07,Tue,49,Dec,40542,1.0612,43023,0,,43023,0.826,
+2027-12-08,Wed,49,Dec,41019,1.0612,43529,0,,43529,0.835,
+2027-12-09,Thu,49,Dec,43881,1.0612,46566,0,,46566,0.894,
+2027-12-10,Fri,49,Dec,53420,1.0612,56689,0,,56689,1.088,Above sustainable threshold
+2027-12-11,Sat,49,Dec,62005,1.0612,65800,0,,65800,1.263,Above sustainable threshold
+2027-12-12,Sun,49,Dec,50081,1.0612,53146,0,,53146,1.02,Above sustainable threshold
+2027-12-13,Mon,50,Dec,41973,1.0612,44541,0,,44541,0.855,
+2027-12-14,Tue,50,Dec,40542,1.0612,43023,0,,43023,0.826,
+2027-12-15,Wed,50,Dec,41019,1.0612,43529,0,,43529,0.835,
+2027-12-16,Thu,50,Dec,43881,1.0612,46566,0,,46566,0.894,
+2027-12-17,Fri,50,Dec,53420,1.0612,56689,0,,56689,1.088,Above sustainable threshold
+2027-12-18,Sat,50,Dec,62005,1.0612,65800,0,,65800,1.263,Above sustainable threshold
+2027-12-19,Sun,50,Dec,50081,1.0612,53146,0,,53146,1.02,Above sustainable threshold
+2027-12-20,Mon,51,Dec,41973,1.0612,44541,0,,44541,0.855,
+2027-12-21,Tue,51,Dec,40542,1.0612,43023,0,,43023,0.826,
+2027-12-22,Wed,51,Dec,41019,1.0612,43529,0,,43529,0.835,
+2027-12-23,Thu,51,Dec,43881,1.0612,46566,0,,46566,0.894,
+2027-12-24,Fri,51,Dec,53420,1.0612,56689,0,,56689,1.088,Above sustainable threshold
+2027-12-25,Sat,51,Dec,62005,1.0612,65800,0,,65800,1.263,Above sustainable threshold
+2027-12-26,Sun,51,Dec,50081,1.0612,53146,15,Christmas/NY period,61118,1.173,Christmas/NY period [web search - 2026-06-04]
+2027-12-27,Mon,52,Dec,41973,1.0612,44541,15,Christmas/NY period,51223,0.983,Christmas/NY period [web search - 2026-06-04]
+2027-12-28,Tue,52,Dec,40542,1.0612,43023,15,Christmas/NY period,49476,0.949,Christmas/NY period [web search - 2026-06-04]
+2027-12-29,Wed,52,Dec,41019,1.0612,43529,15,Christmas/NY period,50059,0.961,Christmas/NY period [web search - 2026-06-04]
+2027-12-30,Thu,52,Dec,43881,1.0612,46566,15,Christmas/NY period,53551,1.028,Christmas/NY period [web search - 2026-06-04]
+2027-12-31,Fri,52,Dec,53420,1.0612,56689,15,Christmas/NY period,65193,1.251,Christmas/NY period [web search - 2026-06-04]

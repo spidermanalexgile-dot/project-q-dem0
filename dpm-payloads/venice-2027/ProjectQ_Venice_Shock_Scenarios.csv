@@ -1,0 +1,7 @@
+Scenario,Duration_Days,Demand_Shock_Pct,Visitors_Lost,Revenue_Impact_USD,Avg_Daily_During_Shock,CPI_During_Shock
+Minor disruption (transport strike),2,-10,17922,6735276,80652,1.548
+Moderate disruption (regional rail outage),5,-25,112015,42096413,67210,1.29
+Severe disruption (major acqua alta flood),7,-45,338737,127300921,59145,1.135
+Peak-season surge (Redentore + heatwave),3,40,-129042,-48495339,150550,2.889
+Off-season collapse (winter storm cluster),10,-60,295720,111134681,19715,0.378
+Pandemic-style shock (travel restrictions),30,-80,2150700,808255642,17923,0.344

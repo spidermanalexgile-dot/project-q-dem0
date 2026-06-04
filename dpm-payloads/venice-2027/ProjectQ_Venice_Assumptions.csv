@@ -1,0 +1,32 @@
+Parameter,Value,Source,Confidence_0_100
+Run_Type,Clean run - no prior Venice inheritance,Operating brief,100
+Destination_ID,63f2bf98-e89f-48de-80b5-209a6b96db6f,User input,100
+Base_Year,2024,Most recent full year available,100
+Projection_Year,2027,User input,100
+Overnight_Arrivals_2024,"5,880,000",Statista / SSR / roadgenius [web search - 2026-06-04],85
+Day_Tripper_Share_of_Footfall,~80%,The Conversation; academic consensus [web search - 2026-06-04],70
+Annual_Total_Presence_Days_2024,"30,000,000","Estimated 25-30M cited range, upper anchor [web search - 2026-06-04]",55
+Avg_Daily_Presence_2024,"82,192",Derived: annual presence / 365,55
+Peak_Day_Footfall_2024,"~75,000-110,000",hotelagio; dreambigtravel [web search - 2026-06-04],60
+Low_Season_Trough,January,Comune Venezia Observatory; roadgenius [web search - 2026-06-04],80
+Peak_Month,July,Comune Venezia Observatory [web search - 2026-06-04],80
+Sustainable_Capacity_Threshold,"52,111 /day","Bertocchi & Camatti, Ca' Foscari fuzzy-LP TCC model [web search - 2026-06-04]",80
+Capacity_Composition,"15,500 hotel + 22,000 other accom + 14,611 excursionists",Bertocchi & Camatti 2025 [web search - 2026-06-04],75
+Arrivals_2019,"5,520,000",roadgenius / SSR [web search - 2026-06-04],80
+Arrivals_2022,"4,650,000",roadgenius / SSR [web search - 2026-06-04],80
+Arrivals_2023,"5,660,000",roadgenius / SSR [web search - 2026-06-04],85
+YoY_2023_to_2024,+3.9%,Derived from 5.66M->5.88M [web search - 2026-06-04],80
+CAGR_2019_to_2024,~1.27%,Derived 5.52M->5.88M over 5yr [web search - 2026-06-04],75
+Applied_Growth_Rate,2.0% per year,Conservative; allows for post-2024 regional softening [web search - 2026-06-04],60
+Cumulative_Growth_Factor_2024_2027,1.0612,Derived: 1.02^3,60
+Day_Tripper_Fee_2026,EUR 5 advance / EUR 10 last-minute,Euronews; Comune Venezia portal [web search - 2026-06-04],90
+Fee_Active_Days_2026,"60 days (3 Apr - 26 Jul), 08:30-16:00",Euronews; Nomad Lawyer [web search - 2026-06-04],90
+EUR_USD_Rate,1.1635 (4 Jun 2026),Moneyswapp / ECB [web search - 2026-06-04],95
+Avg_Visitor_Spend,EUR 323 per visitor (2024),roadgenius (EUR 1.9B / 5.88M) [web search - 2026-06-04],70
+Resident_Population_Historic_Centre,"~48,000-50,000",Multiple sources [web search - 2026-06-04],80
+CPI_Definition,Adjusted daily visitors / sustainable capacity threshold,DPM model definition,100
+Capacity_Breach_Threshold,CPI >= 1.0,DPM model definition,100
+Seasonal_Weights,Monthly shares Jan 4.5% ... Jul 11.5% ... Dec 4.9%,Calibrated to Observatory seasonal pattern [web search - 2026-06-04],60
+DOW_Pattern,"Sat peak, Fri 2nd, Sun 3rd; midweek lighter",Euronews 2025 fee payment data [web search - 2026-06-04],70
+Currency_Reporting,USD for revenue impact per Project Q rule,Product Context Brief,100
+Overall_Run_Confidence,58 / 100,Limited by inferred total-presence base & absence of live Comune feed,58

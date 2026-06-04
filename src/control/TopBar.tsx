@@ -5,11 +5,14 @@ import {
   setDemand,
   setDate,
   setOccupancyTarget,
+  setActiveShock,
   targetCapacity,
   liveDemandPct,
   loadPayload,
+  loadBundle,
   getState,
 } from "./state";
+import { isBundleFilenames } from "./bundle";
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
 
