@@ -36,16 +36,38 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
 
   /**
    * Single code path for every runtime payload source (button, Cmd/Ctrl+O,
-   * drag-drop). Reads the file as text and hands the raw string to loadPayload,
-   * which parses .json or .md-with-fenced-json, validates, and normalizes the
-   * integer-encoded curve exponent. On any failure the previous payload stays
-   * loaded — loadPayload throws before it mutates the store — so the UI never
-   * enters a broken state.
+   * multi-file picker, folder/zip drag-drop). Detects the DPM v2 four-CSV bundle
+   * by FILENAMES first; otherwise treats a single file as a v1 JSON/MD payload.
+   * On any failure the previous state stays loaded (loadBundle/loadPayload throw
+   * before mutating the store) and a red toast explains why.
    */
-  async function handleFile(file: File | null | undefined) {
-    if (!file) return;
+  async function handleFiles(input: File[] | FileList | null | undefined) {
+    const files = input ? Array.from(input) : [];
+    if (files.length === 0) return;
     try {
-      const text = await file.text();
+      // v2 bundle: a folder / multi-select containing the four CSVs.
+      if (isBundleFilenames(files.map((f) => f.name))) {
+        const named = await Promise.all(
+          files.map(async (f) => ({ name: f.name, text: await f.text() })),
+        );
+        loadBundle(named);
+        const s = getState();
+        showToast(
+          "ok",
+          `DPM v2 bundle loaded — ${s?.daily?.length ?? 0} daily rows · ${s?.shocks?.length ?? 0} stress scenarios · run confidence ${s?.run_confidence ?? "?"}`,
+        );
+        return;
+      }
+      // A .zip — without a zip dependency we can only read uncompressed entries;
+      // guide the operator to the folder / multi-CSV path otherwise.
+      const zip = files.find((f) => /\.zip$/i.test(f.name));
+      if (zip) {
+        throw new Error(
+          "Zipped bundle can't be read in-browser without a new dependency — drop the venice-2027 folder, or select the four CSVs together.",
+        );
+      }
+      // v1 single-file payload (JSON / MD).
+      const text = await files[0].text();
       loadPayload(text);
       const s = getState();
       showToast(
@@ -55,7 +77,7 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
     } catch (err) {
       showToast(
         "err",
-        `Payload error: ${err instanceof Error ? err.message : String(err)}`,
+        `Load error: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -64,8 +86,8 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
     fileRef.current?.click();
   }
 
-  // Pitch-operator conveniences: Cmd/Ctrl+O opens the picker; dropping a
-  // .json/.md file anywhere on the dashboard window loads it (same code path).
+  // Pitch-operator conveniences: Cmd/Ctrl+O opens the picker; dropping a payload
+  // (single JSON/MD, the four CSVs, or the bundle FOLDER) anywhere loads it.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && (e.key === "o" || e.key === "O")) {
@@ -76,9 +98,42 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
     function onDragOver(e: DragEvent) {
       e.preventDefault();
     }
+    // Walk a dropped folder's entries (webkitGetAsEntry) to collect its files;
+    // fall back to the flat dataTransfer.files list for plain multi-file drops.
+    async function collectDropped(dt: DataTransfer | null): Promise<File[]> {
+      if (!dt) return [];
+      const items = dt.items;
+      const roots: FileSystemEntry[] = [];
+      if (items && items.length) {
+        for (let i = 0; i < items.length; i++) {
+          const entry = (items[i] as DataTransferItem & {
+            webkitGetAsEntry?: () => FileSystemEntry | null;
+          }).webkitGetAsEntry?.();
+          if (entry) roots.push(entry);
+        }
+      }
+      if (!roots.length) return Array.from(dt.files || []);
+      const out: File[] = [];
+      const walk = async (entry: FileSystemEntry): Promise<void> => {
+        if (entry.isFile) {
+          const file = await new Promise<File>((res, rej) =>
+            (entry as FileSystemFileEntry).file(res, rej),
+          );
+          out.push(file);
+        } else if (entry.isDirectory) {
+          const reader = (entry as FileSystemDirectoryEntry).createReader();
+          const batch = await new Promise<FileSystemEntry[]>((res) =>
+            reader.readEntries(res, () => res([])),
+          );
+          for (const e of batch) await walk(e);
+        }
+      };
+      for (const r of roots) await walk(r);
+      return out.length ? out : Array.from(dt.files || []);
+    }
     function onDrop(e: DragEvent) {
       e.preventDefault();
-      void handleFile(e.dataTransfer?.files?.[0]);
+      void collectDropped(e.dataTransfer).then((files) => handleFiles(files));
     }
     window.addEventListener("keydown", onKey);
     window.addEventListener("dragover", onDragOver);
@@ -88,6 +143,7 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
       window.removeEventListener("dragover", onDragOver);
       window.removeEventListener("drop", onDrop);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!state) return null;
@@ -167,10 +223,11 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
                 ref={fileRef}
                 type="file"
                 className="tb-file-input"
-                accept=".json,.md,application/json,text/markdown"
+                multiple
+                accept=".json,.md,.csv,.zip,application/json,text/markdown,text/csv,application/zip"
                 onChange={(e) => {
-                  void handleFile(e.target.files?.[0]);
-                  // Allow re-selecting the same file to fire onChange again.
+                  void handleFiles(e.target.files);
+                  // Allow re-selecting the same file(s) to fire onChange again.
                   e.target.value = "";
                 }}
               />
@@ -199,6 +256,32 @@ export function TopBar({ dark, onToggleDark }: TopBarProps) {
               </select>
             </div>
           </div>
+
+          {/* Stress-test selector — only when the bundle's shocks are loaded. */}
+          {state.shocks && state.shocks.length > 0 && (
+            <>
+              <div className="tb-divider" />
+              <div className="tb-field">
+                <div className="tb-label">Stress test</div>
+                <div className={"tb-select" + (state.active_shock ? " custom" : "")}>
+                  <select
+                    value={state.active_shock ?? "__baseline"}
+                    onChange={(e) =>
+                      setActiveShock(e.target.value === "__baseline" ? null : e.target.value)
+                    }
+                    aria-label="Apply a stress-test scenario"
+                  >
+                    <option value="__baseline">Baseline</option>
+                    {state.shocks.map((sh) => (
+                      <option key={sh.id} value={sh.id}>
+                        {sh.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="tb-divider" />
 

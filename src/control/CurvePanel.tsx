@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useStore } from "./useStore";
 import {
   feeAtPct,
@@ -5,15 +6,28 @@ import {
   managedDemandPct,
   liveDemandPct,
   targetCapacity,
+  capacityThreshold,
+  activeCPI,
+  activeShockObj,
+  activeAdjustedVisitors,
   setView,
   type State,
 } from "./state";
-import { fmtEur } from "./format";
+import { fmtEur, fmtNumber } from "./format";
 
 function leverV(state: State, id: string): number {
   const l = state.levers.find((x) => x.id === id);
   if (!l) throw new Error("missing lever " + id);
   return l.value;
+}
+
+/** Colour-coded CPI pill colour: green slack <0.8, neutral 0.8–1.0, ochre warn
+ *  1.0–1.5, penalty red ≥1.5. */
+function cpiColor(cpi: number): string {
+  if (cpi < 0.8) return "#3FB97A";
+  if (cpi < 1.0) return "#8a8475";
+  if (cpi < 1.5) return "#E3A93C";
+  return "#E0763C";
 }
 
 /* ─── Hero curve chart ───────────────────────────────────────────────────── */
@@ -71,14 +85,24 @@ function CurveChart() {
   const ax = xS(Math.min(xMax, Math.max(xMin, activeLive)));
   const ay = yS(activeFee);
 
+  // DPM v2 — Capacity Pressure Index for the active day + the threshold marker.
+  const cpiThreshold = capacityThreshold(state); // sustainable carrying capacity
+  const targetCap = targetCapacity(state);
+  const cpi = activeCPI(state); // null on v1 payloads (no threshold)
+  const adjVisitors = activeAdjustedVisitors(state);
+  const shock = activeShockObj(state);
+  // Threshold reference line, expressed as % of the policy target (Venice 104.2%).
+  const thPct =
+    cpiThreshold && targetCap ? (cpiThreshold / targetCap) * 100 : null;
+
   // Y gridline values (whole €).
   const yStep = cap >= 100 ? 20 : cap >= 40 ? 10 : 5;
   const yGrid: number[] = [];
   for (let v = 0; v <= yMax + yStep - 0.01; v += yStep) yGrid.push(v);
 
-  // Callout placement: flip left if it'd overflow.
-  const calloutW = 138;
-  const calloutH = 36;
+  // Callout placement: flip left if it'd overflow. Grows a line when CPI is shown.
+  const calloutW = 150;
+  const calloutH = cpi != null ? 52 : 36;
   const calloutLeft =
     ax > w - padR - calloutW - 14 ? ax - calloutW - 14 : ax + 14;
   const calloutTop = Math.max(padT + 24, ay - calloutH - 6);
@@ -289,6 +313,38 @@ function CurveChart() {
           </g>
         </g>
 
+        {/* DPM v2 — capacity-pressure threshold (CPI = 1.0) reference line. Sits
+            between TARGET (100%) and CEILING; the label drops below the top pills
+            so the three never collide. Hidden on v1 payloads (no threshold). */}
+        {thPct != null && (
+          <g>
+            <line
+              x1={xS(thPct)}
+              y1={padT + 30}
+              x2={xS(thPct)}
+              y2={yS(yMin)}
+              stroke="#8a8475"
+              strokeWidth="1"
+              strokeDasharray="2 4"
+              opacity="0.3"
+            />
+            <text
+              x={xS(thPct) + 4}
+              y={padT + 27}
+              textAnchor="start"
+              style={{
+                fill: "#8a8475",
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                opacity: 0.75,
+              }}
+            >
+              CPI 1.0
+            </text>
+          </g>
+        )}
+
         {/* Active day dot */}
         <g>
           <circle cx={ax} cy={ay} r="14" style={{ fill: "var(--ink)" }} opacity="0.06" />
@@ -298,6 +354,12 @@ function CurveChart() {
 
         {/* Active day callout */}
         <g transform={`translate(${calloutLeft}, ${calloutTop})`}>
+          {cpi != null && cpiThreshold != null && (
+            <title>
+              {`Capacity Pressure Index — ${fmtNumber(adjVisitors)} of ${fmtNumber(cpiThreshold)} sustainable/day. ${cpi.toFixed(2)}× threshold.` +
+                (shock ? ` Stress: ${shock.label}.` : "")}
+            </title>
+          )}
           <rect x="0" y="0" width={calloutW} height={calloutH} rx="8" style={{ fill: "var(--ink)" }} />
           <text
             x="10"
@@ -325,6 +387,25 @@ function CurveChart() {
           >
             Fee {fmtEur(activeFee)}
           </text>
+          {cpi != null && (
+            <g transform="translate(10, 44)">
+              <rect x="0" y="-9" width="62" height="14" rx="7" fill={cpiColor(cpi)} />
+              <text
+                x="31"
+                y="1.5"
+                textAnchor="middle"
+                style={{
+                  fill: "#1C1917",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                }}
+              >
+                CPI {cpi.toFixed(2)}
+              </text>
+            </g>
+          )}
         </g>
       </svg>
     </div>
@@ -537,10 +618,24 @@ function BucketStrip() {
 
 export function CurvePanel() {
   const state = useStore();
+  const [showAssumptions, setShowAssumptions] = useState(false);
+
+  // Esc closes the assumptions slide-out.
+  useEffect(() => {
+    if (!showAssumptions) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowAssumptions(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showAssumptions]);
+
   if (!state) return null;
   const view = state.view;
-  const activeDay =
-    activeDayType(state);
+  const activeDay = activeDayType(state);
+  const shock = activeShockObj(state);
+  const assumptions = state.assumptions;
+
   return (
     <section className="panel panel-pad curve-panel">
       <header className="panel-header">
@@ -555,6 +650,7 @@ export function CurvePanel() {
               ? `${Math.round(liveDemandPct(activeDay.demand_pct, state))}% of ${(targetCapacity(state) / 1000).toFixed(0)}k capacity · ${activeDay.date}`
               : `Summer-peak bell curve · dashed = forecast, solid = after pricing`}
           </div>
+          {state.provenance && <div className="curve-provenance">{state.provenance}</div>}
         </div>
         <div className="curve-legend">
           <div className="curve-view-toggle" role="tablist" aria-label="Curve view">
@@ -578,15 +674,36 @@ export function CurvePanel() {
               <i /> Fee
             </span>
           )}
-          <span className="confidence-pill">
-            <span className="dot" /> Model confidence {state.confidence}%
-          </span>
+          <div className="curve-conf">
+            <span className="confidence-pill">
+              <span className="dot" /> Model confidence {state.confidence}%
+            </span>
+            {state.run_confidence != null && (
+              <span className="run-confidence">Run confidence {state.run_confidence} / 100</span>
+            )}
+          </div>
+          {assumptions && assumptions.length > 0 && (
+            <button
+              className="assumptions-info"
+              onClick={() => setShowAssumptions(true)}
+              title="Where these numbers come from — open the assumptions register"
+              aria-label="Open the assumptions register"
+            >
+              ⓘ
+            </button>
+          )}
         </div>
       </header>
 
       {view === "cost" ? (
         <>
           <CurveChart />
+          {shock && (
+            <div className="stress-banner" role="status">
+              ⚠ Stress test active — {shock.label} · {shock.duration_days}d · CPI{" "}
+              {shock.cpi_during.toFixed(2)}
+            </div>
+          )}
           <BucketStrip />
         </>
       ) : (
@@ -599,6 +716,54 @@ export function CurvePanel() {
             raise the <strong>base fee</strong> or <strong>max-fee cap</strong> (or lower the
             <strong> ceiling</strong>) and the busy days get pulled down toward the target line.
           </p>
+        </>
+      )}
+
+      {/* Assumptions register — tucked-away slide-out (scrolls internally only) */}
+      {showAssumptions && assumptions && (
+        <>
+          <div className="assumptions-scrim" onClick={() => setShowAssumptions(false)} />
+          <aside className="assumptions-panel" role="dialog" aria-label="Assumptions register">
+            <header className="assumptions-head">
+              <div>
+                <div className="assumptions-title">Assumptions register</div>
+                <div className="assumptions-sub">
+                  {assumptions.length} parameters · source + confidence
+                  {state.run_confidence != null ? ` · run ${state.run_confidence}/100` : ""}
+                </div>
+              </div>
+              <button
+                className="assumptions-close"
+                onClick={() => setShowAssumptions(false)}
+                aria-label="Close assumptions"
+              >
+                ×
+              </button>
+            </header>
+            <div className="assumptions-scroll">
+              <table className="assumptions-table">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Value</th>
+                    <th>Source</th>
+                    <th>Conf.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assumptions.map((a, i) => (
+                    <tr key={i}>
+                      <td>{a.param}</td>
+                      <td>{a.value}</td>
+                      <td className="src">{a.source}</td>
+                      <td className="conf">{a.confidence}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {state.provenance && <div className="assumptions-foot">{state.provenance}</div>}
+          </aside>
         </>
       )}
     </section>

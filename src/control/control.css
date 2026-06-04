@@ -1552,3 +1552,181 @@
 .qctl-root .lever-input-box input::-webkit-outer-spin-button,
 .qctl-root .lever-input-box input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .qctl-root .lever-input-box span { font-size: 11px; color: var(--ink-mute); }
+
+/* ─── DPM v2 bundle UI ──────────────────────────────────────────────────── */
+
+/* Provenance note (which file supplied curve params vs daily data) */
+.qctl-root .curve-provenance {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  opacity: 0.85;
+}
+
+/* Confidence column: model confidence pill + secondary run-confidence */
+.qctl-root .curve-conf {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.qctl-root .run-confidence {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ⓘ assumptions affordance */
+.qctl-root .assumptions-info {
+  appearance: none;
+  border: 1px solid var(--hairline-strong);
+  background: transparent;
+  color: var(--ink-mute);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.qctl-root .assumptions-info:hover {
+  color: var(--ink);
+  border-color: var(--ochre);
+  background: rgba(227, 169, 60, 0.12);
+}
+
+/* Stress-test banner (earth-coloured, one line, below the curve) */
+.qctl-root .stress-banner {
+  margin: 6px 0 2px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #7a3f1c;
+  background: rgba(224, 118, 60, 0.14);
+  border: 1px solid rgba(224, 118, 60, 0.3);
+}
+.qctl-root.dark .stress-banner {
+  color: #f0a875;
+  background: rgba(224, 118, 60, 0.16);
+  border-color: rgba(224, 118, 60, 0.34);
+}
+
+/* Assumptions register slide-out */
+.qctl-root .assumptions-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 16, 12, 0.34);
+  z-index: 60;
+  animation: qctl-fade 0.18s ease;
+}
+.qctl-root .assumptions-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(560px, 92vw);
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  backdrop-filter: var(--glass-blur, none);
+  border-left: 1px solid var(--hairline-strong);
+  box-shadow: -24px 0 60px -28px rgba(0, 0, 0, 0.5);
+  animation: qctl-slide-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes qctl-slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes qctl-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.qctl-root .assumptions-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.qctl-root .assumptions-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.qctl-root .assumptions-sub {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.qctl-root .assumptions-close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-mute);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.qctl-root .assumptions-close:hover { color: var(--ink); }
+.qctl-root .assumptions-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 20px 16px;
+}
+.qctl-root .assumptions-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.qctl-root .assumptions-table th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: var(--panel);
+  padding: 8px 8px 6px;
+  border-bottom: 1px solid var(--hairline);
+}
+.qctl-root .assumptions-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink);
+  vertical-align: top;
+}
+.qctl-root .assumptions-table td.src {
+  color: var(--ink-mute);
+  font-size: 10.5px;
+}
+.qctl-root .assumptions-table td.conf {
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.qctl-root .assumptions-foot {
+  padding: 10px 20px;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
