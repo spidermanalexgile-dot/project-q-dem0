@@ -10,9 +10,13 @@ import {
   activeCPI,
   activeShockObj,
   activeAdjustedVisitors,
+  annualGrowthRate,
+  monthlyDemandProfile,
   setView,
+  setZoomSpan,
   type State,
 } from "./state";
+import { anchorDayOfYear } from "./dateutil";
 import { fmtEur, fmtNumber } from "./format";
 
 function leverV(state: State, id: string): number {
@@ -416,10 +420,6 @@ function CurveChart() {
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Fallback monthly profile if a payload predates the `monthly` field — a smooth
- *  Venice-style summer bell curve so the zoom-out always reads chronologically. */
-const FALLBACK_MONTHLY = [52, 78, 85, 112, 138, 168, 190, 200, 158, 118, 70, 66];
-
 function YearCurve() {
   const state = useStore();
   if (!state) return <div className="curve-stage" />;
@@ -436,47 +436,63 @@ function YearCurve() {
   const innerH = Math.max(1, h - padT - padB);
 
   const occTarget = state.occupancy_target ?? 100;
+  const span = state.zoomSpan === 5 ? 5 : 1;
+  const growth = annualGrowthRate(state);
+  const baseMonths = monthlyDemandProfile(state);
+  const baseYear =
+    state.daily && state.daily[0] ? Number(state.daily[0].date.slice(0, 4)) : 2026;
+  const n = span * 12;
 
-  // Chronological monthly profile (Jan → Dec). Each month's BASELINE demand is
-  // rebased to LIVE occupancy by the chosen target capacity, then the pricing
-  // curve deters/attracts it toward the target (managed).
-  const monthsRaw = (state.monthly && state.monthly.length === 12
-    ? state.monthly.map((m) => m.demand_pct)
-    : FALLBACK_MONTHLY);
-  const months = monthsRaw.map((baselinePct, i) => {
-    const live = liveDemandPct(baselinePct, state);
-    const managed = managedDemandPct(live, state);
-    return { name: MONTH_NAMES[i], live, managed, fee: feeAtPct(live, state) };
-  });
+  // span×12 chronological points; each successive year grows by the DPM rate,
+  // then pricing deters/attracts each month toward the occupancy target (managed).
+  const pts: { live: number; managed: number; fee: number; name: string; year: number; mi: number }[] = [];
+  for (let y = 0; y < span; y++) {
+    const g = Math.pow(1 + growth, y);
+    for (let mi = 0; mi < 12; mi++) {
+      const live = liveDemandPct(baseMonths[mi] * g, state);
+      pts.push({ live, managed: managedDemandPct(live, state), fee: feeAtPct(live, state), name: MONTH_NAMES[mi], year: y, mi });
+    }
+  }
 
-  const peak = Math.max(occTarget, ...months.map((m) => Math.max(m.live, m.managed)));
+  const peak = Math.max(occTarget, ...pts.map((p) => Math.max(p.live, p.managed)));
   const yMax = Math.ceil((peak * 1.12) / 20) * 20;
 
-  // x positions the 12 months evenly across the year (centre of each month).
-  const xAt = (i: number) => padL + ((i + 0.5) / 12) * innerW;
+  const xAt = (i: number) => padL + ((i + 0.5) / n) * innerW;
   const yS = (v: number) => padT + (1 - v / yMax) * innerH;
   const baseY = yS(0);
 
   const linePath = (key: "live" | "managed") =>
-    months.map((m, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + "," + yS(Math.min(yMax, m[key])).toFixed(1)).join(" ");
+    pts.map((p, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + "," + yS(Math.min(yMax, p[key])).toFixed(1)).join(" ");
   const rawPath = linePath("live");
   const manPath = linePath("managed");
   const areaPath =
-    manPath +
-    ` L ${xAt(11).toFixed(1)},${baseY.toFixed(1)} L ${xAt(0).toFixed(1)},${baseY.toFixed(1)} Z`;
+    manPath + ` L ${xAt(n - 1).toFixed(1)},${baseY.toFixed(1)} L ${xAt(0).toFixed(1)},${baseY.toFixed(1)} Z`;
 
-  // How close to target did pricing get us? Mean abs deviation, raw vs managed.
-  const rawSpread = months.reduce((a, m) => a + Math.abs(m.live - occTarget), 0) / 12;
-  const manSpread = months.reduce((a, m) => a + Math.abs(m.managed - occTarget), 0) / 12;
+  const rawSpread = pts.reduce((a, p) => a + Math.abs(p.live - occTarget), 0) / n;
+  const manSpread = pts.reduce((a, p) => a + Math.abs(p.managed - occTarget), 0) / n;
   const flattenPct = rawSpread > 0.5 ? Math.round((1 - manSpread / rawSpread) * 100) : 0;
 
   const yStep = yMax > 250 ? 50 : 25;
   const yGrid: number[] = [];
   for (let v = 0; v <= yMax + 0.01; v += yStep) yGrid.push(v);
 
+  const peakManaged = Math.max(...pts.map((p) => p.managed));
+  const peakI = pts.findIndex((p) => p.managed === peakManaged);
+
+  // ── Selected-day marker — WHERE along the timeline the modelled day sits ────
   const activeDay = activeDayType(state);
   const activeLive = liveDemandPct(activeDay.demand_pct, state);
-  const activeY = yS(Math.min(yMax, activeLive));
+  const doy = anchorDayOfYear(activeDay.date, baseYear); // 1..365, ignores year
+  let yearOff = 0;
+  if (state.customDate) {
+    const yr = Number(state.customDate.slice(0, 4));
+    if (!Number.isNaN(yr)) yearOff = Math.min(span - 1, Math.max(0, yr - baseYear));
+  }
+  const dayFrac = doy != null ? (doy - 0.5) / 365 : null;
+  const markerX = dayFrac != null ? padL + ((yearOff + dayFrac) / span) * innerW : null;
+  const markerDotY = yS(Math.min(yMax, activeLive));
+  const pillX = markerX != null ? Math.min(w - padR - 52, Math.max(padL + 52, markerX)) : 0;
+  const pillY = Math.max(padT + 12, markerDotY - 26);
 
   return (
     <div className="curve-stage">
@@ -509,24 +525,39 @@ function YearCurve() {
           </g>
         ))}
 
-        {/* X axis — MONTH labels (chronological Jan → Dec) */}
-        {months.map((m, i) => (
-          <g key={"mx-" + i}>
-            <line x1={xAt(i)} y1={baseY} x2={xAt(i)} y2={baseY + 4} stroke="currentColor" opacity="0.2" />
-            <text x={xAt(i)} y={baseY + 18} textAnchor="middle" className="curve-tick-label">
-              {m.name}
-            </text>
-          </g>
-        ))}
+        {/* X axis — month labels (1-yr) or year blocks with separators (5-yr) */}
+        {span === 1
+          ? pts.map((p, i) => (
+              <g key={"mx-" + i}>
+                <line x1={xAt(i)} y1={baseY} x2={xAt(i)} y2={baseY + 4} stroke="currentColor" opacity="0.2" />
+                <text x={xAt(i)} y={baseY + 18} textAnchor="middle" className="curve-tick-label">
+                  {p.name}
+                </text>
+              </g>
+            ))
+          : Array.from({ length: span }, (_, y) => (
+              <g key={"yr-" + y}>
+                {y > 0 && (
+                  <line x1={padL + (y / span) * innerW} y1={padT} x2={padL + (y / span) * innerW} y2={baseY} stroke="currentColor" opacity="0.12" />
+                )}
+                <text x={padL + ((y + 0.5) / span) * innerW} y={baseY + 18} textAnchor="middle" className="curve-tick-label">
+                  {baseYear + y}
+                </text>
+              </g>
+            ))}
 
-        {/* Occupancy-target reference line */}
-        <line x1={padL} y1={yS(occTarget)} x2={w - padR} y2={yS(occTarget)} stroke="#E3A93C" strokeWidth="1" strokeDasharray="3 4" opacity="0.75" />
-        <g transform={`translate(${w - padR - 82}, ${yS(occTarget) - 9})`}>
-          <rect x="0" y="0" width="80" height="18" rx="9" fill="#E3A93C" />
-          <text x="40" y="12" textAnchor="middle" style={{ fill: "#1C1917", fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em" }}>
-            TARGET {occTarget}%
-          </text>
-        </g>
+        {/* Occupancy-target reference line — hidden in the reset / no-pricing state */}
+        {!state.pricing_off && (
+          <g>
+            <line x1={padL} y1={yS(occTarget)} x2={w - padR} y2={yS(occTarget)} stroke="#E3A93C" strokeWidth="1" strokeDasharray="3 4" opacity="0.75" />
+            <g transform={`translate(${w - padR - 82}, ${yS(occTarget) - 9})`}>
+              <rect x="0" y="0" width="80" height="18" rx="9" fill="#E3A93C" />
+              <text x="40" y="12" textAnchor="middle" style={{ fill: "#1C1917", fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em" }}>
+                TARGET {occTarget}%
+              </text>
+            </g>
+          </g>
+        )}
 
         {/* Warm wash under the managed curve */}
         <path d={areaPath} fill="url(#year-fill)" />
@@ -537,36 +568,53 @@ function YearCurve() {
         {/* Managed curve (after pricing) — solid green hero line */}
         <path d={manPath} fill="none" stroke="#2FA866" strokeWidth="2.75" strokeLinejoin="round" strokeLinecap="round" />
 
-        {/* Month dots on the managed curve + a fee label on the peak month */}
-        {months.map((m, i) => {
-          const cy = yS(Math.min(yMax, m.managed));
-          const isPeak = m.managed === Math.max(...months.map((x) => x.managed));
-          return (
-            <g key={"md-" + i}>
-              {/* drop from forecast → managed where pricing deterred the crowd */}
-              {yS(Math.min(yMax, m.managed)) - yS(Math.min(yMax, m.live)) > 8 && (
-                <line x1={xAt(i)} y1={yS(Math.min(yMax, m.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity="0.45" />
-              )}
-              <circle cx={xAt(i)} cy={cy} r="2.8" fill="#2FA866" />
-              {isPeak && (
-                <text x={xAt(i)} y={cy - 9} textAnchor="middle" className="year-band-label" style={{ fontWeight: 600 }}>
-                  {m.name} · {Math.round(m.managed)}% · {fmtEur(m.fee)}
-                </text>
-              )}
-            </g>
-          );
-        })}
+        {/* Month dots on the managed curve (1-yr only; 60 dots is too dense at 5-yr) */}
+        {span === 1 &&
+          pts.map((p, i) => {
+            const cy = yS(Math.min(yMax, p.managed));
+            return (
+              <g key={"md-" + i}>
+                {cy - yS(Math.min(yMax, p.live)) > 8 && (
+                  <line x1={xAt(i)} y1={yS(Math.min(yMax, p.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity="0.45" />
+                )}
+                <circle cx={xAt(i)} cy={cy} r="2.8" fill="#2FA866" />
+              </g>
+            );
+          })}
 
-        {/* Active modelled-day reference */}
-        <line x1={padL} y1={activeY} x2={w - padR} y2={activeY} style={{ stroke: "var(--ink)" }} strokeWidth="1" strokeDasharray="2 4" opacity="0.45" />
-        <circle cx={padL} cy={activeY} r="3.5" style={{ fill: "var(--ink)" }} />
-        <text x={padL} y={h - 8} textAnchor="start" className="year-band-label" style={{ fill: "var(--ink-mute)", fontWeight: 600 }}>
-          Modelling: {activeDay.label} · {Math.round(activeLive)}%
-        </text>
+        {/* Peak label (busiest managed point across the horizon) */}
+        {peakI >= 0 && (
+          <text
+            x={Math.min(w - padR - 40, Math.max(padL + 40, xAt(peakI)))}
+            y={yS(Math.min(yMax, peakManaged)) - 9}
+            textAnchor="middle"
+            className="year-band-label"
+            style={{ fontWeight: 600 }}
+          >
+            {span === 5 ? `${baseYear + pts[peakI].year} · ` : `${pts[peakI].name} · `}
+            {Math.round(peakManaged)}% · {fmtEur(pts[peakI].fee)}
+          </text>
+        )}
+
+        {/* Selected-day marker — a bold vertical line + ringed dot + pill so it's
+            obvious WHERE along the timeline the day you're modelling sits. */}
+        {markerX != null && (
+          <g>
+            <line x1={markerX} y1={padT + 6} x2={markerX} y2={baseY} stroke="var(--ink)" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.6" />
+            <circle cx={markerX} cy={markerDotY} r="6.5" fill="none" stroke="var(--ink)" strokeWidth="1.6" />
+            <circle cx={markerX} cy={markerDotY} r="3.4" style={{ fill: "var(--ink)" }} />
+            <g transform={`translate(${pillX}, ${pillY})`}>
+              <rect x="-50" y="-13" width="100" height="18" rx="9" style={{ fill: "var(--ink)" }} />
+              <text x="0" y="0" textAnchor="middle" style={{ fill: "var(--ink-inverse)", fontFamily: "var(--font-mono)", fontSize: 9.5, fontWeight: 600, letterSpacing: "0.02em" }}>
+                {activeDay.date} · {Math.round(activeLive)}%
+              </text>
+            </g>
+          </g>
+        )}
 
         {/* X-axis caption */}
         <text x={w - padR} y={h - 8} textAnchor="end" style={{ fill: "var(--ink-soft)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase" }}>
-          Month of the year (summer peak)
+          {span === 5 ? `5-year horizon · ${Math.round(growth * 100)}% annual growth` : "Month of the year (summer peak)"}
         </text>
       </svg>
     </div>
@@ -645,7 +693,9 @@ export function CurvePanel() {
           <div className="panel-title">
             {view === "cost"
               ? "Consumer cost curve"
-              : `Steering the year toward ${state.occupancy_target ?? 100}% capacity`}
+              : state.pricing_off
+                ? "Forecasted crowd · no pricing intervention"
+                : `Steering the year toward ${state.occupancy_target ?? 100}% capacity`}
           </div>
           {view === "cost" && (
             <div className="panel-sub" style={{ marginTop: 4 }}>
@@ -655,7 +705,7 @@ export function CurvePanel() {
           {state.provenance && <div className="curve-provenance">{state.provenance}</div>}
         </div>
 
-        {/* View toggle — centred between the two graph modes. */}
+        {/* View toggle — centred between the graph modes (cost / 1-yr / 5-yr). */}
         <div className="curve-view-toggle" role="tablist" aria-label="Curve view">
           <button
             className={view === "cost" ? "on" : ""}
@@ -665,11 +715,18 @@ export function CurvePanel() {
             Cost curve
           </button>
           <button
-            className={view === "year" ? "on" : ""}
-            onClick={() => setView("year")}
-            aria-pressed={view === "year"}
+            className={view === "year" && (state.zoomSpan ?? 1) !== 5 ? "on" : ""}
+            onClick={() => setZoomSpan(1)}
+            aria-pressed={view === "year" && (state.zoomSpan ?? 1) !== 5}
           >
-            Zoom out · year
+            1-year
+          </button>
+          <button
+            className={view === "year" && state.zoomSpan === 5 ? "on" : ""}
+            onClick={() => setZoomSpan(5)}
+            aria-pressed={view === "year" && state.zoomSpan === 5}
+          >
+            5-year
           </button>
         </div>
 

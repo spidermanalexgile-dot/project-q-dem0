@@ -116,6 +116,7 @@ export type BundleData = {
   threshold: number;
   run_confidence?: number;
   eur_usd_rate?: number;
+  growth_rate?: number;
 };
 
 type NamedFile = { name: string; text: string };
@@ -249,6 +250,8 @@ export function parseBundle(files: NamedFile[]): BundleData {
   const threshold = firstNum(assumptionValue(assumptions, /sustainable_capacity_threshold/i));
   const run_confidence = firstNum(assumptionValue(assumptions, /overall_run_confidence/i));
   const eur_usd_rate = firstNum(assumptionValue(assumptions, /eur_usd_rate/i));
+  // "Applied_Growth_Rate" e.g. "2.0% per year" → 0.02.
+  const growthPct = firstNum(assumptionValue(assumptions, /applied_growth_rate/i));
 
   /* validation */
   if (daily.length < 355 || daily.length > 375) {
@@ -283,5 +286,6 @@ export function parseBundle(files: NamedFile[]): BundleData {
     threshold,
     run_confidence: Number.isFinite(run_confidence) ? run_confidence : undefined,
     eur_usd_rate: Number.isFinite(eur_usd_rate) ? eur_usd_rate : undefined,
+    growth_rate: Number.isFinite(growthPct) && growthPct > 0 ? growthPct / 100 : undefined,
   };
 }

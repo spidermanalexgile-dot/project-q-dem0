@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setLever, setTargetCapacity, targetCapacity, type LeverId } from "./state";
+import { setLever, setTargetCapacity, targetCapacity, resetLevers, type LeverId } from "./state";
 import { fmtCompactNum, fmtNumber } from "./format";
 
 /** Target capacity is an operator INPUT (visitors/day), shown at the top of the
@@ -151,6 +151,14 @@ export function LeversPanel() {
             Move any one · resolves &lt;1s
           </div>
         </div>
+        <button
+          type="button"
+          className="lever-reset"
+          onClick={() => resetLevers()}
+          title="Reset levers to defaults and show the un-managed forecast crowd on the zoom-out"
+        >
+          Reset
+        </button>
       </header>
       <div className="levers-list">
         <TargetCapacityRow />

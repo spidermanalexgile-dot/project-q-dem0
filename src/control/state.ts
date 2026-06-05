@@ -28,6 +28,8 @@ export type Lever = {
   max: number;
   step?: number;
   value: number;
+  /** Value at load time — restored by resetLevers(). */
+  def?: number;
 };
 
 export type DayType = {
@@ -125,6 +127,9 @@ export type State = {
   run_confidence?: number; // overall run confidence (e.g. 58); display honestly
   active_shock?: string | null; // applied shock id, null/undefined = baseline
   eur_usd_rate?: number; // from Assumptions; for USD→EUR shock impact conversion
+  growth_rate?: number; // annual demand growth (e.g. 0.02); for the 5-year zoom-out
+  zoomSpan?: 1 | 5; // years shown in the zoom-out view
+  pricing_off?: boolean; // reset state — no deterrence, managed = raw forecast
   provenance?: string; // "Curve params: … · Daily data: …" merge note
 
   activeDay: string;
@@ -283,6 +288,8 @@ export function occupancyTarget(snap: State = requireState()): number {
 }
 
 export function managedDemandPct(raw_pct: number, snap: State = requireState()): number {
+  // Reset / "no pricing" state: the managed crowd IS the raw forecast crowd.
+  if (snap.pricing_off) return raw_pct;
   const fee = feeAtPct(raw_pct, snap);
   const target = occupancyTarget(snap);
   // Pricing works in BOTH directions, always steering toward the target:
@@ -349,6 +356,23 @@ export function annualRevenue(snap: State = requireState()): number {
 /** USD→EUR rate from the bundle's Assumptions; 1.0 when absent. */
 export function eurUsdRate(snap: State = requireState()): number {
   return snap.eur_usd_rate && snap.eur_usd_rate > 0 ? snap.eur_usd_rate : 1.0;
+}
+
+/** Smooth Venice-style summer bell curve — fallback when a payload predates the
+ *  `monthly` field, so the zoom-out always reads chronologically. */
+export const FALLBACK_MONTHLY = [52, 78, 85, 112, 138, 168, 190, 200, 158, 118, 70, 66];
+
+/** The 12-month baseline demand profile (demand_pct, Jan→Dec). */
+export function monthlyDemandProfile(snap: State = requireState()): number[] {
+  return snap.monthly && snap.monthly.length === 12
+    ? snap.monthly.map((m) => m.demand_pct)
+    : FALLBACK_MONTHLY;
+}
+
+/** Annual demand growth rate (e.g. 0.02 = 2%/yr) from the bundle's Assumptions;
+ *  defaults to 2% so the 5-year zoom-out always has a sensible slope. */
+export function annualGrowthRate(snap: State = requireState()): number {
+  return snap.growth_rate && snap.growth_rate > 0 ? snap.growth_rate : 0.02;
 }
 
 /** Sustainable carrying-capacity threshold (CPI denominator), or undefined for
@@ -560,6 +584,10 @@ function normalizePayloadToState(parsed: Payload): State {
   if (next.shoulder_rebate) next.shoulder_rebate.enabled = false;
   if (!next.phase) next.phase = { year: 1, real_pay_cap: 20 };
   next.active_shock = null;
+  next.pricing_off = false;
+  if (next.zoomSpan !== 5) next.zoomSpan = 1;
+  // Capture each lever's load-time value as its reset default.
+  for (const l of next.levers) if (typeof l.def !== "number") l.def = l.value;
   // Initialise delta-tracking fields against the new state.
   next.__lastDayRev = 0;
   next.__lastAnnualRev = 0;
@@ -624,6 +652,7 @@ export function loadBundle(files: { name: string; text: string }[]): void {
   base.assumptions = data.assumptions;
   base.run_confidence = data.run_confidence;
   base.eur_usd_rate = data.eur_usd_rate;
+  base.growth_rate = data.growth_rate;
   base.active_shock = null;
   const year = data.daily[0]?.date?.slice(0, 4) ?? "2027";
   base.provenance = `Curve params: ${curveSource} · Daily data: venice-${year} bundle`;
@@ -656,6 +685,7 @@ export function setLever(id: LeverId | string, value: number): void {
   if (l.value === v) return;
   bumpDeltas();
   l.value = v;
+  s.pricing_off = false; // moving a lever re-engages pricing
   commitDeltas();
   notify();
 }
@@ -668,6 +698,7 @@ export function setTargetCapacity(people: number): void {
   if (s.capacity.target === v) return;
   bumpDeltas();
   s.capacity.target = v;
+  s.pricing_off = false;
   commitDeltas();
   notify();
 }
@@ -731,6 +762,32 @@ export function setView(view: "cost" | "year"): void {
   notify();
 }
 
+/** Zoom-out span in years (1 or 5). Switches to the year view. */
+export function setZoomSpan(years: number): void {
+  const s = requireState();
+  const span: 1 | 5 = years >= 5 ? 5 : 1;
+  if (s.view === "year" && s.zoomSpan === span) return;
+  s.view = "year";
+  s.zoomSpan = span;
+  notify();
+}
+
+/**
+ * Reset the lever settings to their loaded defaults, and lift the occupancy
+ * target above the busiest projected day (incl. 5-year growth) so the managed
+ * (green) line tracks the raw forecast crowd — i.e. "what happens with no pricing
+ * intervention". The inverse of suggestSustainableLevers().
+ */
+export function resetLevers(): void {
+  const s = requireState();
+  bumpDeltas();
+  for (const l of s.levers) if (typeof l.def === "number") l.value = l.def;
+  s.occupancy_target = 100;
+  s.pricing_off = true; // managed line tracks the raw forecast until a lever moves
+  commitDeltas();
+  notify();
+}
+
 /**
  * Set the desired occupancy (% of capacity) the authority wants to hold today,
  * and AUTO-TUNE the fee levers so the busiest forecast day is deterred down to
@@ -747,6 +804,7 @@ export function setOccupancyTarget(pct: number | null): void {
   const next = pct == null ? 100 : Math.max(0, Math.min(300, Math.round(pct)));
   bumpDeltas();
   s.occupancy_target = next;
+  s.pricing_off = false; // steering to a target re-engages pricing
 
   // Auto-tune: find the fee the busiest day needs so it settles AT the target.
   const peakRaw = Math.max(100, ...s.seasonal.map((b) => b.demand_pct), activeDayType(s).demand_pct);
@@ -877,6 +935,11 @@ export type ProjectQApi = {
   /** Auto-tune the levers to hold managed demand at the sustainable threshold
    *  (CPI 1.0). Returns the sustainable % it steered to. */
   suggestSustainableLevers: () => number;
+  /** Reset levers to defaults + lift the target so the managed (green) zoom-out
+   *  line tracks the raw forecast crowd (no pricing intervention). */
+  resetLevers: () => void;
+  /** Set the zoom-out span in years (1 or 5); switches to the year view. */
+  setZoomSpan: (years: number) => void;
   /** Parse + apply a natural-language voice/text command; returns the spoken
    *  confirmation string (theme changes are UI-side and a no-op here). */
   voiceCommand: (transcript: string) => string;
@@ -931,6 +994,8 @@ export function installGlobalApi(): void {
     activeAdjustedVisitors: () => activeAdjustedVisitors(),
     activeManagedVisitors: () => activeManagedVisitors(),
     suggestSustainableLevers: () => suggestSustainableLevers(),
+    resetLevers: () => resetLevers(),
+    setZoomSpan: (years: number) => setZoomSpan(years),
     voiceCommand: (transcript: string) =>
       executeVoiceCommand(transcript, { getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget }),
     askAnalyst: (question: string) => {

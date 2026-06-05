@@ -1930,3 +1930,25 @@
   height: 100%;
   cursor: pointer;
 }
+
+/* ─── Reset-levers button (Levers panel header) ─────────────────────────── */
+.qctl-root .lever-reset {
+  appearance: none;
+  border: 1px solid var(--hairline-strong);
+  background: transparent;
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.qctl-root .lever-reset:hover {
+  color: var(--ink);
+  border-color: var(--ink-mute);
+  background: rgba(128, 128, 128, 0.1);
+}
