@@ -153,8 +153,9 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
       headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },
       body: JSON.stringify({
         text,
-        model_id: "eleven_turbo_v2",
-        voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.2, use_speaker_boost: true },
+        // Newer low-latency model — noticeably more natural than turbo_v2.
+        model_id: "eleven_turbo_v2_5",
+        voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.32, use_speaker_boost: true },
       }),
     },
   );

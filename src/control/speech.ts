@@ -204,8 +204,8 @@ async function speakEleven(text: string, cfg: ElevenCfg, onDone?: () => void): P
         headers: { "xi-api-key": cfg.key, "Content-Type": "application/json", Accept: "audio/mpeg" },
         body: JSON.stringify({
           text,
-          model_id: "eleven_turbo_v2",
-          voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.2, use_speaker_boost: true },
+          model_id: "eleven_turbo_v2_5",
+          voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.32, use_speaker_boost: true },
         }),
       },
     );
@@ -217,10 +217,13 @@ async function speakEleven(text: string, cfg: ElevenCfg, onDone?: () => void): P
 }
 
 const PREFERRED_VOICES = [
+  // Highest-quality system voices first (macOS "Premium"/"Enhanced", MS "Natural").
+  "ava (premium)", "zoe (premium)", "serena (premium)", "nora (premium)",
+  "samantha (enhanced)", "allison (enhanced)", "susan (enhanced)",
+  "ava natural", "aria natural", "jenny natural", "michelle natural",
+  "ana natural", "sonia natural", "libby natural", "emma natural",
   "samantha", "siri", "ava", "allison", "susan", "zoe", "nicky", "joelle",
-  "aria natural", "jenny natural", "michelle natural", "ana natural",
-  "sonia natural", "libby natural", "aria", "jenny", "michelle",
-  "google uk english female", "google us english",
+  "aria", "jenny", "michelle", "google uk english female", "google us english",
   "serena", "kate", "stephanie", "fiona", "tessa", "karen", "moira", "victoria",
 ];
 const HARSH_VOICES =

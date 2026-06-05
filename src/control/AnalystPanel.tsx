@@ -36,6 +36,23 @@ function spokenSummary(text: string): string {
 const QUESTION_RE =
   /\b(why|how|explain|suggest|recommend|propose|what|which|cheapest|best|should|tell me|break ?down)\b/;
 
+/**
+ * Wake phrase. The assistant is ALWAYS listening but only acts when addressed as
+ * "Hey Q, …". Speech recognisers transcribe the "Q" many ways (queue, cue, kew…),
+ * so we accept the common mishears; "you" is deliberately excluded to avoid
+ * firing on everyday "hey you" / "hi you" speech.
+ */
+const WAKE_RE =
+  /\b(?:hey|hi|hello|ok|okay)[\s,]+(?:q|queue|cue|kew|kyu|cute|qew|kue|quu|qu)\b[\s,.:!?-]*/i;
+
+/** If `transcript` is addressed to Q, return the command after the wake phrase
+ *  ("" when it's just "Hey Q"). Returns null when not addressed to Q. */
+function afterWake(transcript: string): string | null {
+  const m = WAKE_RE.exec(transcript);
+  if (!m) return null;
+  return transcript.slice(m.index + m[0].length).trim();
+}
+
 /* ─── Web Speech API typing ─────────────────────────────────────────────── */
 type SpeechRecognitionLike = {
   lang: string;
@@ -116,6 +133,18 @@ export function AssistantPanel({ onSetDark, inline }: AssistantProps) {
     };
   }, []);
 
+  // Always-on: begin listening as soon as the assistant mounts. The very first
+  // load may need one mic-permission grant (browser policy); once granted it
+  // stays live and auto-restarts. Tap the orb to mute.
+  useEffect(() => {
+    if (!recSupported) return;
+    const t = setTimeout(() => {
+      if (!wantListening.current) start();
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function flashSaid(text: string) {
     setSaid(text);
     if (fadeTimer.current) clearTimeout(fadeTimer.current);
@@ -150,48 +179,61 @@ export function AssistantPanel({ onSetDark, inline }: AssistantProps) {
 
   async function handleTranscript(transcript: string) {
     if (suspended.current || processing.current) return;
-    const h = transcript.toLowerCase().trim();
-    // Ignore one- or two-character noise; the brain shouldn't react to coughs.
-    if (h.split(/\s+/).filter(Boolean).length < 2) return;
+
+    // Always-on, but only respond when addressed with the wake phrase "Hey Q, …".
+    // Everything else (background talk, the pitch itself) is ignored — and never
+    // sent to the brain, so there's no spurious cost on un-addressed speech.
+    const command = afterWake(transcript);
+    if (command == null) return;
+
+    const h = command.toLowerCase().trim();
     const now = performance.now();
-    if (h === lastHandled.current.text && now - lastHandled.current.at < 2500) return;
+    if (h && h === lastHandled.current.text && now - lastHandled.current.at < 2500) return;
     lastHandled.current = { text: h, at: now };
 
     const snap = getState();
     if (!snap) return;
+    setHeard(transcript);
+
+    // "Hey Q" with nothing after it → a quick acknowledgement.
+    if (!h) {
+      respond("Yes?");
+      return;
+    }
 
     processing.current = true;
     try {
       // 1) The Claude brain — understands free-form requests, calls the
       //    deterministic tools (which do all the math + apply changes), phrases
       //    the reply. Returns null when the proxy isn't configured / is offline.
-      const brain = await agentAsk(transcript, { setDark: onSetDark });
+      const brain = await agentAsk(command, { setDark: onSetDark });
       if (brain) {
-        setHeard(transcript);
         respond(brain.answer);
         return;
       }
 
       // 2) Deterministic fallback (no API key / offline): keyword command, else
-      //    the rule-based analyst. Auto-apply a suggested change. Silent on noise.
+      //    the rule-based analyst. Auto-apply a suggested change.
       if (!QUESTION_RE.test(h)) {
-        const cmd = tryVoiceCommand(transcript, {
+        const cmd = tryVoiceCommand(command, {
           getState, setLever, setDemand, setDayType, setDate, setView, setOccupancyTarget, setDark: onSetDark,
         });
         if (cmd.recognized) {
-          setHeard(transcript);
           respond(cmd.reply);
           return;
         }
       }
-      const res = ask(transcript, snap);
-      if (res.answer === "Sorry, I didn't catch a command I recognize.") return; // noise
-      setHeard(transcript);
+      const res = ask(command, snap);
+      // The user explicitly addressed Q, so always reply (even if unrecognised).
+      respond(
+        res.answer === "Sorry, I didn't catch a command I recognize."
+          ? "Sorry, I didn't catch that — try again?"
+          : res.answer,
+      );
       if (res.action) {
         if ("setLever" in res.action) setLever(res.action.setLever.id, res.action.setLever.value);
         else for (const r of res.action.setLevers) setLever(r.id, r.value);
       }
-      respond(res.answer);
     } finally {
       processing.current = false;
     }
@@ -211,9 +253,10 @@ export function AssistantPanel({ onSetDark, inline }: AssistantProps) {
     };
     rec.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        // Silent — the orb just shows "off"; the operator taps it to grant the
+        // mic (avoids announcing a block on every auto-start before permission).
         wantListening.current = false;
         setListening(false);
-        respond("Microphone access was blocked.");
       }
     };
     rec.onend = () => {
@@ -274,11 +317,11 @@ export function AssistantPanel({ onSetDark, inline }: AssistantProps) {
         onClick={toggle}
         aria-pressed={listening}
         title={
-          (listening ? "Tap to stop the assistant" : "Tap to talk to the assistant") +
+          (listening ? 'Listening for "Hey Q…" — tap to mute' : "Tap to enable always-on voice") +
           "  ·  ⌘/Ctrl+J" +
           (premium ? "  ·  premium voice" : "")
         }
-        aria-label={listening ? "Stop the voice assistant" : "Start the voice assistant"}
+        aria-label={listening ? "Mute the voice assistant" : "Enable the voice assistant"}
       >
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <rect x="7.2" y="2.2" width="5.6" height="10" rx="2.8" fill="none" stroke="currentColor" strokeWidth="1.5" />
