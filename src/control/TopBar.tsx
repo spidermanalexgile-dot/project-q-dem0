@@ -272,7 +272,6 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
 
           {/* AI assistant mic — relocated here, next to the date. */}
           <div className="tb-field tb-field-mic">
-            <div className="tb-label">Ask Q</div>
             <AssistantPanel inline onSetDark={onSetDark} />
           </div>
 
@@ -330,7 +329,6 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
         </div>
 
         <div className="tb-field tb-field-right">
-          <div className="tb-label">Load · theme</div>
           <div className="tb-right-actions">
           <button
             type="button"

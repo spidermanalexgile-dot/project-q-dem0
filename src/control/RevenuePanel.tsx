@@ -42,15 +42,6 @@ export function RevenuePanel() {
 
   return (
     <section className="panel panel-pad revenue-panel">
-      <header className="panel-header">
-        <div>
-          <div className="panel-title">Revenue forecast</div>
-          <div className="panel-sub" style={{ marginTop: 4 }}>
-            Recomputes instantly
-          </div>
-        </div>
-      </header>
-
       <div className="sustain-fee">
         <div className="sustain-fee-label">Sustainability fee if booked today</div>
         <div className="sustain-fee-figure">{fmtEur(todayFee)}</div>

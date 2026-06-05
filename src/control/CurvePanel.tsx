@@ -647,11 +647,11 @@ export function CurvePanel() {
               ? "Consumer cost curve"
               : `Steering the year toward ${state.occupancy_target ?? 100}% capacity`}
           </div>
-          <div className="panel-sub" style={{ marginTop: 4 }}>
-            {view === "cost"
-              ? `${Math.round(liveDemandPct(activeDay.demand_pct, state))}% of ${(targetCapacity(state) / 1000).toFixed(0)}k capacity · ${activeDay.date}`
-              : `Summer-peak bell curve · dashed = forecast, solid = after pricing`}
-          </div>
+          {view === "cost" && (
+            <div className="panel-sub" style={{ marginTop: 4 }}>
+              {`${Math.round(liveDemandPct(activeDay.demand_pct, state))}% of ${(targetCapacity(state) / 1000).toFixed(0)}k capacity · ${activeDay.date}`}
+            </div>
+          )}
           {state.provenance && <div className="curve-provenance">{state.provenance}</div>}
         </div>
 
