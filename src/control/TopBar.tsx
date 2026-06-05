@@ -285,7 +285,8 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
               <div className="tb-projected-meta">
                 {threshold != null && (
                   <span className="tb-projected-sub">
-                    after pricing {fmtNumber(managed)} · sustainable {fmtNumber(threshold)}/day
+                    {!state.pricing_off && `after pricing ${fmtNumber(managed)} · `}
+                    sustainable {fmtNumber(threshold)}/day
                     {cpi != null ? ` · CPI ${cpi.toFixed(2)}` : ""}
                   </span>
                 )}

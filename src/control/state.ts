@@ -711,6 +711,7 @@ export function setDayType(id: string): void {
   s.activeDay = id;
   s.customDemand = null;
   s.customDate = null;
+  resetToNow(s); // each new day shows the un-managed forecast — the "now" of Q vs now
   commitDeltas();
   notify();
 }
@@ -724,6 +725,7 @@ export function setDemand(pct: number | null): void {
   bumpDeltas();
   s.customDemand = next;
   s.customDate = null;
+  resetToNow(s);
   commitDeltas();
   notify();
 }
@@ -740,6 +742,7 @@ export function setDate(iso: string | null): void {
     bumpDeltas();
     s.customDate = null;
     s.customDemand = null;
+    resetToNow(s);
     commitDeltas();
     notify();
     return;
@@ -750,6 +753,7 @@ export function setDate(iso: string | null): void {
   bumpDeltas();
   s.customDate = iso;
   s.customDemand = demand;
+  resetToNow(s); // every newly-picked day starts un-managed — see the disparity
   commitDeltas();
   notify();
 }
@@ -772,18 +776,25 @@ export function setZoomSpan(years: number): void {
   notify();
 }
 
+/** Mutate `s` into the un-managed "now" state: levers at their loaded defaults,
+ *  no pricing intervention (managed = raw forecast). Shared by resetLevers() and
+ *  the day-selection commands (so each new day shows the real, un-optimised crowd
+ *  before "Let Q fix this" reveals Q's managed result — the disparity). */
+function resetToNow(s: State): void {
+  for (const l of s.levers) if (typeof l.def === "number") l.value = l.def;
+  s.occupancy_target = 100;
+  s.pricing_off = true;
+}
+
 /**
- * Reset the lever settings to their loaded defaults, and lift the occupancy
- * target above the busiest projected day (incl. 5-year growth) so the managed
- * (green) line tracks the raw forecast crowd — i.e. "what happens with no pricing
- * intervention". The inverse of suggestSustainableLevers().
+ * Reset the lever settings to their loaded defaults so the managed (green) line
+ * tracks the raw forecast crowd — i.e. "what happens with no pricing intervention".
+ * The inverse of suggestSustainableLevers(). Pricing re-engages on any lever move.
  */
 export function resetLevers(): void {
   const s = requireState();
   bumpDeltas();
-  for (const l of s.levers) if (typeof l.def === "number") l.value = l.def;
-  s.occupancy_target = 100;
-  s.pricing_off = true; // managed line tracks the raw forecast until a lever moves
+  resetToNow(s);
   commitDeltas();
   notify();
 }
