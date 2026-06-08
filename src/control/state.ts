@@ -49,7 +49,9 @@ export type CurveSpec = {
   base_fee_at_target: number;
   max_fee_cap: number;
   ceiling_pct: number;
-  shape: { plateau_end_pct: number; exponent: number };
+  // credit_depth = how far below base_fee the curve dips at 0% (the winter credit
+  // floor). Bigger = deeper off-season discounts → stronger trough attraction.
+  shape: { plateau_end_pct: number; exponent: number; credit_depth?: number };
 };
 
 export type SeasonalBin = { days: number; demand_pct: number };
@@ -237,7 +239,8 @@ export function feeAtPct(pct: number, snap: State = requireState()): number {
     // The ramp is CONVEX (accelerating) so it steepens as it approaches the
     // target, anticipating the over-target spike — the gap from the low end to
     // base is less abrupt and the curve flows smoothly into the congestion ramp.
-    const floor = Math.min(base, base - 12); // e.g. base €10 → floor −€2 at 0%
+    const creditDepth = snap.curve.shape.credit_depth ?? 12; // off-season discount depth
+    const floor = base - creditDepth; // e.g. base €10, depth 12 → −€2 at 0%
     if (plateauEnd <= 0) return base;
     const t = Math.max(0, pct) / plateauEnd; // 0 at empty, 1 at target
     const tp = Math.pow(t, 1.8); // convex: gentle early, steeper near 100%
@@ -290,16 +293,18 @@ export function occupancyTarget(snap: State = requireState()): number {
 export function managedDemandPct(raw_pct: number, snap: State = requireState()): number {
   // Reset / "no pricing" state: the managed crowd IS the raw forecast crowd.
   if (snap.pricing_off) return raw_pct;
-  const fee = feeAtPct(raw_pct, snap);
   const target = occupancyTarget(snap);
-  // Pricing works in BOTH directions, always steering toward the target:
-  //  • Busy days (raw ≥ target): a positive fee DETERS crowds down toward target;
-  //    the bigger the fee, the more it compresses. (A credit here is irrelevant.)
-  //  • Quiet days (raw < target): a NEGATIVE base fee — a credit/discount —
-  //    ATTRACTS visitors up toward target to fill the low season; a zero/positive
-  //    fee leaves the quiet day where it is (we never deter an already-quiet day).
-  const effort = raw_pct >= target ? Math.max(0, fee) : Math.max(0, -fee);
-  const compression = Math.exp(-effort / DEMAND_REF_EUR); // 1 at €0 → →0 as |fee| climbs
+  // The price SIGNAL is the fee RELATIVE to a normal (target) day — a premium on
+  // busy days, a discount on quiet days. Anchoring at the target's own fee makes
+  // the steering correct whatever the absolute fee level (so a deeply negative
+  // off-season curve still deters the over-target days):
+  //  • Busy days (raw ≥ target): the premium they pay above the target-day fee
+  //    DETERS them down toward target.
+  //  • Quiet days (raw < target): the discount they get below the target-day fee
+  //    ATTRACTS them up toward target — filling the troughs, not just the peaks.
+  const delta = feeAtPct(raw_pct, snap) - feeAtPct(target, snap);
+  const effort = raw_pct >= target ? Math.max(0, delta) : Math.max(0, -delta);
+  const compression = Math.exp(-effort / DEMAND_REF_EUR); // 1 at €0 → →0 as |Δfee| climbs
   return target + (raw_pct - target) * compression;
 }
 
@@ -408,20 +413,51 @@ export function activeManagedVisitors(snap: State = requireState()): number {
   return (managedDemandPct(live, snap) / 100) * targetCapacity(snap);
 }
 
+/** Flatten target for "Let Q fix this" — the level the whole year is steered to. */
+export const FLATTEN_TARGET_PCT = 90;
+
 /**
- * "Suggest levers" — auto-tune the pricing levers so the busiest forecast day's
- * MANAGED demand is held at the sustainable capacity threshold (CPI ≤ 1.0). We
- * express the threshold as a % of the policy target and reuse the deterministic
- * occupancy auto-tuner, which raises the max-fee cap / tightens the ceiling until
- * the peak settles there. Falls back to 100% when no threshold is loaded (v1).
+ * "Let Q fix this" — auto-tune ONE global pricing curve that flattens the WHOLE
+ * year toward ~90% of capacity, BOTH ways:
+ *   • peaks DOWN  — a high max-fee cap so summer days carry a steep premium;
+ *   • troughs UP  — a negative base fee + deep credit floor so winter days get a
+ *     real discount (paid to come) that pulls the off-season up.
+ * These are global settings; each day then reads its own fee off the curve
+ * (negative in January, very high in July/August) — no per-day fiddling. The
+ * managed demand responds to the fee RELATIVE to a normal day, so it settles the
+ * whole year near the flatten target. Deterministic.
  */
 export function suggestSustainableLevers(): number {
   const s = requireState();
-  const threshold = capacityThreshold(s);
-  const target = targetCapacity(s);
-  const pct = threshold && target ? Math.round((threshold / target) * 100) : 100;
-  setOccupancyTarget(pct);
-  return pct;
+  s.pricing_off = false;
+  const T = FLATTEN_TARGET_PCT;
+  s.occupancy_target = T;
+
+  const months = monthlyDemandProfile(s).map((p) => liveDemandPct(p, s));
+  const peakRaw = Math.max(T + 1, ...months);
+
+  const base = s.levers.find((l) => l.id === "base_fee");
+  const cap = s.levers.find((l) => l.id === "max_fee_cap");
+  const ceiling = s.levers.find((l) => l.id === "ceiling_pct");
+  const clampStep = (l: Lever, v: number) =>
+    Math.max(l.min, Math.min(l.max, Math.round(v / (l.step || 1)) * (l.step || 1)));
+
+  // Deep off-season discount: negative base fee + a deep credit floor so winter
+  // days are genuinely paid to come (attracting the troughs upward).
+  if (base) base.value = clampStep(base, -12);
+  s.curve.shape.credit_depth = 45;
+
+  // Tighten the ceiling so mid-season days (not just the absolute peak) reach a
+  // strong fee — steeper effective curve = the shoulders flatten too.
+  if (ceiling) ceiling.value = clampStep(ceiling, Math.max(ceiling.min, Math.min(peakRaw, 130)));
+
+  // Summer premium: cap high enough to deter the peak down to ~T.
+  if (cap) {
+    const gapFrac = Math.max(0.02, 3 / Math.max(1, peakRaw - T));
+    const feeStar = -DEMAND_REF_EUR * Math.log(gapFrac);
+    cap.value = clampStep(cap, Math.max(feeStar, (base?.value ?? 0) + (cap.step || 1)));
+  }
+  return T;
 }
 
 /**
@@ -711,7 +747,6 @@ export function setDayType(id: string): void {
   s.activeDay = id;
   s.customDemand = null;
   s.customDate = null;
-  resetToNow(s); // each new day shows the un-managed forecast — the "now" of Q vs now
   commitDeltas();
   notify();
 }
@@ -725,15 +760,34 @@ export function setDemand(pct: number | null): void {
   bumpDeltas();
   s.customDemand = next;
   s.customDate = null;
-  resetToNow(s);
   commitDeltas();
   notify();
 }
 
+/** Demand % for a calendar date. Prefers a smooth interpolation of the 12-month
+ *  profile (so off-season days read genuinely low and summer days high, on the
+ *  same 'normal-day' scale as the curve) — falls back to the coarse day_type
+ *  anchors when no monthly profile is loaded. Deterministic. */
+function demandForDate(iso: string, snap: State): number | null {
+  if (snap.monthly && snap.monthly.length === 12) {
+    const parts = iso.split("-").map(Number);
+    const m = parts[1];
+    const d = parts[2];
+    if (m >= 1 && m <= 12 && d >= 1) {
+      const dim = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1] || 30;
+      const frac = Math.min(1, Math.max(0, (d - 1) / dim));
+      const cur = snap.monthly[m - 1].demand_pct;
+      const nxt = snap.monthly[m % 12].demand_pct; // wrap Dec→Jan
+      return Math.round(cur + (nxt - cur) * frac);
+    }
+  }
+  return demandForISO(iso, snap.day_types);
+}
+
 /**
- * Model a specific calendar date ("YYYY-MM-DD"). The demand % is interpolated
- * from the DPM's own day_type date anchors (see demandForISO). Pass null to
- * revert to the selected preset day. Deterministic — same date → same demand.
+ * Model a specific calendar date ("YYYY-MM-DD"). The demand % comes from the
+ * monthly profile (smooth seasonal) when present, else the day_type anchors. Pass
+ * null to revert to the selected preset day. Deterministic — same date → same demand.
  */
 export function setDate(iso: string | null): void {
   const s = requireState();
@@ -742,18 +796,16 @@ export function setDate(iso: string | null): void {
     bumpDeltas();
     s.customDate = null;
     s.customDemand = null;
-    resetToNow(s);
     commitDeltas();
     notify();
     return;
   }
-  const demand = demandForISO(iso, s.day_types);
+  const demand = demandForDate(iso, s);
   if (demand == null) return; // malformed date — ignore, keep current state
   if (s.customDate === iso && s.customDemand === demand) return;
   bumpDeltas();
   s.customDate = iso;
   s.customDemand = demand;
-  resetToNow(s); // every newly-picked day starts un-managed — see the disparity
   commitDeltas();
   notify();
 }
@@ -783,6 +835,7 @@ export function setZoomSpan(years: number): void {
 function resetToNow(s: State): void {
   for (const l of s.levers) if (typeof l.def === "number") l.value = l.def;
   s.occupancy_target = 100;
+  s.curve.shape.credit_depth = 12; // restore the default (shallow) credit floor
   s.pricing_off = true;
 }
 

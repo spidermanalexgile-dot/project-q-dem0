@@ -195,9 +195,7 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
     const pct = suggestSustainableLevers();
     showToast(
       "ok",
-      threshold
-        ? `Levers tuned — holding the peak near ${pct}% of capacity (sustainable ${fmtNumber(threshold)}/day · CPI 1.0).`
-        : `Levers tuned to hold ${pct}% occupancy.`,
+      `Q flattened the year to ~${pct}% of capacity — peaks priced down, off-season paid up. Cycle the days to see each day's fee.`,
     );
   }
 

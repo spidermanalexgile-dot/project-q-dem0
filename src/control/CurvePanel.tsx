@@ -25,6 +25,29 @@ function leverV(state: State, id: string): number {
   return l.value;
 }
 
+/** Smooth an SVG polyline into a flowing curve (Catmull-Rom → cubic béziers).
+ *  Used by the zoom-out so the demand profile reads as a smooth bell, not facets. */
+function smoothPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return "";
+  if (points.length < 3) {
+    return points.map((p, i) => (i ? "L" : "M") + p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ");
+  }
+  const p = points;
+  let d = `M ${p[0].x.toFixed(1)},${p[0].y.toFixed(1)}`;
+  for (let i = 0; i < p.length - 1; i++) {
+    const p0 = p[i - 1] || p[i];
+    const p1 = p[i];
+    const p2 = p[i + 1];
+    const p3 = p[i + 2] || p2;
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
 /** Colour-coded CPI pill colour: green slack <0.8, neutral 0.8–1.0, ochre warn
  *  1.0–1.5, penalty red ≥1.5. */
 function cpiColor(cpi: number): string {
@@ -461,10 +484,10 @@ function YearCurve() {
   const yS = (v: number) => padT + (1 - v / yMax) * innerH;
   const baseY = yS(0);
 
-  const linePath = (key: "live" | "managed") =>
-    pts.map((p, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + "," + yS(Math.min(yMax, p[key])).toFixed(1)).join(" ");
-  const rawPath = linePath("live");
-  const manPath = linePath("managed");
+  const xyOf = (key: "live" | "managed") =>
+    pts.map((p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, p[key])) }));
+  const rawPath = smoothPath(xyOf("live"));
+  const manPath = smoothPath(xyOf("managed"));
   const areaPath =
     manPath + ` L ${xAt(n - 1).toFixed(1)},${baseY.toFixed(1)} L ${xAt(0).toFixed(1)},${baseY.toFixed(1)} Z`;
 
