@@ -12,9 +12,11 @@ import {
   activeAdjustedVisitors,
   annualGrowthRate,
   monthlyDemandProfile,
+  activeYear,
   setView,
   setZoomSpan,
   type State,
+  type DailyRow,
 } from "./state";
 import { anchorDayOfYear } from "./dateutil";
 import { fmtEur, fmtNumber } from "./format";
@@ -442,6 +444,35 @@ function CurveChart() {
 /* ─── Annual demand profile ("zoom out" — whole-year DPM view) ───────────── */
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** Group a 5-year daily dataset into per-year, per-month average CPI (% of
+ *  capacity). Returns Map<year, number[12]> — the real demand profile each year. */
+function deriveYearlyMonthlyProfiles(daily: DailyRow[]): Map<number, number[]> {
+  const acc = new Map<number, { s: number; c: number }[]>();
+  for (const d of daily) {
+    const y = Number(d.date.slice(0, 4));
+    const m = Number(d.date.slice(5, 7));
+    if (!Number.isFinite(y) || m < 1 || m > 12) continue;
+    if (!acc.has(y)) acc.set(y, Array.from({ length: 12 }, () => ({ s: 0, c: 0 })));
+    const cell = acc.get(y)![m - 1];
+    cell.s += d.cpi;
+    cell.c++;
+  }
+  const out = new Map<number, number[]>();
+  for (const [y, arr] of acc) out.set(y, arr.map((a) => (a.c ? a.s / a.c : 0)));
+  return out;
+}
+
+/** True when the WHOLE of (year, monthIdx) is on or before the actuals cutoff —
+ *  i.e. confirmed historical, not influenced by the levers. */
+function isMonthLocked(year: number, monthIdx: number, cutoff: string | undefined): boolean {
+  if (!cutoff) return false;
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const last = monthIdx === 1 && leap ? 29 : DAYS_IN_MONTH[monthIdx];
+  const lastDate = `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  return lastDate <= cutoff;
+}
 
 function YearCurve() {
   const state = useStore();
@@ -462,20 +493,31 @@ function YearCurve() {
   const span = state.zoomSpan === 5 ? 5 : 1;
   const growth = annualGrowthRate(state);
   const baseMonths = monthlyDemandProfile(state);
-  const baseYear =
-    state.daily && state.daily[0] ? Number(state.daily[0].date.slice(0, 4)) : 2026;
-  const n = span * 12;
+  const fiveYr = !!state.daily && state.daily.length > 400;
+  const firstYear = state.daily && state.daily[0] ? Number(state.daily[0].date.slice(0, 4)) : 2026;
+  const baseYear = firstYear; // x-axis anchor — 2024 for the 5-year bundle
+  const cutoff = state.locked_cutoff;
+  const yearly = fiveYr ? deriveYearlyMonthlyProfiles(state.daily!) : null;
 
-  // span×12 chronological points; each successive year grows by the DPM rate,
-  // then pricing deters/attracts each month toward the occupancy target (managed).
-  const pts: { live: number; managed: number; fee: number; name: string; year: number; mi: number }[] = [];
-  for (let y = 0; y < span; y++) {
-    const g = Math.pow(1 + growth, y);
+  // Calendar years on the x-axis: the 5 fixed bundle years, else the active year.
+  const years = span === 5 ? Array.from({ length: 5 }, (_, i) => firstYear + i) : [activeYear(state)];
+  const n = years.length * 12;
+
+  type YPt = { live: number; managed: number; fee: number; name: string; year: number; mi: number; locked: boolean };
+  const pts: YPt[] = [];
+  years.forEach((yr, yi) => {
     for (let mi = 0; mi < 12; mi++) {
-      const live = liveDemandPct(baseMonths[mi] * g, state);
-      pts.push({ live, managed: managedDemandPct(live, state), fee: feeAtPct(live, state), name: MONTH_NAMES[mi], year: y, mi });
+      // Raw demand: real per-year CPI averages for a 5-year bundle, else the
+      // single monthly profile grown by the DPM annual rate.
+      const rawCpi = yearly ? yearly.get(yr)?.[mi] ?? 0 : baseMonths[mi] * Math.pow(1 + growth, yi);
+      const locked = isMonthLocked(yr, mi, cutoff);
+      // Confirmed actuals are immune to the levers (managed = raw); only
+      // projections (after the cutoff) respond to pricing.
+      const live = locked ? rawCpi : liveDemandPct(rawCpi, state);
+      const managed = locked ? rawCpi : managedDemandPct(live, state);
+      pts.push({ live, managed, fee: feeAtPct(live, state), name: MONTH_NAMES[mi], year: yr, mi, locked });
     }
-  }
+  });
 
   const peak = Math.max(occTarget, ...pts.map((p) => Math.max(p.live, p.managed)));
   const yMax = Math.ceil((peak * 1.12) / 20) * 20;
@@ -484,15 +526,25 @@ function YearCurve() {
   const yS = (v: number) => padT + (1 - v / yMax) * innerH;
   const baseY = yS(0);
 
-  const xyOf = (key: "live" | "managed") =>
-    pts.map((p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, p[key])) }));
-  const rawPath = smoothPath(xyOf("live"));
-  const manPath = smoothPath(xyOf("managed"));
+  // Split into the locked (confirmed-actual) prefix and the open (projection) tail.
+  const firstOpenIdx = pts.findIndex((p) => !p.locked);
+  const openStart = firstOpenIdx < 0 ? pts.length : firstOpenIdx;
+  const cutoffX = openStart > 0 && openStart < pts.length ? padL + (openStart / n) * innerW : null;
+
+  const manXY = pts.map((p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, p.managed)) }));
+  const lockedXY = manXY.slice(0, openStart);
+  const openRawXY = pts.slice(openStart).map((p, j) => ({ x: xAt(openStart + j), y: yS(Math.min(yMax, p.live)) }));
+  const manPath = smoothPath(manXY);
+  const rawPath = smoothPath(openRawXY);
+  const lockedPath = smoothPath(lockedXY);
   const areaPath =
     manPath + ` L ${xAt(n - 1).toFixed(1)},${baseY.toFixed(1)} L ${xAt(0).toFixed(1)},${baseY.toFixed(1)} Z`;
 
-  const rawSpread = pts.reduce((a, p) => a + Math.abs(p.live - occTarget), 0) / n;
-  const manSpread = pts.reduce((a, p) => a + Math.abs(p.managed - occTarget), 0) / n;
+  // Flatten badge — measured only over the lever-influenced (non-locked) months.
+  const openPts = pts.filter((p) => !p.locked);
+  const denom = openPts.length || 1;
+  const rawSpread = openPts.reduce((a, p) => a + Math.abs(p.live - occTarget), 0) / denom;
+  const manSpread = openPts.reduce((a, p) => a + Math.abs(p.managed - occTarget), 0) / denom;
   const flattenPct = rawSpread > 0.5 ? Math.round((1 - manSpread / rawSpread) * 100) : 0;
 
   const yStep = yMax > 250 ? 50 : 25;
@@ -507,12 +559,12 @@ function YearCurve() {
   const activeLive = liveDemandPct(activeDay.demand_pct, state);
   const doy = anchorDayOfYear(activeDay.date, baseYear); // 1..365, ignores year
   let yearOff = 0;
-  if (state.customDate) {
-    const yr = Number(state.customDate.slice(0, 4));
-    if (!Number.isNaN(yr)) yearOff = Math.min(span - 1, Math.max(0, yr - baseYear));
+  if (span === 5 && state.customDate) {
+    const sy = Number(state.customDate.slice(0, 4));
+    if (Number.isFinite(sy)) yearOff = Math.min(years.length - 1, Math.max(0, sy - firstYear));
   }
   const dayFrac = doy != null ? (doy - 0.5) / 365 : null;
-  const markerX = dayFrac != null ? padL + ((yearOff + dayFrac) / span) * innerW : null;
+  const markerX = dayFrac != null ? padL + ((yearOff + dayFrac) / years.length) * innerW : null;
   const markerDotY = yS(Math.min(yMax, activeLive));
   const pillX = markerX != null ? Math.min(w - padR - 52, Math.max(padL + 52, markerX)) : 0;
   const pillY = Math.max(padT + 12, markerDotY - 26);
@@ -530,6 +582,12 @@ function YearCurve() {
 
         {/* Legend + how-flat badge (top-left, fixed slot). */}
         <text x={padL} y={padT - 14} textAnchor="start" className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
+          {lockedXY.length > 0 && (
+            <>
+              <tspan style={{ fill: "#2bb3a3", fontWeight: 600 }}>▬ confirmed actual</tspan>
+              {"   "}
+            </>
+          )}
           <tspan style={{ fill: "var(--penalty)" }}>– – forecast crowd</tspan>
           {"   "}
           <tspan style={{ fontWeight: 600 }}>▬ after pricing</tspan>
@@ -590,6 +648,25 @@ function YearCurve() {
 
         {/* Managed curve (after pricing) — solid green hero line */}
         <path d={manPath} fill="none" stroke="#2FA866" strokeWidth="2.75" strokeLinejoin="round" strokeLinecap="round" />
+
+        {/* Confirmed-actual segment (locked historical) — teal, drawn over the
+            green so the pre-cutoff months read as immutable actuals. */}
+        {lockedXY.length > 1 && (
+          <path d={lockedPath} fill="none" stroke="#2bb3a3" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+        )}
+
+        {/* TODAY boundary — divides confirmed actuals from lever-influenced projection. */}
+        {cutoffX != null && (
+          <g>
+            <line x1={cutoffX} y1={padT + 6} x2={cutoffX} y2={baseY} stroke="#2bb3a3" strokeWidth="1.25" strokeDasharray="3 3" opacity="0.85" />
+            <g transform={`translate(${cutoffX}, ${padT + 2})`}>
+              <rect x="-26" y="-2" width="52" height="15" rx="7" fill="#2bb3a3" />
+              <text x="0" y="9" textAnchor="middle" style={{ fill: "#06302c", fontFamily: "var(--font-mono)", fontSize: 8.5, fontWeight: 700, letterSpacing: "0.08em" }}>
+                TODAY
+              </text>
+            </g>
+          </g>
+        )}
 
         {/* Month dots on the managed curve (1-yr only; 60 dots is too dense at 5-yr) */}
         {span === 1 &&

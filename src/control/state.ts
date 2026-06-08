@@ -73,6 +73,7 @@ export type DailyRow = {
   adjusted_visitors: number;
   cpi: number;
   notes: string;
+  period_label?: string; // e.g. "2024_actual" / "2027_projected" (5-year bundle)
 };
 
 /** Bundle monthly summary. Stored under `monthly_summary` (NOT `monthly`) so the
@@ -132,6 +133,7 @@ export type State = {
   growth_rate?: number; // annual demand growth (e.g. 0.02); for the 5-year zoom-out
   zoomSpan?: 1 | 5; // years shown in the zoom-out view
   pricing_off?: boolean; // reset state — no deterrence, managed = raw forecast
+  locked_cutoff?: string; // last confirmed-actual ISO date (5-year bundle); pre-cutoff is locked
   provenance?: string; // "Curve params: … · Daily data: …" merge note
 
   activeDay: string;
@@ -320,18 +322,39 @@ export function dayRevenue(baseline_pct: number, snap: State = requireState()): 
 }
 
 /**
+ * The year currently in focus. Custom-date year → locked-cutoff year → first
+ * daily-row year → modelling-year fallback (no Date.now, to stay deterministic).
+ */
+export function activeYear(snap: State = requireState()): number {
+  if (snap.customDate) {
+    const y = Number(snap.customDate.slice(0, 4));
+    if (Number.isFinite(y)) return y;
+  }
+  if (snap.locked_cutoff) {
+    const y = Number(snap.locked_cutoff.slice(0, 4));
+    if (Number.isFinite(y)) return y;
+  }
+  if (snap.daily && snap.daily[0]) {
+    const y = Number(snap.daily[0].date.slice(0, 4));
+    if (Number.isFinite(y)) return y;
+  }
+  return 2026;
+}
+
+/**
  * Baseline annual revenue (no stress overlay).
- *  • PREFERRED: when daily granularity is present (DPM v2 bundle), sum the real
- *    365 day predictions — each day's visitors × the fee at its % of target,
- *    where %ofTarget = adjusted_visitors / capacity.target × 100.
- *  • BACKWARD-COMPAT: with no daily data, fall back to the monthly(demand_pct)
- *    or coarse seasonal-bucket rollup exactly as v1 did.
+ *  • PREFERRED: when daily granularity is present, sum the real day predictions —
+ *    each day's visitors × the fee at its % of target. For a multi-year (5-year)
+ *    bundle, sum only the ACTIVE YEAR's rows so the figure is a single year.
+ *  • BACKWARD-COMPAT: with no daily data, fall back to the monthly/seasonal rollup.
  */
 function baselineAnnualRevenue(snap: State): number {
   if (snap.daily && snap.daily.length > 0) {
     const target = targetCapacity(snap) || 1;
+    const yr = snap.daily.length > 400 ? activeYear(snap) : null;
     let total = 0;
     for (const d of snap.daily) {
+      if (yr !== null && Number(d.date.slice(0, 4)) !== yr) continue;
       const pctOfTarget = (d.adjusted_visitors / target) * 100;
       total += d.adjusted_visitors * feeAtPct(pctOfTarget, snap);
     }
@@ -689,6 +712,7 @@ export function loadBundle(files: { name: string; text: string }[]): void {
   base.run_confidence = data.run_confidence;
   base.eur_usd_rate = data.eur_usd_rate;
   base.growth_rate = data.growth_rate;
+  base.locked_cutoff = data.locked_cutoff;
   base.active_shock = null;
   const year = data.daily[0]?.date?.slice(0, 4) ?? "2027";
   base.provenance = `Curve params: ${curveSource} · Daily data: venice-${year} bundle`;
@@ -769,6 +793,11 @@ export function setDemand(pct: number | null): void {
  *  same 'normal-day' scale as the curve) — falls back to the coarse day_type
  *  anchors when no monthly profile is loaded. Deterministic. */
 function demandForDate(iso: string, snap: State): number | null {
+  // Exact daily row (5-year bundle) wins — its CPI is the real % of capacity.
+  if (snap.daily && snap.daily.length) {
+    const row = snap.daily.find((d) => d.date === iso);
+    if (row && row.cpi > 0) return Math.round(row.cpi);
+  }
   if (snap.monthly && snap.monthly.length === 12) {
     const parts = iso.split("-").map(Number);
     const m = parts[1];

@@ -1,5 +1,5 @@
 import { useStore } from "./useStore";
-import { compute } from "./state";
+import { compute, activeYear } from "./state";
 import { fmtCompactEur, fmtEur, fmtNumber } from "./format";
 
 function DeltaChip({ value }: { value: number }) {
@@ -36,6 +36,9 @@ export function RevenuePanel() {
   // last change); neutral when unchanged.
   const trendClass = (delta: number) =>
     Math.abs(delta) < 1 ? "" : delta > 0 ? " up" : " down";
+  // Multi-year (5-year) bundle → label the annual figure with the focused year.
+  const multiYear = !!state.daily && state.daily.length > 400;
+  const yr = multiYear ? activeYear(state) : 0;
   // What one visitor pays today, at the crowd level being modelled. Below the
   // credit threshold this can be negative (a rebate); we show it plainly.
   const todayFee = d.fee(activeDay.demand_pct);
@@ -71,13 +74,13 @@ export function RevenuePanel() {
         </div>
 
         <div className="rev-card annual">
-          <div className="rev-label">Projected annual revenue</div>
+          <div className="rev-label">{multiYear ? `${yr} annual revenue` : "Projected annual revenue"}</div>
           <div className={"rev-figure annual" + trendClass(annualDelta)}>
             <span className="currency">€</span>
             {fmtNumber(d.annualRevenue)}
           </div>
           <div className="rev-foot">
-            <span className="rev-note">365-day rollup</span>
+            <span className="rev-note">{multiYear ? `${yr} full year` : "365-day rollup"}</span>
             <DeltaChip value={annualDelta} />
           </div>
         </div>

@@ -3,9 +3,10 @@ import { TopBar } from "./TopBar";
 import { CurvePanel } from "./CurvePanel";
 import { RevenuePanel } from "./RevenuePanel";
 import { LeversPanel } from "./LeversPanel";
-import { installGlobalApi, loadPayload, getState } from "./state";
+import { installGlobalApi, loadPayload, loadBundle, getState } from "./state";
 import { initServerVoice } from "./speech";
 import { PAYLOAD_VENICE } from "./payload-venice";
+import { VENICE_5YR_BUNDLE } from "./payload-venice-5yr";
 import "./control.css";
 
 const THEME_KEY = "qctl-theme";
@@ -29,7 +30,14 @@ export function ControlDashboard() {
     installGlobalApi();
     initServerVoice(); // detect the secure /api/tts proxy (production)
     if (!getState()) {
+      // v1 payload sets the curve + lever defaults; the 5-year bundle layers the
+      // 2024–2028 daily/monthly/shock/assumption data (and locked actuals) on top.
       loadPayload(PAYLOAD_VENICE);
+      try {
+        loadBundle(VENICE_5YR_BUNDLE);
+      } catch (err) {
+        console.error("5-year bundle failed to load at boot:", err);
+      }
     }
     setBooted(true);
   }, []);
