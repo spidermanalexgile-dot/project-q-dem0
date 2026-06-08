@@ -1,7 +1,41 @@
 import { useRef, useState } from "react";
 import { useStore } from "./useStore";
-import { setLever, setTargetCapacity, targetCapacity, resetLevers, type LeverId } from "./state";
-import { fmtCompactNum, fmtNumber } from "./format";
+import {
+  setLever,
+  setTargetCapacity,
+  targetCapacity,
+  resetLevers,
+  activeDayType,
+  liveDemandPct,
+  feeAtPct,
+  type LeverId,
+} from "./state";
+import { fmtCompactNum, fmtEur, fmtNumber } from "./format";
+
+/** The fee Q charges on the SELECTED day — the dynamic, per-day OUTPUT of the
+ *  curve below. Negative (a credit) in the low season, high at the peak; it
+ *  updates every time the modelled day changes, so the policy is visibly "not one
+ *  size fits all" even though the levers (the year-long curve) stay put. */
+function DayFeeRow() {
+  const state = useStore();
+  if (!state) return null;
+  const day = activeDayType(state);
+  const live = liveDemandPct(day.demand_pct, state);
+  const fee = feeAtPct(live, state);
+  const cls = fee < 0 ? " credit" : fee >= 40 ? " high" : fee >= 12 ? " warn" : "";
+  return (
+    <div className={"day-fee-row" + cls}>
+      <div className="day-fee-head">
+        <span className="day-fee-label">Fee Q sets for this day</span>
+        <span className="day-fee-day">{day.date} · {Math.round(live)}%</span>
+      </div>
+      <div className="day-fee-figure">
+        {fee < 0 ? `−€${Math.abs(Math.round(fee))}` : fmtEur(fee)}
+        <span className="day-fee-tag">{fee < 0 ? "paid to come" : "per visitor"}</span>
+      </div>
+    </div>
+  );
+}
 
 /** Target capacity is an operator INPUT (visitors/day), shown at the top of the
  *  Levers panel — lowering it rebases the whole demand model to a higher %. */
@@ -148,7 +182,7 @@ export function LeversPanel() {
         <div>
           <div className="panel-title">Levers</div>
           <div className="panel-sub" style={{ marginTop: 4 }}>
-            Move any one · resolves &lt;1s
+            Year-long policy · daily fee adapts
           </div>
         </div>
         <button
@@ -161,6 +195,7 @@ export function LeversPanel() {
         </button>
       </header>
       <div className="levers-list">
+        <DayFeeRow />
         <TargetCapacityRow />
         {ids.map((id) => (
           <LeverRow key={id} id={id} />
