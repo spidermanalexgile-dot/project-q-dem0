@@ -714,6 +714,15 @@ export function loadBundle(files: { name: string; text: string }[]): void {
   base.growth_rate = data.growth_rate;
   base.locked_cutoff = data.locked_cutoff;
   base.active_shock = null;
+  // Default the modelled day to the actuals cutoff ("today") so the graph marker,
+  // the day-fee row and the revenue all start on the same real date.
+  if (data.locked_cutoff) {
+    const dem = demandForDate(data.locked_cutoff, base);
+    if (dem != null) {
+      base.customDate = data.locked_cutoff;
+      base.customDemand = dem;
+    }
+  }
   const year = data.daily[0]?.date?.slice(0, 4) ?? "2027";
   base.provenance = `Curve params: ${curveSource} · Daily data: venice-${year} bundle`;
 

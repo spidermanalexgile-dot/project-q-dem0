@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { PointerEvent as RPE } from "react";
 import { useStore } from "./useStore";
 import {
   feeAtPct,
@@ -18,7 +19,7 @@ import {
   type State,
   type DailyRow,
 } from "./state";
-import { anchorDayOfYear } from "./dateutil";
+import { setDate } from "./state";
 import { fmtEur, fmtNumber } from "./format";
 
 function leverV(state: State, id: string): number {
@@ -476,6 +477,7 @@ function isMonthLocked(year: number, monthIdx: number, cutoff: string | undefine
 
 function YearCurve() {
   const state = useStore();
+  const dragging = useRef(false);
   if (!state) return <div className="curve-stage" />;
 
   const w = 1000;
@@ -540,12 +542,6 @@ function YearCurve() {
   const areaPath =
     manPath + ` L ${xAt(n - 1).toFixed(1)},${baseY.toFixed(1)} L ${xAt(0).toFixed(1)},${baseY.toFixed(1)} Z`;
 
-  // Flatten badge — measured only over the lever-influenced (non-locked) months.
-  const openPts = pts.filter((p) => !p.locked);
-  const denom = openPts.length || 1;
-  const rawSpread = openPts.reduce((a, p) => a + Math.abs(p.live - occTarget), 0) / denom;
-  const manSpread = openPts.reduce((a, p) => a + Math.abs(p.managed - occTarget), 0) / denom;
-  const flattenPct = rawSpread > 0.5 ? Math.round((1 - manSpread / rawSpread) * 100) : 0;
 
   const yStep = yMax > 250 ? 50 : 25;
   const yGrid: number[] = [];
@@ -554,24 +550,75 @@ function YearCurve() {
   const peakManaged = Math.max(...pts.map((p) => p.managed));
   const peakI = pts.findIndex((p) => p.managed === peakManaged);
 
-  // ── Selected-day marker — WHERE along the timeline the modelled day sits ────
-  const activeDay = activeDayType(state);
-  const activeLive = liveDemandPct(activeDay.demand_pct, state);
-  const doy = anchorDayOfYear(activeDay.date, baseYear); // 1..365, ignores year
-  let yearOff = 0;
-  if (span === 5 && state.customDate) {
-    const sy = Number(state.customDate.slice(0, 4));
-    if (Number.isFinite(sy)) yearOff = Math.min(years.length - 1, Math.max(0, sy - firstYear));
-  }
-  const dayFrac = doy != null ? (doy - 0.5) / 365 : null;
-  const markerX = dayFrac != null ? padL + ((yearOff + dayFrac) / years.length) * innerW : null;
-  const markerDotY = yS(Math.min(yMax, activeLive));
-  const pillX = markerX != null ? Math.min(w - padR - 52, Math.max(padL + 52, markerX)) : 0;
-  const pillY = Math.max(padT + 12, markerDotY - 26);
+  // ── Selected-day marker — sits ON the curve, draggable to pick a date ───────
+  const markerISO =
+    state.customDate || cutoff || `${years[Math.min(years.length - 1, 0)]}-06-15`;
+  const mY = Number(markerISO.slice(0, 4));
+  const mM = Number(markerISO.slice(5, 7));
+  const mD = Number(markerISO.slice(8, 10));
+  const mYearIdx = span === 5 ? Math.min(years.length - 1, Math.max(0, mY - firstYear)) : 0;
+  const mLeap = (mY % 4 === 0 && mY % 100 !== 0) || mY % 400 === 0;
+  const mDim = mM === 2 && mLeap ? 29 : DAYS_IN_MONTH[mM - 1] || 30;
+  const monthFloat = mYearIdx * 12 + (mM - 1) + Math.min(0.999, (mD - 1) / mDim); // 0..n
+  const lo = Math.min(n - 1, Math.max(0, Math.floor(monthFloat)));
+  const hi = Math.min(n - 1, lo + 1);
+  const tt = monthFloat - lo;
+  const markerLiveI = pts[lo].live * (1 - tt) + pts[hi].live * tt;
+  const markerPct = Math.round(markerLiveI);
+  const markerX = padL + (monthFloat / n) * innerW;
+  const markerDotY = yS(Math.min(yMax, markerLiveI)); // sit on the predicted-crowd line
+  const markerLabel = `${mD} ${MONTH_NAMES[mM - 1]} ${mY}`; // short, no weekday
+  const nearToday = cutoffX != null && Math.abs(markerX - cutoffX) < 40;
+  const pillX = Math.min(w - padR - 58, Math.max(padL + 58, markerX));
+  const pillY = Math.max(padT + 14, markerDotY - 26);
+
+  // Drag anywhere on the chart to move the date marker (maps x → calendar date).
+  const dateFromClientX = (svg: SVGSVGElement, clientX: number): string | null => {
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const sp = svg.createSVGPoint();
+    sp.x = clientX;
+    sp.y = 0;
+    const vb = sp.matrixTransform(ctm.inverse());
+    let frac = (vb.x - padL) / innerW;
+    frac = Math.min(0.99999, Math.max(0, frac));
+    const mf = frac * n;
+    const yi = Math.min(years.length - 1, Math.floor(mf / 12));
+    const within = mf - yi * 12;
+    const mi = Math.min(11, Math.floor(within));
+    const yr = years[yi];
+    const leap = (yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0;
+    const dim = mi === 1 && leap ? 29 : DAYS_IN_MONTH[mi] || 30;
+    const day = Math.min(dim, Math.max(1, Math.round((within - mi) * dim) + 1));
+    return `${yr}-${String(mi + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  };
+  const onDragDown = (e: RPE<SVGSVGElement>) => {
+    dragging.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const d = dateFromClientX(e.currentTarget, e.clientX);
+    if (d) setDate(d);
+  };
+  const onDragMove = (e: RPE<SVGSVGElement>) => {
+    if (!dragging.current) return;
+    const d = dateFromClientX(e.currentTarget, e.clientX);
+    if (d) setDate(d);
+  };
+  const onDragUp = () => {
+    dragging.current = false;
+  };
 
   return (
     <div className="curve-stage">
-      <svg className="curve-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
+      <svg
+        className="curve-svg"
+        viewBox={`0 0 ${w} ${h}`}
+        preserveAspectRatio="xMidYMid meet"
+        style={{ cursor: "ew-resize", touchAction: "none" }}
+        onPointerDown={onDragDown}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragUp}
+        onPointerCancel={onDragUp}
+      >
         <defs>
           <linearGradient id="year-fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3FB97A" stopOpacity="0.34" />
@@ -580,20 +627,17 @@ function YearCurve() {
           </linearGradient>
         </defs>
 
-        {/* Legend + how-flat badge (top-left, fixed slot). */}
+        {/* Compact legend (top-left). */}
         <text x={padL} y={padT - 14} textAnchor="start" className="year-band-label" style={{ fill: "var(--ink-mute)" }}>
           {lockedXY.length > 0 && (
             <>
-              <tspan style={{ fill: "#2bb3a3", fontWeight: 600 }}>▬ confirmed actual</tspan>
+              <tspan style={{ fill: "#2bb3a3", fontWeight: 600 }}>▬ actual</tspan>
               {"   "}
             </>
           )}
-          <tspan style={{ fill: "var(--penalty)" }}>– – forecast crowd</tspan>
+          <tspan style={{ fill: "var(--penalty)" }}>– – forecast</tspan>
           {"   "}
-          <tspan style={{ fontWeight: 600 }}>▬ after pricing</tspan>
-          {flattenPct > 1 && (
-            <tspan style={{ fill: "#2c8676", fontWeight: 600 }}>{`   ·  ${flattenPct}% closer to ${occTarget}%`}</tspan>
-          )}
+          <tspan style={{ fontWeight: 600 }}>▬ with Q</tspan>
         </text>
 
         {/* Horizontal gridlines + %-axis ticks */}
@@ -698,24 +742,20 @@ function YearCurve() {
 
         {/* Selected-day marker — a bold vertical line + ringed dot + pill so it's
             obvious WHERE along the timeline the day you're modelling sits. */}
-        {markerX != null && (
-          <g>
-            <line x1={markerX} y1={padT + 6} x2={markerX} y2={baseY} stroke="var(--ink)" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.6" />
-            <circle cx={markerX} cy={markerDotY} r="6.5" fill="none" stroke="var(--ink)" strokeWidth="1.6" />
-            <circle cx={markerX} cy={markerDotY} r="3.4" style={{ fill: "var(--ink)" }} />
+        {/* Draggable date marker — the on-curve dot is the grab handle. */}
+        <g style={{ pointerEvents: "none" }}>
+          <line x1={markerX} y1={padT + 18} x2={markerX} y2={baseY} stroke="var(--ink)" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.55" />
+          <circle cx={markerX} cy={markerDotY} r="7.5" fill="var(--panel)" stroke="var(--ink)" strokeWidth="2" />
+          <circle cx={markerX} cy={markerDotY} r="3" style={{ fill: "var(--ink)" }} />
+          {!nearToday && (
             <g transform={`translate(${pillX}, ${pillY})`}>
-              <rect x="-50" y="-13" width="100" height="18" rx="9" style={{ fill: "var(--ink)" }} />
+              <rect x="-54" y="-13" width="108" height="18" rx="9" style={{ fill: "var(--ink)" }} />
               <text x="0" y="0" textAnchor="middle" style={{ fill: "var(--ink-inverse)", fontFamily: "var(--font-mono)", fontSize: 9.5, fontWeight: 600, letterSpacing: "0.02em" }}>
-                {activeDay.date} · {Math.round(activeLive)}%
+                {markerLabel} · {markerPct}%
               </text>
             </g>
-          </g>
-        )}
-
-        {/* X-axis caption */}
-        <text x={w - padR} y={h - 8} textAnchor="end" style={{ fill: "var(--ink-soft)", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase" }}>
-          {span === 5 ? `5-year horizon · ${Math.round(growth * 100)}% annual growth` : "Month of the year (summer peak)"}
-        </text>
+          )}
+        </g>
       </svg>
     </div>
   );
@@ -802,7 +842,6 @@ export function CurvePanel() {
               {`${Math.round(liveDemandPct(activeDay.demand_pct, state))}% of ${(targetCapacity(state) / 1000).toFixed(0)}k capacity · ${activeDay.date}`}
             </div>
           )}
-          {state.provenance && <div className="curve-provenance">{state.provenance}</div>}
         </div>
 
         {/* View toggle — centred between the graph modes (cost / 1-yr / 5-yr). */}
