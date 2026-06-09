@@ -87,10 +87,17 @@ function CurveChart() {
   const threshold = rebate.enabled ? rebate.applies_below_pct : null;
 
   // The fee at 0% occupancy is the credit floor — the earliest visitors may be
-  // PAID to come. Give the y-axis room below zero for it.
-  const feeAtEmpty = feeAtPct(0, state);
-  const yMax = Math.max(cap + Math.max(8, cap * 0.1), base + 12);
-  const yMin = Math.min(-3, Math.floor((feeAtEmpty - 4) / 5) * 5);
+  // Scale the y-axis to the curve's ACTUAL range so a flat €5 status-quo fee reads
+  // cleanly (not pinned to the bottom) and the post-Q curve still fills the frame.
+  let curveMaxFee = base;
+  let curveMinFee = 0;
+  for (let pct = 0; pct <= xMax; pct += 5) {
+    const f = feeAtPct(pct, state);
+    if (f > curveMaxFee) curveMaxFee = f;
+    if (f < curveMinFee) curveMinFee = f;
+  }
+  const yMax = Math.max(curveMaxFee * 1.15, 12);
+  const yMin = Math.min(-3, Math.floor((curveMinFee - 4) / 5) * 5);
 
   const xS = (pct: number) => padL + ((pct - xMin) / (xMax - xMin)) * innerW;
   const yS = (fee: number) => padT + (1 - (fee - yMin) / (yMax - yMin)) * innerH;

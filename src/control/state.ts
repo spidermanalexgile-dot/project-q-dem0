@@ -228,7 +228,17 @@ export function liveDemandPct(baseline_pct: number, snap: State = requireState()
  *  • Above target (plateau…ceiling): the exponential congestion ramp to the cap.
  * `pct` is the LIVE occupancy (already rebased by target capacity).
  */
+/** The status-quo flat day-tripper fee shown before Q (or any manual tuning)
+ *  shapes the curve — Venice's current real-world €5 access fee. */
+export const STATUS_QUO_FEE = 5;
+
 export function feeAtPct(pct: number, snap: State = requireState()): number {
+  // Before "Let Q fix this" (and before any lever is moved) the curve is just the
+  // flat €5 access fee — the current policy. Q (or a manual lever move) turns it
+  // into the dynamic curve below.
+  const pristine = snap.levers.every((l) => typeof l.def !== "number" || l.value === l.def);
+  if (!snap.q_fixed && pristine) return STATUS_QUO_FEE;
+
   const base = leverVal(snap, "base_fee");
   const cap = leverVal(snap, "max_fee_cap");
   const ceiling = leverVal(snap, "ceiling_pct");

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
 import {
   setDate,
-  setActiveShock,
   activeDayType,
   activeAdjustedVisitors,
   activeManagedVisitors,
@@ -300,32 +299,6 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
               </button>
             </div>
           </div>
-
-          {/* Stress-test selector — only when the bundle's shocks are loaded. */}
-          {state.shocks && state.shocks.length > 0 && (
-            <>
-              <div className="tb-divider" />
-              <div className="tb-field">
-                <div className="tb-label">Stress test</div>
-                <div className={"tb-select" + (state.active_shock ? " custom" : "")}>
-                  <select
-                    value={state.active_shock ?? "__baseline"}
-                    onChange={(e) =>
-                      setActiveShock(e.target.value === "__baseline" ? null : e.target.value)
-                    }
-                    aria-label="Apply a stress-test scenario"
-                  >
-                    <option value="__baseline">Baseline</option>
-                    {state.shocks.map((sh) => (
-                      <option key={sh.id} value={sh.id}>
-                        {sh.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
         </div>
 
         <div className="tb-field tb-field-right">
