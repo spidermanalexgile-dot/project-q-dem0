@@ -60,6 +60,92 @@ function lerpColor(a: string, b: string, t: number): string {
   return `rgb(${r},${g},${bl})`;
 }
 
+/** Eased 0→1 progress that follows the "Let Q fix this" toggle — drives the
+ *  without-Q → with-Q animation (line flattening / growing + orange → green).
+ *  Shared by the cost curve and the year curve so both transition in lockstep. */
+function useQProgress(active: boolean): number {
+  const progressRef = useRef(0);
+  const rafRef = useRef(0);
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const to = active ? 1 : 0;
+    const from = progressRef.current;
+    if (from === to) return;
+    const start = performance.now();
+    const dur = 1000;
+    cancelAnimationFrame(rafRef.current);
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      progressRef.current = from + (to - from) * eased;
+      bump((n) => n + 1);
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [active]);
+  return progressRef.current;
+}
+
+/* Sample grid the cost curve is animated on (0…250 % of capacity). */
+const FEE_GRID_STEP = 2;
+const FEE_GRID_MAX = 250;
+const FEE_GRID_N = Math.floor(FEE_GRID_MAX / FEE_GRID_STEP) + 1;
+
+/** Returns a fee(pct) reader whose values CHASE the live target curve — so the
+ *  cost curve eases (both ways) on any change: the Let-Q-fix-this toggle
+ *  (flat €5 → dynamic) and manual lever drags (curve → new curve). Exponential
+ *  smoothing means a fast drag is followed smoothly rather than snapping. */
+function useAnimatedFee(state: State | null): (pct: number) => number {
+  const dispRef = useRef<number[] | null>(null);
+  const rafRef = useRef(0);
+  const [, bump] = useState(0);
+
+  // Destination curve, sampled on the fixed grid, recomputed every render.
+  const target: number[] = [];
+  for (let i = 0; i < FEE_GRID_N; i++) {
+    target.push(state ? feeAtPct(i * FEE_GRID_STEP, state) : 0);
+  }
+  if (dispRef.current == null || dispRef.current.length !== target.length) {
+    dispRef.current = target.slice(); // first paint: no animation in from zero
+  }
+
+  const targetKey = target.map((v) => v.toFixed(2)).join(",");
+  useEffect(() => {
+    const animate = () => {
+      const disp = dispRef.current!;
+      let moving = false;
+      for (let i = 0; i < disp.length; i++) {
+        const delta = target[i] - disp[i];
+        if (Math.abs(delta) > 0.05) {
+          disp[i] += delta * 0.2; // ~exponential ease, framerate-tolerant
+          moving = true;
+        } else {
+          disp[i] = target[i];
+        }
+      }
+      if (moving) {
+        bump((n) => n + 1);
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    };
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetKey]);
+
+  return (pct: number) => {
+    const disp = dispRef.current!;
+    const x = Math.max(0, Math.min(FEE_GRID_MAX, pct)) / FEE_GRID_STEP;
+    const i = Math.floor(x);
+    const frac = x - i;
+    const a = disp[i] ?? 0;
+    const b = disp[i + 1] ?? a;
+    return a + (b - a) * frac;
+  };
+}
+
 /** Colour-coded CPI pill colour: green slack <0.8, neutral 0.8–1.0, ochre warn
  *  1.0–1.5, penalty red ≥1.5. */
 function cpiColor(cpi: number): string {
@@ -73,6 +159,8 @@ function cpiColor(cpi: number): string {
 
 function CurveChart() {
   const state = useStore();
+  const qProgress = useQProgress(!!state?.q_fixed); // 0→1 green tint under Q
+  const dispFee = useAnimatedFee(state); // animated fee(pct) — chases the target
   if (!state) return <div className="curve-stage" />;
 
   // Fixed viewBox — SVG scales via CSS.
@@ -89,7 +177,6 @@ function CurveChart() {
   const xMax = 250;
 
   const cap = leverV(state, "max_fee_cap");
-  const base = leverV(state, "base_fee");
   const ceilingPct = leverV(state, "ceiling_pct");
   const rebate = state.shoulder_rebate;
   const credit = rebate.enabled ? rebate.credit : 0;
@@ -98,10 +185,10 @@ function CurveChart() {
   // The fee at 0% occupancy is the credit floor — the earliest visitors may be
   // Scale the y-axis to the curve's ACTUAL range so a flat €5 status-quo fee reads
   // cleanly (not pinned to the bottom) and the post-Q curve still fills the frame.
-  let curveMaxFee = base;
+  let curveMaxFee = 0;
   let curveMinFee = 0;
   for (let pct = 0; pct <= xMax; pct += 5) {
-    const f = feeAtPct(pct, state);
+    const f = dispFee(pct); // scale to the ANIMATED curve so the axis eases with it
     if (f > curveMaxFee) curveMaxFee = f;
     if (f < curveMinFee) curveMinFee = f;
   }
@@ -115,7 +202,7 @@ function CurveChart() {
   const mainStart = threshold != null ? Math.max(threshold, xMin) : xMin;
   const pts: { pct: number; fee: number; x: number; y: number }[] = [];
   for (let pct = mainStart; pct <= xMax; pct += 1) {
-    const f = feeAtPct(pct, state);
+    const f = dispFee(pct);
     pts.push({ pct, fee: f, x: xS(pct), y: yS(f) });
   }
   const pathD = pts
@@ -127,7 +214,7 @@ function CurveChart() {
   const activeDay =
     activeDayType(state);
   const activeLive = liveDemandPct(activeDay.demand_pct, state);
-  const activeFee = feeAtPct(activeLive, state);
+  const activeFee = dispFee(activeLive);
   const ax = xS(Math.min(xMax, Math.max(xMin, activeLive)));
   const ay = yS(activeFee);
 
@@ -157,16 +244,18 @@ function CurveChart() {
     <div className="curve-stage">
       <svg className="curve-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
         <defs>
+          {/* Hero stroke gradient — eases from the warm fee ramp toward a unified
+              green as Q takes over (qProgress 0→1). */}
           <linearGradient id="curve-grad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" style={{ stopColor: "var(--curve-stop-1)" }} />
-            <stop offset="38%" style={{ stopColor: "var(--curve-stop-2)" }} />
-            <stop offset="80%" style={{ stopColor: "var(--curve-stop-3)" }} />
-            <stop offset="100%" style={{ stopColor: "var(--curve-stop-3)" }} />
+            <stop offset="0%" stopColor={lerpColor("#9dba77", "#2FA866", qProgress)} />
+            <stop offset="38%" stopColor={lerpColor("#e3a93c", "#2FA866", qProgress)} />
+            <stop offset="80%" stopColor={lerpColor("#e0763c", "#2FA866", qProgress)} />
+            <stop offset="100%" stopColor={lerpColor("#e0763c", "#2FA866", qProgress)} />
           </linearGradient>
           <linearGradient id="curve-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E0763C" stopOpacity="0.20" />
-            <stop offset="60%" stopColor="#E3A93C" stopOpacity="0.06" />
-            <stop offset="100%" stopColor="#E3A93C" stopOpacity="0" />
+            <stop offset="0%" stopColor={lerpColor("#E0763C", "#2FA866", qProgress)} stopOpacity="0.20" />
+            <stop offset="60%" stopColor={lerpColor("#E3A93C", "#4FC98A", qProgress)} stopOpacity="0.06" />
+            <stop offset="100%" stopColor={lerpColor("#E3A93C", "#7FD9A8", qProgress)} stopOpacity="0" />
           </linearGradient>
           <filter id="soft-glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" />
@@ -496,30 +585,8 @@ function YearCurve() {
   const dragging = useRef(false);
   // Animate the "without Q → with Q" transition: the line eases from the raw
   // forecast down to the flattened managed shape (and orange → green).
-  const progressRef = useRef(0);
-  const rafRef = useRef(0);
-  const [, bumpAnim] = useState(0);
-  const fixedNow = !!state?.q_fixed;
-  useEffect(() => {
-    const to = fixedNow ? 1 : 0;
-    const from = progressRef.current;
-    if (from === to) return;
-    const start = performance.now();
-    const dur = 1000;
-    cancelAnimationFrame(rafRef.current);
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      progressRef.current = from + (to - from) * eased;
-      bumpAnim((n) => n + 1);
-      if (t < 1) rafRef.current = requestAnimationFrame(step);
-    };
-    rafRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(rafRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fixedNow]);
+  const qProgress = useQProgress(!!state?.q_fixed);
   if (!state) return <div className="curve-stage" />;
-  const qProgress = progressRef.current;
 
   const w = 1000;
   // Taller canvas than the cost view: with the explainer paragraph removed, the
