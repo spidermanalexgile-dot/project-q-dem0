@@ -2007,3 +2007,12 @@
   text-transform: uppercase;
   color: var(--ink-soft);
 }
+
+/* "Let Q fix this" → green while Q is actively managing */
+.qctl-root .tb-suggest.active {
+  border-color: #2c8b52;
+  background: #2c8b52;
+  color: #fff;
+}
+.qctl-root .tb-suggest.active:hover { background: #267a48; border-color: #267a48; }
+.qctl-root.dark .tb-suggest.active { background: #2fa866; border-color: #2fa866; color: #06251a; }

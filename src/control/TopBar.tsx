@@ -9,6 +9,7 @@ import {
   activeCPI,
   capacityThreshold,
   suggestSustainableLevers,
+  resetLevers,
   loadPayload,
   loadBundle,
   getState,
@@ -192,10 +193,15 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
               : " over";
 
   function handleSuggest() {
+    if (state?.q_fixed) {
+      resetLevers();
+      showToast("ok", "Q off — showing the raw forecast.");
+      return;
+    }
     const pct = suggestSustainableLevers();
     showToast(
       "ok",
-      `Q flattened the year to ~${pct}% of capacity — peaks priced down, off-season paid up. Cycle the days to see each day's fee.`,
+      `Q is managing — flattened toward ~${pct}%, off-season paid up, peaks priced down. Cycle the days to see each day's levers.`,
     );
   }
 
@@ -280,23 +286,18 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
           <div className="tb-field tb-projected">
             <div className="tb-projected-row">
               <div className={"tb-projected-figure" + cpiClass}>{fmtNumber(projected)}</div>
-              <div className="tb-projected-meta">
-                {threshold != null && (
-                  <span className="tb-projected-sub">
-                    {!state.pricing_off && `after pricing ${fmtNumber(managed)} · `}
-                    sustainable {fmtNumber(threshold)}/day
-                    {cpi != null ? ` · CPI ${cpi.toFixed(2)}` : ""}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className="tb-suggest"
-                  onClick={handleSuggest}
-                  title="Let Q auto-tune the fee levers so the managed crowd is held at the sustainable capacity (CPI 1.0)"
-                >
-                  Let Q fix this
-                </button>
-              </div>
+              <button
+                type="button"
+                className={"tb-suggest" + (state.q_fixed ? " active" : "")}
+                onClick={handleSuggest}
+                title={
+                  state.q_fixed
+                    ? "Q is managing the year — click to turn off and show the raw forecast"
+                    : "Let Q price each day to flatten the year (off-season paid up, peaks priced down)"
+                }
+              >
+                {state.q_fixed ? "✓ Q is managing" : "Let Q fix this"}
+              </button>
             </div>
           </div>
 
