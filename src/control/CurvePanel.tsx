@@ -51,6 +51,15 @@ function smoothPath(points: { x: number; y: number }[]): string {
   return d;
 }
 
+/** Linear blend between two #rrggbb colours (t: 0→a, 1→b). */
+function lerpColor(a: string, b: string, t: number): string {
+  const hx = (s: string, i: number) => parseInt(s.slice(i, i + 2), 16);
+  const r = Math.round(hx(a, 1) + (hx(b, 1) - hx(a, 1)) * t);
+  const g = Math.round(hx(a, 3) + (hx(b, 3) - hx(a, 3)) * t);
+  const bl = Math.round(hx(a, 5) + (hx(b, 5) - hx(a, 5)) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
 /** Colour-coded CPI pill colour: green slack <0.8, neutral 0.8–1.0, ochre warn
  *  1.0–1.5, penalty red ≥1.5. */
 function cpiColor(cpi: number): string {
@@ -485,7 +494,32 @@ function isMonthLocked(year: number, monthIdx: number, cutoff: string | undefine
 function YearCurve() {
   const state = useStore();
   const dragging = useRef(false);
+  // Animate the "without Q → with Q" transition: the line eases from the raw
+  // forecast down to the flattened managed shape (and orange → green).
+  const progressRef = useRef(0);
+  const rafRef = useRef(0);
+  const [, bumpAnim] = useState(0);
+  const fixedNow = !!state?.q_fixed;
+  useEffect(() => {
+    const to = fixedNow ? 1 : 0;
+    const from = progressRef.current;
+    if (from === to) return;
+    const start = performance.now();
+    const dur = 1000;
+    cancelAnimationFrame(rafRef.current);
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      progressRef.current = from + (to - from) * eased;
+      bumpAnim((n) => n + 1);
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixedNow]);
   if (!state) return <div className="curve-stage" />;
+  const qProgress = progressRef.current;
 
   const w = 1000;
   // Taller canvas than the cost view: with the explainer paragraph removed, the
@@ -540,7 +574,11 @@ function YearCurve() {
   const openStart = firstOpenIdx < 0 ? pts.length : firstOpenIdx;
   const cutoffX = openStart > 0 && openStart < pts.length ? padL + (openStart / n) * innerW : null;
 
-  const manXY = pts.map((p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, p.managed)) }));
+  // Animated managed value: eases from the raw forecast (qProgress 0) to the
+  // flattened managed shape (qProgress 1) as Q takes over. Locked points are
+  // unaffected (managed == live there).
+  const dispM = (p: YPt) => p.live + (p.managed - p.live) * qProgress;
+  const manXY = pts.map((p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, dispM(p))) }));
   const lockedXY = manXY.slice(0, openStart);
   const openRawXY = pts.slice(openStart).map((p, j) => ({ x: xAt(openStart + j), y: yS(Math.min(yMax, p.live)) }));
   const manPath = smoothPath(manXY);
@@ -691,14 +729,22 @@ function YearCurve() {
           </g>
         )}
 
-        {/* Warm wash under the managed curve */}
-        <path d={areaPath} fill="url(#year-fill)" />
+        {/* Warm wash under the managed curve — fades in as Q takes over */}
+        <path d={areaPath} fill="url(#year-fill)" opacity={qProgress} />
 
         {/* Raw forecast bell curve (before pricing) — dashed */}
         <path d={rawPath} fill="none" style={{ stroke: "var(--penalty)" }} strokeWidth="2" strokeDasharray="5 4" opacity="0.6" strokeLinejoin="round" />
 
-        {/* Managed curve (after pricing) — solid green hero line */}
-        <path d={manPath} fill="none" stroke="#2FA866" strokeWidth="2.75" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Managed curve — eases from the forecast (orange) down to the flat green
+            line as Q takes over. */}
+        <path
+          d={manPath}
+          fill="none"
+          stroke={lerpColor("#E0763C", "#2FA866", qProgress)}
+          strokeWidth={2.5 + 0.5 * qProgress}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
 
         {/* Confirmed-actual segment (locked historical) — teal, drawn over the
             green so the pre-cutoff months read as immutable actuals. */}
@@ -722,13 +768,13 @@ function YearCurve() {
         {/* Month dots on the managed curve (1-yr only; 60 dots is too dense at 5-yr) */}
         {span === 1 &&
           pts.map((p, i) => {
-            const cy = yS(Math.min(yMax, p.managed));
+            const cy = yS(Math.min(yMax, dispM(p)));
             return (
               <g key={"md-" + i}>
                 {cy - yS(Math.min(yMax, p.live)) > 8 && (
-                  <line x1={xAt(i)} y1={yS(Math.min(yMax, p.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity="0.45" />
+                  <line x1={xAt(i)} y1={yS(Math.min(yMax, p.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity={0.45 * qProgress} />
                 )}
-                <circle cx={xAt(i)} cy={cy} r="2.8" fill="#2FA866" />
+                <circle cx={xAt(i)} cy={cy} r="2.8" fill={lerpColor("#E0763C", "#2FA866", qProgress)} />
               </g>
             );
           })}
@@ -737,13 +783,13 @@ function YearCurve() {
         {peakI >= 0 && (
           <text
             x={Math.min(w - padR - 40, Math.max(padL + 40, xAt(peakI)))}
-            y={yS(Math.min(yMax, peakManaged)) - 9}
+            y={yS(Math.min(yMax, dispM(pts[peakI]))) - 9}
             textAnchor="middle"
             className="year-band-label"
             style={{ fontWeight: 600 }}
           >
             {span === 5 ? `${baseYear + pts[peakI].year} · ` : `${pts[peakI].name} · `}
-            {Math.round(peakManaged)}% · {fmtEur(pts[peakI].fee)}
+            {Math.round(dispM(pts[peakI]))}% · {fmtEur(pts[peakI].fee)}
           </text>
         )}
 

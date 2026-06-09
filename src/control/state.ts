@@ -337,7 +337,10 @@ export function managedDemandPct(raw_pct: number, snap: State = requireState()):
 export function dayRevenue(baseline_pct: number, snap: State = requireState()): number {
   const live = liveDemandPct(baseline_pct, snap);
   const visitors = targetCapacity(snap) * (live / 100);
-  return visitors * feeAtPct(live, snap);
+  // Pre-cutoff actuals are priced at the historical flat €5 fee — no levers,
+  // same crowd, far lower revenue.
+  const locked = !!snap.customDate && !!snap.locked_cutoff && snap.customDate <= snap.locked_cutoff;
+  return visitors * (locked ? STATUS_QUO_FEE : feeAtPct(live, snap));
 }
 
 /**
@@ -374,8 +377,11 @@ function baselineAnnualRevenue(snap: State): number {
     let total = 0;
     for (const d of snap.daily) {
       if (yr !== null && Number(d.date.slice(0, 4)) !== yr) continue;
+      // Confirmed actuals (on/before the cutoff) earn the historical flat €5 fee —
+      // no lever pricing; only post-cutoff projections respond to the curve.
+      const locked = snap.locked_cutoff ? d.date <= snap.locked_cutoff : false;
       const pctOfTarget = (d.adjusted_visitors / target) * 100;
-      total += d.adjusted_visitors * feeAtPct(pctOfTarget, snap);
+      total += d.adjusted_visitors * (locked ? STATUS_QUO_FEE : feeAtPct(pctOfTarget, snap));
     }
     return total;
   }
