@@ -188,15 +188,18 @@ function CurveChart() {
   const credit = rebate.enabled ? rebate.credit : 0;
   const threshold = rebate.enabled ? rebate.applies_below_pct : null;
 
-  // The fee at 0% occupancy is the credit floor — the earliest visitors may be
-  // Scale the y-axis to the curve's ACTUAL range so a flat €5 status-quo fee reads
-  // cleanly (not pinned to the bottom) and the post-Q curve still fills the frame.
+  // Y-axis range. Scale to the larger of the DISPLAYED and TARGET curves: while
+  // the line grows into a taller curve the frame is pinned to the (stable)
+  // target, so it doesn't wobble every frame; while it shrinks the frame eases
+  // down with the displayed line so nothing clips. (Scaling to the animated max
+  // alone made yMax/yMin jitter — a max/floor over easing samples isn't smooth.)
   let curveMaxFee = 0;
   let curveMinFee = 0;
   for (let pct = 0; pct <= xMax; pct += 5) {
-    const f = dispFee(pct); // scale to the ANIMATED curve so the axis eases with it
+    const f = Math.max(dispFee(pct), feeAtPct(pct, state));
+    const g = Math.min(dispFee(pct), feeAtPct(pct, state));
     if (f > curveMaxFee) curveMaxFee = f;
-    if (f < curveMinFee) curveMinFee = f;
+    if (g < curveMinFee) curveMinFee = g;
   }
   const yMax = Math.max(curveMaxFee * 1.15, 12);
   const yMin = Math.min(-3, Math.floor((curveMinFee - 4) / 5) * 5);
