@@ -6,14 +6,14 @@
   "curve": {
     "base_fee_at_target": 10,
     "max_fee_cap": 50,
-    "ceiling_pct": 200,
-    "shape": { "plateau_end_pct": 100, "exponent": 22 }
+    "ceiling_pct": 150,
+    "shape": { "plateau_end_pct": 100, "exponent": 16 }
   },
   "shoulder_rebate": { "enabled": false, "credit": 8, "applies_below_pct": 28 },
   "levers": [
     { "id": "base_fee",        "min": -20,   "max": 50,    "step": 1,    "value": 10 },
     { "id": "max_fee_cap",     "min": 10,    "max": 150,   "step": 5,    "value": 50 },
-    { "id": "ceiling_pct",     "min": 120,   "max": 220,   "step": 5,    "value": 200 }
+    { "id": "ceiling_pct",     "min": 120,   "max": 220,   "step": 5,    "value": 150 }
   ],
   "day_types": [
     { "id": "peak_sat",       "label": "Peak summer Saturday", "date": "Sat 1 Aug",   "demand_pct": 200 },

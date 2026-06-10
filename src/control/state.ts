@@ -232,6 +232,11 @@ export function liveDemandPct(baseline_pct: number, snap: State = requireState()
  *  shapes the curve — Venice's current real-world €5 access fee. */
 export const STATUS_QUO_FEE = 5;
 
+/** The fee for the very first visitor (0% occupancy) is anchored at least this
+ *  far into credit territory — you're almost paid to come in the dead of winter,
+ *  no matter how high the at-target base fee climbs on a peak day. */
+export const FIRST_VISITOR_FLOOR = -15;
+
 export function feeAtPct(pct: number, snap: State = requireState()): number {
   // Before "Let Q fix this" (and before any lever is moved) the curve is just the
   // flat €5 access fee — the current policy. Q (or a manual lever move) turns it
@@ -253,7 +258,10 @@ export function feeAtPct(pct: number, snap: State = requireState()): number {
     // target, anticipating the over-target spike — the gap from the low end to
     // base is less abrupt and the curve flows smoothly into the congestion ramp.
     const creditDepth = snap.curve.shape.credit_depth ?? 12; // off-season discount depth
-    const floor = base - creditDepth; // e.g. base €10, depth 12 → −€2 at 0%
+    // Anchor the first visitor firmly in credit territory ("almost paid to come")
+    // even when the at-target base is high — Math.min keeps floor ≤ base so the
+    // ramp still rises into the base fee at the target.
+    const floor = Math.min(base - creditDepth, FIRST_VISITOR_FLOOR);
     if (plateauEnd <= 0) return base;
     const t = Math.max(0, pct) / plateauEnd; // 0 at empty, 1 at target
     const tp = Math.pow(t, 1.8); // convex: gentle early, steeper near 100%
