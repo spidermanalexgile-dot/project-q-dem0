@@ -72,7 +72,7 @@ function useQProgress(active: boolean): number {
     const from = progressRef.current;
     if (from === to) return;
     const start = performance.now();
-    const dur = 1000;
+    const dur = 1900; // slow, deliberate transition
     cancelAnimationFrame(rafRef.current);
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / dur);
@@ -113,7 +113,7 @@ function useAnimatedSeries(target: number[]): number[] {
       for (let i = 0; i < disp.length; i++) {
         const delta = target[i] - disp[i];
         if (Math.abs(delta) > 0.05) {
-          disp[i] += delta * 0.2; // ~exponential ease, framerate-tolerant
+          disp[i] += delta * 0.06; // slow ~exponential ease, framerate-tolerant
           moving = true;
         } else {
           disp[i] = target[i];
@@ -623,10 +623,10 @@ function buildYearData(state: State) {
 function YearCurve() {
   const state = useStore();
   const dragging = useRef(false);
-  // qProgress drives the green tint + area fade as Q takes over; the managed
-  // line itself is animated by chasing its target (so it also eases when levers
-  // are dragged manually — both up and down).
-  const qProgress = useQProgress(!!state?.q_fixed);
+  // The managed line eases by chasing its target (responds to lever drags +
+  // Let-Q-fix-this). The green tint is driven by how FLATTENED that line is vs
+  // the raw forecast (see `greenness` below) — so manually flattening the curve
+  // turns it green too, not just the Q button.
   const data = state ? buildYearData(state) : null;
   const animManaged = useAnimatedSeries(data ? data.pts.map((p) => p.managed) : []);
   if (!state || !data) return <div className="curve-stage" />;
@@ -662,6 +662,25 @@ function YearCurve() {
   // easing both ways. Locked points have managed == live, so they sit still.
   const dispM = (i: number) => animManaged[i] ?? pts[i].managed;
   const manXY = pts.map((_p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, dispM(i))) }));
+
+  // Greenness — how much the displayed (animated) managed line has flattened
+  // relative to the raw forecast bell across the projected months. 0 = tracks
+  // the forecast (orange), 1 = fully flattened (green). Computed from the eased
+  // values so the colour transitions in step with the line, and it works for
+  // manual lever flattening just as well as the Let-Q-fix-this button.
+  let liveMin = Infinity, liveMax = -Infinity, manMin = Infinity, manMax = -Infinity;
+  for (let i = openStart; i < pts.length; i++) {
+    const lv = pts[i].live;
+    const mv = dispM(i);
+    if (lv < liveMin) liveMin = lv;
+    if (lv > liveMax) liveMax = lv;
+    if (mv < manMin) manMin = mv;
+    if (mv > manMax) manMax = mv;
+  }
+  const liveSpread = liveMax - liveMin;
+  const manSpread = manMax - manMin;
+  const flatten = liveSpread > 1 ? Math.max(0, Math.min(1, 1 - manSpread / liveSpread)) : 0;
+  const greenness = Math.min(1, flatten * 1.3); // reach full green a touch early
   const lockedXY = manXY.slice(0, openStart);
   const openRawXY = pts.slice(openStart).map((p, j) => ({ x: xAt(openStart + j), y: yS(Math.min(yMax, p.live)) }));
   const manPath = smoothPath(manXY);
@@ -691,10 +710,12 @@ function YearCurve() {
   const lo = Math.min(n - 1, Math.max(0, Math.floor(monthFloat)));
   const hi = Math.min(n - 1, lo + 1);
   const tt = monthFloat - lo;
-  const markerLiveI = pts[lo].live * (1 - tt) + pts[hi].live * tt;
-  const markerPct = Math.round(markerLiveI);
+  // Marker rides the DISPLAYED (animated, managed) curve — so as you flatten the
+  // year, the dot + its % flatten with it, matching the line you're dragging on.
+  const markerManI = dispM(lo) * (1 - tt) + dispM(hi) * tt;
+  const markerPct = Math.round(markerManI);
   const markerX = padL + (monthFloat / n) * innerW;
-  const markerDotY = yS(Math.min(yMax, markerLiveI)); // sit on the predicted-crowd line
+  const markerDotY = yS(Math.min(yMax, markerManI)); // sit on the curve being shown
   const markerLabel = `${mD} ${MONTH_NAMES[mM - 1]} ${mY}`; // short, no weekday
   const nearToday = cutoffX != null && Math.abs(markerX - cutoffX) < 40;
   const pillX = Math.min(w - padR - 58, Math.max(padL + 58, markerX));
@@ -812,19 +833,19 @@ function YearCurve() {
           </g>
         )}
 
-        {/* Warm wash under the managed curve — fades in as Q takes over */}
-        <path d={areaPath} fill="url(#year-fill)" opacity={qProgress} />
+        {/* Green wash under the managed curve — fades in as the line flattens */}
+        <path d={areaPath} fill="url(#year-fill)" opacity={greenness} />
 
         {/* Raw forecast bell curve (before pricing) — dashed */}
         <path d={rawPath} fill="none" style={{ stroke: "var(--penalty)" }} strokeWidth="2" strokeDasharray="5 4" opacity="0.6" strokeLinejoin="round" />
 
-        {/* Managed curve — eases from the forecast (orange) down to the flat green
-            line as Q takes over. */}
+        {/* Managed curve — orange when it tracks the forecast, easing to green
+            as it flattens (whether by manual levers or Let-Q-fix-this). */}
         <path
           d={manPath}
           fill="none"
-          stroke={lerpColor("#E0763C", "#2FA866", qProgress)}
-          strokeWidth={2.5 + 0.5 * qProgress}
+          stroke={lerpColor("#E0763C", "#2FA866", greenness)}
+          strokeWidth={2.5 + 0.5 * greenness}
           strokeLinejoin="round"
           strokeLinecap="round"
         />
@@ -855,9 +876,9 @@ function YearCurve() {
             return (
               <g key={"md-" + i}>
                 {cy - yS(Math.min(yMax, p.live)) > 8 && (
-                  <line x1={xAt(i)} y1={yS(Math.min(yMax, p.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity={0.45 * qProgress} />
+                  <line x1={xAt(i)} y1={yS(Math.min(yMax, p.live)) + 2} x2={xAt(i)} y2={cy - 3} style={{ stroke: "var(--penalty)" }} strokeWidth="1" strokeDasharray="2 2" opacity={0.45 * greenness} />
                 )}
-                <circle cx={xAt(i)} cy={cy} r="2.8" fill={lerpColor("#E0763C", "#2FA866", qProgress)} />
+                <circle cx={xAt(i)} cy={cy} r="2.8" fill={lerpColor("#E0763C", "#2FA866", greenness)} />
               </g>
             );
           })}
