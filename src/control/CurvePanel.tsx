@@ -167,6 +167,10 @@ function CurveChart() {
   const state = useStore();
   const qProgress = useQProgress(!!state?.q_fixed); // 0→1 green tint under Q
   const dispFee = useAnimatedFee(state); // animated fee(pct) — chases the target
+  // Draggable probe position (capacity %). null = sit on the active day until
+  // the user grabs the handle and slides it along the curve.
+  const [probePct, setProbePct] = useState<number | null>(null);
+  const probeDrag = useRef(false);
   if (!state) return <div className="curve-stage" />;
 
   // Fixed viewBox — SVG scales via CSS.
@@ -218,14 +222,10 @@ function CurveChart() {
     .map((p, i) => (i ? "L" : "M") + p.x.toFixed(1) + "," + p.y.toFixed(1))
     .join(" ");
 
-  // Active day dot + callout — placed at the LIVE occupancy (rebased by the
-  // chosen target capacity), so the dot moves right when target capacity drops.
+  // Active day's live occupancy — the probe's default resting position.
   const activeDay =
     activeDayType(state);
   const activeLive = liveDemandPct(activeDay.demand_pct, state);
-  const activeFee = dispFee(activeLive);
-  const ax = xS(Math.min(xMax, Math.max(xMin, activeLive)));
-  const ay = yS(activeFee);
 
   // DPM v2 — Capacity Pressure Index for the active day + the threshold marker.
   const cpiThreshold = capacityThreshold(state); // sustainable carrying capacity
@@ -237,6 +237,43 @@ function CurveChart() {
   const thPct =
     cpiThreshold && targetCap ? (cpiThreshold / targetCap) * 100 : null;
 
+  // ── Draggable probe — slide along the curve to read the fee at any capacity,
+  // from the first visitor (0%) up to the last (250%). Sits on the active day
+  // until grabbed; the CPI line shows only while it rests there. ──
+  const probe = Math.min(xMax, Math.max(xMin, probePct ?? activeLive));
+  const probeFee = dispFee(probe);
+  const px = xS(probe);
+  const py = yS(probeFee);
+  const atDay = probePct == null || Math.abs(probe - activeLive) < 1.5;
+  const showCpi = cpi != null && atDay;
+
+  // Map a pointer x (screen px) → capacity %, via the SVG's CTM so it tracks the
+  // CSS-scaled viewBox correctly. Clamped to the 0…250% domain.
+  const pctFromClientX = (svg: SVGSVGElement, clientX: number): number | null => {
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const sp = svg.createSVGPoint();
+    sp.x = clientX;
+    sp.y = 0;
+    const vb = sp.matrixTransform(ctm.inverse());
+    const pct = xMin + ((vb.x - padL) / innerW) * (xMax - xMin);
+    return Math.min(xMax, Math.max(xMin, pct));
+  };
+  const onProbeDown = (e: RPE<SVGSVGElement>) => {
+    probeDrag.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const p = pctFromClientX(e.currentTarget, e.clientX);
+    if (p != null) setProbePct(p);
+  };
+  const onProbeMove = (e: RPE<SVGSVGElement>) => {
+    if (!probeDrag.current) return;
+    const p = pctFromClientX(e.currentTarget, e.clientX);
+    if (p != null) setProbePct(p);
+  };
+  const onProbeUp = () => {
+    probeDrag.current = false;
+  };
+
   // Y gridline values (whole €).
   const yStep = cap >= 100 ? 20 : cap >= 40 ? 10 : 5;
   const yGrid: number[] = [];
@@ -244,14 +281,23 @@ function CurveChart() {
 
   // Callout placement: flip left if it'd overflow. Grows a line when CPI is shown.
   const calloutW = 150;
-  const calloutH = cpi != null ? 52 : 36;
+  const calloutH = showCpi ? 52 : 36;
   const calloutLeft =
-    ax > w - padR - calloutW - 14 ? ax - calloutW - 14 : ax + 14;
-  const calloutTop = Math.max(padT + 24, ay - calloutH - 6);
+    px > w - padR - calloutW - 14 ? px - calloutW - 14 : px + 14;
+  const calloutTop = Math.max(padT + 24, py - calloutH - 6);
 
   return (
     <div className="curve-stage">
-      <svg className="curve-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
+      <svg
+        className="curve-svg"
+        viewBox={`0 0 ${w} ${h}`}
+        preserveAspectRatio="xMidYMid meet"
+        style={{ cursor: "ew-resize", touchAction: "none" }}
+        onPointerDown={onProbeDown}
+        onPointerMove={onProbeMove}
+        onPointerUp={onProbeUp}
+        onPointerCancel={onProbeUp}
+      >
         <defs>
           {/* Hero stroke gradient — eases from the warm fee ramp toward a unified
               green as Q takes over (qProgress 0→1). */}
@@ -489,16 +535,16 @@ function CurveChart() {
           </g>
         )}
 
-        {/* Active day dot */}
-        <g>
-          <circle cx={ax} cy={ay} r="14" style={{ fill: "var(--ink)" }} opacity="0.06" />
-          <circle cx={ax} cy={ay} r="7" style={{ fill: "var(--ink)" }} />
-          <circle cx={ax} cy={ay} r="3" style={{ fill: "var(--ink-inverse)" }} />
+        {/* Draggable probe handle — slide it along the curve (0–250% capacity) */}
+        <g style={{ pointerEvents: "none" }}>
+          <circle cx={px} cy={py} r="15" style={{ fill: "var(--ink)" }} opacity="0.06" />
+          <circle cx={px} cy={py} r="7.5" fill="var(--panel)" stroke="var(--ink)" strokeWidth="2" />
+          <circle cx={px} cy={py} r="3" style={{ fill: "var(--ink)" }} />
         </g>
 
-        {/* Active day callout */}
-        <g transform={`translate(${calloutLeft}, ${calloutTop})`}>
-          {cpi != null && cpiThreshold != null && (
+        {/* Probe callout — capacity % + fee at that point (CPI only on the day) */}
+        <g transform={`translate(${calloutLeft}, ${calloutTop})`} style={{ pointerEvents: "none" }}>
+          {showCpi && cpiThreshold != null && (
             <title>
               {`Capacity Pressure Index — ${fmtNumber(adjVisitors)} of ${fmtNumber(cpiThreshold)} sustainable/day. ${cpi.toFixed(2)}× threshold.` +
                 (shock ? ` Stress: ${shock.label}.` : "")}
@@ -516,7 +562,7 @@ function CurveChart() {
               textTransform: "uppercase",
             }}
           >
-            At {Math.round(activeLive)}% capacity
+            At {Math.round(probe)}% capacity
           </text>
           <text
             x="10"
@@ -529,9 +575,9 @@ function CurveChart() {
               letterSpacing: "-0.01em",
             }}
           >
-            Fee {fmtEur(activeFee)}
+            Fee {fmtEur(probeFee)}
           </text>
-          {cpi != null && (
+          {showCpi && (
             <g transform="translate(10, 44)">
               <rect x="0" y="-9" width="62" height="14" rx="7" fill={cpiColor(cpi)} />
               <text
