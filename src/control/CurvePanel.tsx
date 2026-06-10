@@ -901,13 +901,18 @@ function YearCurve() {
 
 function BucketStrip() {
   const state = useStore();
+  // Ease the bucket fees/bars in lockstep with the curve: same animated-fee
+  // chase the CurveChart uses, so the strip flattens/adjusts with the curve
+  // instead of snapping. The cap is smoothed too so bar widths don't jump.
+  const dispFee = useAnimatedFee(state);
+  const dispCap = useAnimatedSeries([state ? leverV(state, "max_fee_cap") : 0]);
   if (!state) return null;
-  const cap = leverV(state, "max_fee_cap");
+  const cap = dispCap[0] ?? leverV(state, "max_fee_cap");
   const bucketPcts = [60, 80, 100, 120, 140, 160, 180, 200, 220, 240];
   return (
     <div className="bucket-strip">
       {bucketPcts.map((pct) => {
-        const f = feeAtPct(pct, state);
+        const f = dispFee(pct);
         const rounded = Math.round(f);
         const ratio = cap > 0 ? Math.max(0, f / cap) : 0;
         let cls = "";
