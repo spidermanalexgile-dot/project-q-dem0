@@ -1,6 +1,6 @@
 import { useStore } from "./useStore";
 import { compute, activeYear } from "./state";
-import { fmtCompactEur, fmtEur, fmtNumber } from "./format";
+import { fmtCompactEur, fmtEur } from "./format";
 
 function DeltaChip({ value }: { value: number }) {
   if (Math.abs(value) < 1) {
@@ -57,8 +57,7 @@ export function RevenuePanel() {
         <div className="rev-card">
           <div className="rev-label">Total day revenue</div>
           <div className={"rev-figure day" + trendClass(dayDelta)}>
-            <span className="currency">€</span>
-            {fmtNumber(d.dayRevenue).replace(/^-/, "")}
+            {fmtEur(Math.abs(d.dayRevenue))}
             {d.dayRevenue < 0 && (
               <span
                 style={{ color: "var(--penalty)", fontSize: "0.4em", marginLeft: 8 }}
@@ -76,8 +75,7 @@ export function RevenuePanel() {
         <div className="rev-card annual">
           <div className="rev-label">{multiYear ? `${yr} annual revenue` : "Projected annual revenue"}</div>
           <div className={"rev-figure annual" + trendClass(annualDelta)}>
-            <span className="currency">€</span>
-            {fmtNumber(d.annualRevenue)}
+            {fmtEur(d.annualRevenue)}
           </div>
           <div className="rev-foot">
             <span className="rev-note">{multiYear ? `${yr} full year` : "365-day rollup"}</span>

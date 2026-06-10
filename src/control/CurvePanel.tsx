@@ -92,22 +92,17 @@ const FEE_GRID_STEP = 2;
 const FEE_GRID_MAX = 250;
 const FEE_GRID_N = Math.floor(FEE_GRID_MAX / FEE_GRID_STEP) + 1;
 
-/** Returns a fee(pct) reader whose values CHASE the live target curve — so the
- *  cost curve eases (both ways) on any change: the Let-Q-fix-this toggle
- *  (flat €5 → dynamic) and manual lever drags (curve → new curve). Exponential
- *  smoothing means a fast drag is followed smoothly rather than snapping. */
-function useAnimatedFee(state: State | null): (pct: number) => number {
+/** A series of values that CHASE a moving target array via per-sample
+ *  exponential smoothing. The returned array eases (both ways) whenever the
+ *  target changes — so any state change (Let-Q-fix-this OR a manual lever drag)
+ *  animates smoothly rather than snapping. Length changes reset instantly. */
+function useAnimatedSeries(target: number[]): number[] {
   const dispRef = useRef<number[] | null>(null);
   const rafRef = useRef(0);
   const [, bump] = useState(0);
 
-  // Destination curve, sampled on the fixed grid, recomputed every render.
-  const target: number[] = [];
-  for (let i = 0; i < FEE_GRID_N; i++) {
-    target.push(state ? feeAtPct(i * FEE_GRID_STEP, state) : 0);
-  }
   if (dispRef.current == null || dispRef.current.length !== target.length) {
-    dispRef.current = target.slice(); // first paint: no animation in from zero
+    dispRef.current = target.slice(); // first paint / view switch: no animate-in
   }
 
   const targetKey = target.map((v) => v.toFixed(2)).join(",");
@@ -135,8 +130,19 @@ function useAnimatedFee(state: State | null): (pct: number) => number {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetKey]);
 
+  return dispRef.current!;
+}
+
+/** Returns a fee(pct) reader whose values CHASE the live target curve — so the
+ *  cost curve eases (both ways) on any change: the Let-Q-fix-this toggle
+ *  (flat €5 → dynamic) and manual lever drags (curve → new curve). */
+function useAnimatedFee(state: State | null): (pct: number) => number {
+  const target: number[] = [];
+  for (let i = 0; i < FEE_GRID_N; i++) {
+    target.push(state ? feeAtPct(i * FEE_GRID_STEP, state) : 0);
+  }
+  const disp = useAnimatedSeries(target);
   return (pct: number) => {
-    const disp = dispRef.current!;
     const x = Math.max(0, Math.min(FEE_GRID_MAX, pct)) / FEE_GRID_STEP;
     const i = Math.floor(x);
     const frac = x - i;
@@ -580,40 +586,23 @@ function isMonthLocked(year: number, monthIdx: number, cutoff: string | undefine
   return lastDate <= cutoff;
 }
 
-function YearCurve() {
-  const state = useStore();
-  const dragging = useRef(false);
-  // Animate the "without Q → with Q" transition: the line eases from the raw
-  // forecast down to the flattened managed shape (and orange → green).
-  const qProgress = useQProgress(!!state?.q_fixed);
-  if (!state) return <div className="curve-stage" />;
+type YPt = { live: number; managed: number; fee: number; name: string; year: number; mi: number; locked: boolean };
 
-  const w = 1000;
-  // Taller canvas than the cost view: with the explainer paragraph removed, the
-  // zoom-out fills the freed vertical space (aspect closer to the stage's).
-  const h = 760;
-  const padL = 56;
-  const padR = 28;
-  const padT = 30;
-  const padB = 52;
-  const innerW = Math.max(1, w - padL - padR);
-  const innerH = Math.max(1, h - padT - padB);
-
+/** Pure derivation of the zoom-out series (per-month live forecast + managed
+ *  demand) for the active span. Kept hook-free so it can run before the early
+ *  return — the managed values feed the animation hook. */
+function buildYearData(state: State) {
   const occTarget = state.occupancy_target ?? 100;
   const span = state.zoomSpan === 5 ? 5 : 1;
   const growth = annualGrowthRate(state);
   const baseMonths = monthlyDemandProfile(state);
   const fiveYr = !!state.daily && state.daily.length > 400;
   const firstYear = state.daily && state.daily[0] ? Number(state.daily[0].date.slice(0, 4)) : 2026;
-  const baseYear = firstYear; // x-axis anchor — 2024 for the 5-year bundle
   const cutoff = state.locked_cutoff;
   const yearly = fiveYr ? deriveYearlyMonthlyProfiles(state.daily!) : null;
-
   // Calendar years on the x-axis: the 5 fixed bundle years, else the active year.
   const years = span === 5 ? Array.from({ length: 5 }, (_, i) => firstYear + i) : [activeYear(state)];
   const n = years.length * 12;
-
-  type YPt = { live: number; managed: number; fee: number; name: string; year: number; mi: number; locked: boolean };
   const pts: YPt[] = [];
   years.forEach((yr, yi) => {
     for (let mi = 0; mi < 12; mi++) {
@@ -628,6 +617,33 @@ function YearCurve() {
       pts.push({ live, managed, fee: feeAtPct(live, state), name: MONTH_NAMES[mi], year: yr, mi, locked });
     }
   });
+  return { occTarget, span, firstYear, baseYear: firstYear, cutoff, years, n, pts };
+}
+
+function YearCurve() {
+  const state = useStore();
+  const dragging = useRef(false);
+  // qProgress drives the green tint + area fade as Q takes over; the managed
+  // line itself is animated by chasing its target (so it also eases when levers
+  // are dragged manually — both up and down).
+  const qProgress = useQProgress(!!state?.q_fixed);
+  const data = state ? buildYearData(state) : null;
+  const animManaged = useAnimatedSeries(data ? data.pts.map((p) => p.managed) : []);
+  if (!state || !data) return <div className="curve-stage" />;
+  const { occTarget, span, baseYear, cutoff, years, n, pts } = data;
+
+  const w = 1000;
+  // Taller canvas than the cost view: with the explainer paragraph removed, the
+  // zoom-out fills the freed vertical space (aspect closer to the stage's).
+  const h = 760;
+  const padL = 56;
+  const padR = 28;
+  const padT = 30;
+  const padB = 52;
+  const innerW = Math.max(1, w - padL - padR);
+  const innerH = Math.max(1, h - padT - padB);
+
+  const firstYear = baseYear;
 
   const peak = Math.max(occTarget, ...pts.map((p) => Math.max(p.live, p.managed)));
   const yMax = Math.ceil((peak * 1.12) / 20) * 20;
@@ -641,11 +657,11 @@ function YearCurve() {
   const openStart = firstOpenIdx < 0 ? pts.length : firstOpenIdx;
   const cutoffX = openStart > 0 && openStart < pts.length ? padL + (openStart / n) * innerW : null;
 
-  // Animated managed value: eases from the raw forecast (qProgress 0) to the
-  // flattened managed shape (qProgress 1) as Q takes over. Locked points are
-  // unaffected (managed == live there).
-  const dispM = (p: YPt) => p.live + (p.managed - p.live) * qProgress;
-  const manXY = pts.map((p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, dispM(p))) }));
+  // Displayed managed value — the smoothed chase toward each point's managed
+  // target. Responds to lever drags (q off) AND the Let-Q-fix-this flatten,
+  // easing both ways. Locked points have managed == live, so they sit still.
+  const dispM = (i: number) => animManaged[i] ?? pts[i].managed;
+  const manXY = pts.map((_p, i) => ({ x: xAt(i), y: yS(Math.min(yMax, dispM(i))) }));
   const lockedXY = manXY.slice(0, openStart);
   const openRawXY = pts.slice(openStart).map((p, j) => ({ x: xAt(openStart + j), y: yS(Math.min(yMax, p.live)) }));
   const manPath = smoothPath(manXY);
@@ -835,7 +851,7 @@ function YearCurve() {
         {/* Month dots on the managed curve (1-yr only; 60 dots is too dense at 5-yr) */}
         {span === 1 &&
           pts.map((p, i) => {
-            const cy = yS(Math.min(yMax, dispM(p)));
+            const cy = yS(Math.min(yMax, dispM(i)));
             return (
               <g key={"md-" + i}>
                 {cy - yS(Math.min(yMax, p.live)) > 8 && (
@@ -850,13 +866,13 @@ function YearCurve() {
         {peakI >= 0 && (
           <text
             x={Math.min(w - padR - 40, Math.max(padL + 40, xAt(peakI)))}
-            y={yS(Math.min(yMax, dispM(pts[peakI]))) - 9}
+            y={yS(Math.min(yMax, dispM(peakI))) - 9}
             textAnchor="middle"
             className="year-band-label"
             style={{ fontWeight: 600 }}
           >
             {span === 5 ? `${baseYear + pts[peakI].year} · ` : `${pts[peakI].name} · `}
-            {Math.round(dispM(pts[peakI]))}% · {fmtEur(pts[peakI].fee)}
+            {Math.round(dispM(peakI))}% · {fmtEur(pts[peakI].fee)}
           </text>
         )}
 
