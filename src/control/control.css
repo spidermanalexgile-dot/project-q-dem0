@@ -652,6 +652,17 @@
   color: var(--earth);
 }
 
+/* Dormant levers (status quo, before "Let Q fix this") — dimmed + locked. */
+.qctl-root .lever.dormant {
+  opacity: 0.5;
+}
+.qctl-root .lever.dormant .lever-value {
+  color: var(--ink-soft);
+}
+.qctl-root .lever.dormant .slider-row input[type="range"] {
+  cursor: not-allowed;
+}
+
 .qctl-root .slider-row {
   grid-column: 1 / -1;
   grid-row: 2;

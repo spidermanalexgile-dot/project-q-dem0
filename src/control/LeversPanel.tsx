@@ -8,6 +8,7 @@ import {
   activeDayType,
   liveDemandPct,
   feeAtPct,
+  isStatusQuo,
   type LeverId,
 } from "./state";
 import { fmtCompactNum, fmtEur, fmtNumber } from "./format";
@@ -22,16 +23,18 @@ function DayFeeRow() {
   const day = activeDayType(state);
   const live = liveDemandPct(day.demand_pct, state);
   const fee = feeAtPct(live, state);
-  const cls = fee < 0 ? " credit" : fee >= 40 ? " high" : fee >= 12 ? " warn" : "";
+  // Status quo (before Q): it's just the flat €5 access fee, not a Q-set price.
+  const quo = isStatusQuo(state);
+  const cls = quo ? "" : fee < 0 ? " credit" : fee >= 40 ? " high" : fee >= 12 ? " warn" : "";
   return (
     <div className={"day-fee-row" + cls}>
       <div className="day-fee-head">
-        <span className="day-fee-label">Fee Q sets for this day</span>
+        <span className="day-fee-label">{quo ? "Current access fee" : "Fee Q sets for this day"}</span>
         <span className="day-fee-day">{day.date} · {Math.round(live)}%</span>
       </div>
       <div className="day-fee-figure">
         {fee < 0 ? `−€${Math.abs(Math.round(fee))}` : fmtEur(fee)}
-        <span className="day-fee-tag">{fee < 0 ? "paid to come" : "per visitor"}</span>
+        <span className="day-fee-tag">{quo ? "flat · status quo" : fee < 0 ? "paid to come" : "per visitor"}</span>
       </div>
     </div>
   );
@@ -133,21 +136,30 @@ function LeverRow({ id }: { id: LeverId }) {
   // the original % alongside so the relationship to the target is still clear.
   const displayValue = meta.asVisitors ? Math.round((targetCap * lever.value) / 100) : lever.value;
   const subText = meta.asVisitors ? `${meta.sub} · ${lever.value}% of target` : meta.sub;
+  // Status quo (before Q, no lever touched): the levers are dormant — value shows
+  // "—" and the slider is locked. "Let Q fix this" brings them to life.
+  const dormant = isStatusQuo(state);
 
   return (
-    <div className={"lever" + (flashing ? " flashing" : "")}>
+    <div className={"lever" + (flashing ? " flashing" : "") + (dormant ? " dormant" : "")}>
       <div className="lever-label">
         {meta.label}
         <div className="lever-sub">{subText}</div>
       </div>
       <div className="lever-value">
-        {meta.prefix || ""}
-        {meta.format(displayValue)}
-        {meta.suffix || ""}
+        {dormant ? (
+          "—"
+        ) : (
+          <>
+            {meta.prefix || ""}
+            {meta.format(displayValue)}
+            {meta.suffix || ""}
+          </>
+        )}
       </div>
       <div className="slider-row">
         <div className="track">
-          <div className="fill" style={{ width: pct * 100 + "%" }} />
+          <div className="fill" style={{ width: (dormant ? 0 : pct * 100) + "%" }} />
         </div>
         <input
           type="range"
@@ -155,6 +167,7 @@ function LeverRow({ id }: { id: LeverId }) {
           max={lever.max}
           step={lever.step || 1}
           value={lever.value}
+          disabled={dormant}
           onChange={(e) => {
             setLever(id, Number(e.target.value));
             setFlashing(true);

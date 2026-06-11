@@ -237,12 +237,24 @@ export const STATUS_QUO_FEE = 5;
  *  no matter how high the at-target base fee climbs on a peak day. */
 export const FIRST_VISITOR_FLOOR = -15;
 
+/** True when every pricing lever still sits at its loaded default. Combined with
+ *  q_fixed=false this is the STATUS-QUO state: no pricing is applied yet — the
+ *  fee is a flat €5 and the levers are dormant (shown as "—" in the UI). Both Q
+ *  and a manual lever move take the model out of this state. */
+export function leversPristine(snap: State = requireState()): boolean {
+  return snap.levers.every((l) => typeof l.def !== "number" || l.value === l.def);
+}
+
+/** Status-quo = before Q, no lever touched: flat €5, dormant levers, raw crowd. */
+export function isStatusQuo(snap: State = requireState()): boolean {
+  return !snap.q_fixed && leversPristine(snap);
+}
+
 export function feeAtPct(pct: number, snap: State = requireState()): number {
   // Before "Let Q fix this" (and before any lever is moved) the curve is just the
   // flat €5 access fee — the current policy. Q (or a manual lever move) turns it
   // into the dynamic curve below.
-  const pristine = snap.levers.every((l) => typeof l.def !== "number" || l.value === l.def);
-  if (!snap.q_fixed && pristine) return STATUS_QUO_FEE;
+  if (isStatusQuo(snap)) return STATUS_QUO_FEE;
 
   const base = leverVal(snap, "base_fee");
   const cap = leverVal(snap, "max_fee_cap");
@@ -321,6 +333,8 @@ export function occupancyTarget(snap: State = requireState()): number {
 export function managedDemandPct(raw_pct: number, snap: State = requireState()): number {
   // Reset / "no pricing" state: the managed crowd IS the raw forecast crowd.
   if (snap.pricing_off) return raw_pct;
+  // Status quo (before Q, no lever moved): no pricing yet → raw forecast crowd.
+  if (isStatusQuo(snap)) return raw_pct;
   const target = occupancyTarget(snap);
   if (snap.q_fixed) {
     // "Let Q fix this": each day is priced OPTIMALLY for that day, so the whole
@@ -389,7 +403,15 @@ function baselineAnnualRevenue(snap: State): number {
       // no lever pricing; only post-cutoff projections respond to the curve.
       const locked = snap.locked_cutoff ? d.date <= snap.locked_cutoff : false;
       const pctOfTarget = (d.adjusted_visitors / target) * 100;
-      total += d.adjusted_visitors * (locked ? STATUS_QUO_FEE : feeAtPct(pctOfTarget, snap));
+      // Under Q, price each day at ITS OWN per-day optimal — not the active day's
+      // live-tuned levers — so the annual total stays put as you scroll/scrub the
+      // date (which re-tunes the levers for the on-screen day only).
+      const fee = locked
+        ? STATUS_QUO_FEE
+        : snap.q_fixed
+          ? optimalDayFee(pctOfTarget, occupancyTarget(snap))
+          : feeAtPct(pctOfTarget, snap);
+      total += d.adjusted_visitors * fee;
     }
     return total;
   }
