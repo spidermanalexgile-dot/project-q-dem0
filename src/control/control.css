@@ -1736,13 +1736,20 @@
   font-family: var(--font-mono);
 }
 .qctl-root .lever-input.custom .lever-input-box { border-color: var(--ochre); }
-/* Two linked boxes (visitors + %) that move in parallel. */
-.qctl-root .target-cap-boxes {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* Target-capacity slider value: headcount + a small % badge. */
+.qctl-root .target-cap .tc-pct {
+  margin-left: 7px;
+  padding: 1px 7px;
+  border-radius: 7px;
+  background: var(--earth);
+  color: var(--stone);
+  font-size: 11px;
+  font-weight: 600;
 }
-.qctl-root .target-cap-boxes .lever-input-box.pct input { width: 42px; }
+.qctl-root .target-cap.custom .tc-pct {
+  background: var(--ochre);
+  color: var(--earth);
+}
 .qctl-root .lever-input-box input {
   width: 70px;
   appearance: none;

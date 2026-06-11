@@ -41,10 +41,12 @@ function DayFeeRow() {
   );
 }
 
-/** The target Q steers a day toward, as BOTH an absolute headcount and a % of
- *  the capacity (55k base = 100%). The two boxes move in parallel; raising the
- *  % above 100 lets the operator invite more in for a big event that day. When a
- *  calendar day is selected it sets a per-day override, else the base target. */
+const TARGET_MIN = 50;
+const TARGET_MAX = 250;
+
+/** The level Q steers the whole demand curve to — a draggable bar (touch-easy on
+ *  the iPad), shown as both a % of capacity and an absolute headcount (55k =
+ *  100%). Dragging it re-prices the year; the value syncs to the web view. */
 function TargetCapacityRow() {
   const state = useStore();
   if (!state) return null;
@@ -52,42 +54,33 @@ function TargetCapacityRow() {
   const pct = activeOccupancyTarget(state); // the level Q steers demand to
   const people = Math.round((base * pct) / 100); // absolute target headcount
   const off = pct !== 100; // steering away from capacity
+  const fill = ((Math.max(TARGET_MIN, Math.min(TARGET_MAX, pct)) - TARGET_MIN) / (TARGET_MAX - TARGET_MIN)) * 100;
   return (
-    <div className={"lever lever-input target-cap" + (off ? " custom" : "")}>
+    <div className={"lever target-cap" + (off ? " custom" : "")}>
       <div className="lever-label">
         Target capacity
         <div className="lever-sub">Q steers demand here · 100% = capacity</div>
       </div>
-      <div className="target-cap-boxes">
-        <div className="lever-input-box">
-          <input
-            type="number"
-            min={0}
-            max={Math.round(base * 3)}
-            step={1000}
-            value={people}
-            onChange={(e) => {
-              if (e.target.value !== "" && base > 0) {
-                setOccupancyTarget((Number(e.target.value) / base) * 100);
-              }
-            }}
-            aria-label="Target visitors for this day"
-          />
-          <span>/day</span>
+      <div className="lever-value">
+        {fmtNumber(people)}
+        <span className="tc-pct">{pct}%</span>
+      </div>
+      <div className="slider-row">
+        <div className="track">
+          <div className="fill" style={{ width: fill + "%" }} />
         </div>
-        <div className="lever-input-box pct">
-          <input
-            type="number"
-            min={0}
-            max={300}
-            step={5}
-            value={pct}
-            onChange={(e) => {
-              if (e.target.value !== "") setOccupancyTarget(Number(e.target.value));
-            }}
-            aria-label="Target as a percentage of capacity"
-          />
-          <span>%</span>
+        <input
+          type="range"
+          min={TARGET_MIN}
+          max={TARGET_MAX}
+          step={5}
+          value={Math.max(TARGET_MIN, Math.min(TARGET_MAX, pct))}
+          onChange={(e) => setOccupancyTarget(Number(e.target.value))}
+          aria-label="Target capacity — % of capacity Q steers demand to"
+        />
+        <div className="ticks">
+          <span>{TARGET_MIN}%</span>
+          <span>{TARGET_MAX}%</span>
         </div>
       </div>
     </div>
