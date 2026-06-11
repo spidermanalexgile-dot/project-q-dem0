@@ -434,6 +434,57 @@ export function annualRevenue(snap: State = requireState()): number {
   return base;
 }
 
+/* ─── Sustainability dividend — infrastructure strain cost avoided ───────── */
+
+/** Marginal infrastructure-strain cost of ONE visitor-day over the sustainable
+ *  carrying capacity (transport, waste, water, wear, policing, emergency cover).
+ *  A modelling assumption — the DPM doesn't ship an externality figure yet. */
+export const STRAIN_EUR_PER_VISITOR = 14;
+
+/** Euro infrastructure-strain cost of a day whose crowd is `visitors`, given the
+ *  sustainable `threshold`. Zero at/under capacity; ABOVE it the marginal damage
+ *  escalates (a linear + quadratic term) — the deeper over capacity, the more
+ *  each extra head strains an already-overused system. Pure + deterministic. */
+function dayStrainCost(visitors: number, threshold: number): number {
+  const excess = visitors - threshold;
+  if (excess <= 0) return 0;
+  return STRAIN_EUR_PER_VISITOR * (excess + (excess * excess) / (2 * threshold));
+}
+
+/**
+ * Sustainability dividend — the annual infrastructure-strain cost AVOIDED by Q
+ * pulling the crowd down off the over-capacity peaks, versus the raw forecast.
+ * It rises as the managed crowd drops further below the sustainable threshold —
+ * i.e. as over-tourism strain decreases. Zero in the status quo (managed ==
+ * forecast). Active year only for the 5-year bundle. Pure + deterministic.
+ */
+export function strainCostAvoided(snap: State = requireState()): number {
+  const threshold = capacityThreshold(snap) ?? targetCapacity(snap);
+  const target = targetCapacity(snap) || 1;
+  const strainDelta = (rawPct: number) => {
+    const live = liveDemandPct(rawPct, snap);
+    const managed = managedDemandPct(live, snap);
+    const rawCost = dayStrainCost((target * live) / 100, threshold);
+    const manCost = dayStrainCost((target * managed) / 100, threshold);
+    return rawCost - manCost; // ≥ 0 whenever pricing pulls the peak down
+  };
+  if (snap.daily && snap.daily.length > 0) {
+    const yr = snap.daily.length > 400 ? activeYear(snap) : null;
+    let saved = 0;
+    for (const d of snap.daily) {
+      if (yr !== null && Number(d.date.slice(0, 4)) !== yr) continue;
+      // History (confirmed actuals) isn't reshaped by pricing — no avoided cost.
+      if (snap.locked_cutoff && d.date <= snap.locked_cutoff) continue;
+      saved += strainDelta((d.adjusted_visitors / target) * 100);
+    }
+    return Math.max(0, saved);
+  }
+  const months = monthlyDemandProfile(snap);
+  let saved = 0;
+  for (const pct of months) saved += strainDelta(pct) * (365 / 12);
+  return Math.max(0, saved);
+}
+
 /* ─── DPM v2: capacity-pressure (CPI) + stress-test overlay ──────────────── */
 
 /** USD→EUR rate from the bundle's Assumptions; 1.0 when absent. */
@@ -1037,6 +1088,8 @@ export type Computed = {
   annualRevenue: number;
   prevDayRev: number;
   prevAnnualRev: number;
+  /** Sustainability dividend — annual infrastructure-strain cost avoided by Q. */
+  strainSaved: number;
   fee: (pct: number) => number;
   pay: (pct: number) => number;
   qcash: (pct: number) => number;
@@ -1053,6 +1106,7 @@ export function compute(): Computed {
     annualRevenue: annualRevenue(s),
     prevDayRev: s.__prevDayRev,
     prevAnnualRev: s.__prevAnnualRev,
+    strainSaved: strainCostAvoided(s),
     fee: (pct: number) => feeAtPct(pct, s),
     pay: (pct: number) => payAtPct(pct, s),
     qcash: (pct: number) => qcashAtPct(pct, s),
@@ -1087,6 +1141,8 @@ export type ProjectQApi = {
   liveDemandPct: (baseline_pct: number) => number;
   targetCapacity: () => number;
   annualRevenue: () => number;
+  /** Sustainability dividend — annual infrastructure-strain cost avoided by Q. */
+  strainCostAvoided: () => number;
   /** DPM v2: Capacity Pressure Index for the active day (null if no threshold). */
   activeCPI: () => number | null;
   /** DPM v2: sustainable capacity threshold (CPI denominator), or undefined. */
@@ -1152,6 +1208,7 @@ export function installGlobalApi(): void {
     liveDemandPct: (baseline_pct: number) => liveDemandPct(baseline_pct),
     targetCapacity: () => targetCapacity(),
     annualRevenue: () => annualRevenue(),
+    strainCostAvoided: () => strainCostAvoided(),
     activeCPI: () => activeCPI(),
     capacityThreshold: () => capacityThreshold(),
     activeShock: () => activeShockObj(),

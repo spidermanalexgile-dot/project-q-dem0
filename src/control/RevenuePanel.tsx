@@ -1,6 +1,68 @@
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "./useStore";
 import { compute, activeYear } from "./state";
-import { fmtCompactEur, fmtEur } from "./format";
+import { fmtCompactEur, fmtEur, fmtNumber } from "./format";
+
+/** Smoothly count a displayed number toward `target` (easeOutCubic) — the
+ *  odometer effect for the sustainability dividend. */
+function useCountUp(target: number): number {
+  const ref = useRef(0);
+  const raf = useRef(0);
+  const [, bump] = useState(0);
+  useEffect(() => {
+    cancelAnimationFrame(raf.current);
+    const from = ref.current;
+    if (from === target) return;
+    const start = performance.now();
+    const dur = 1100;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const e = 1 - Math.pow(1 - t, 3);
+      ref.current = from + (target - from) * e;
+      bump((n) => n + 1);
+      if (t < 1) raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf.current);
+  }, [target]);
+  return ref.current;
+}
+
+/** Sustainability odometer — infrastructure-strain cost Q avoids by pulling the
+ *  crowd down off the over-capacity peaks. Counts up as the saving grows. */
+function StrainOdometer({ saved }: { saved: number }) {
+  const shown = useCountUp(saved);
+  const digits = fmtNumber(Math.round(shown));
+  return (
+    <div className={"strain-odo" + (saved > 0 ? " active" : "")}>
+      <div className="strain-odo-head">
+        <span className="strain-odo-label">Sustainability dividend</span>
+        <span className="strain-odo-sub">infrastructure strain avoided · this year</span>
+      </div>
+      <div className="strain-odo-figure" aria-label={`€${digits} of strain cost avoided`}>
+        <span className="currency">€</span>
+        <span className="strain-odo-digits">
+          {digits.split("").map((c, i) =>
+            c === "," ? (
+              <span key={i} className="sep">
+                ,
+              </span>
+            ) : (
+              <span key={i} className="reel">
+                {c}
+              </span>
+            ),
+          )}
+        </span>
+      </div>
+      <div className="strain-odo-foot">
+        {saved > 0
+          ? "overuse cost saved as Q flattens the peaks"
+          : "engage Q to relieve over-capacity strain"}
+      </div>
+    </div>
+  );
+}
 
 function DeltaChip({ value }: { value: number }) {
   if (Math.abs(value) < 1) {
@@ -83,6 +145,8 @@ export function RevenuePanel() {
           </div>
         </div>
       </div>
+
+      <StrainOdometer saved={d.strainSaved} />
     </section>
   );
 }

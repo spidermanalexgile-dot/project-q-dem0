@@ -559,6 +559,94 @@
   gap: 8px;
   position: relative;
 }
+
+/* Sustainability odometer — strain cost avoided, counting up as Q flattens. */
+.qctl-root .strain-odo {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: clamp(11px, 1.4vh, 16px) clamp(13px, 1.2vw, 18px);
+  background:
+    linear-gradient(180deg, rgba(63, 185, 122, 0.10), rgba(63, 185, 122, 0.02));
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.4s ease, background 0.4s ease;
+}
+.qctl-root .strain-odo.active {
+  border-color: rgba(47, 168, 102, 0.45);
+}
+.qctl-root .strain-odo-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.qctl-root .strain-odo-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #2c8b52;
+  font-weight: 600;
+}
+.qctl-root.dark .strain-odo-label {
+  color: #5fd398;
+}
+.qctl-root .strain-odo-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.qctl-root .strain-odo-figure {
+  display: flex;
+  align-items: baseline;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(22px, 2.4vw, 30px);
+  color: #2c8b52;
+  letter-spacing: -0.02em;
+}
+.qctl-root.dark .strain-odo-figure {
+  color: #5fd398;
+}
+.qctl-root .strain-odo-figure .currency {
+  font-weight: 400;
+  opacity: 0.7;
+  margin-right: 0.04em;
+}
+.qctl-root .strain-odo-digits {
+  display: inline-flex;
+}
+.qctl-root .strain-odo-digits .reel {
+  display: inline-block;
+  width: 0.62em;
+  text-align: center;
+  animation: odo-tick 0.4s ease;
+}
+.qctl-root .strain-odo-digits .sep {
+  display: inline-block;
+  opacity: 0.55;
+}
+@keyframes odo-tick {
+  from {
+    transform: translateY(-22%);
+    opacity: 0.35;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.qctl-root .strain-odo-foot {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  margin-top: 5px;
+}
 .qctl-root .rev-note {
   font-family: var(--font-mono);
   font-size: 10px;
