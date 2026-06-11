@@ -19,6 +19,7 @@ const THEME_KEY = "qctl-theme";
  */
 export function ControlDashboard() {
   const [booted, setBooted] = useState<boolean>(() => !!getState());
+  const [leversHidden, setLeversHidden] = useState(false);
   const [dark, setDark] = useState<boolean>(() => {
     try {
       return localStorage.getItem(THEME_KEY) === "dark";
@@ -60,12 +61,14 @@ export function ControlDashboard() {
         dark={dark}
         onToggleDark={() => setDark((d) => !d)}
         onSetDark={(d) => setDark(d)}
+        leversHidden={leversHidden}
+        onToggleLevers={() => setLeversHidden((h) => !h)}
       />
-      <main className="qctl-main">
+      <main className={"qctl-main" + (leversHidden ? " levers-hidden" : "")}>
         <CurvePanel />
         <div className="qctl-right-rail">
           <RevenuePanel />
-          <LeversPanel />
+          {!leversHidden && <LeversPanel />}
         </div>
       </main>
     </div>

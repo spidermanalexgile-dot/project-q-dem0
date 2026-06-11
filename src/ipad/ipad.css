@@ -1,15 +1,14 @@
 /* iPad lever console — fills an iPad-mini screen (landscape or portrait), reuses
    the qctl theme tokens from control.css. */
+/* Inherit the themed background from .qctl-root / .qctl-root.dark (light cream
+   or the dark gradient) — do NOT set our own, or dark mode shows light. */
 .qctl-root.ipad-root {
-  min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   padding: clamp(10px, 1.6vw, 18px);
   gap: clamp(10px, 1.4vw, 16px);
   box-sizing: border-box;
-  background: var(--bg);
-  color: var(--ink);
+  overflow-y: auto;
 }
 
 .qctl-root .ipad-head {
@@ -80,6 +79,24 @@
   height: 42px;
   font-size: 18px;
   cursor: pointer;
+}
+
+/* Chart-view switcher — drives which chart the web display shows. */
+.qctl-root .ipad-views {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.qctl-root .ipad-views .curve-view-toggle button {
+  font-size: 14px;
+  padding: 9px 18px;
+}
+.qctl-root .ipad-views-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
 }
 
 /* Two-column body that collapses to one on a narrow (portrait) screen. */

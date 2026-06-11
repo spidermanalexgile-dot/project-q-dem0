@@ -342,6 +342,15 @@
   gap: clamp(10px, 1.2vw, 18px);
   min-height: 0;
 }
+/* Levers hidden (driven from the iPad) → the chart takes the freed space. */
+.qctl-root .qctl-main.levers-hidden {
+  grid-template-columns: minmax(0, 2.6fr) minmax(280px, 0.8fr);
+}
+.qctl-root .tb-hide-levers.on {
+  background: var(--ink);
+  color: var(--ink-inverse);
+  border-color: var(--ink);
+}
 .qctl-root .panel {
   background: linear-gradient(180deg, var(--panel-strong), var(--panel));
   border: 1px solid var(--hairline);

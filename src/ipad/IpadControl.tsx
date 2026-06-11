@@ -8,6 +8,8 @@ import {
   loadBundle,
   getState,
   setDate,
+  setView,
+  setZoomSpan,
   suggestSustainableLevers,
   resetLevers,
   activeDayType,
@@ -69,6 +71,8 @@ export function IpadControl() {
 
   const day = activeDayType(state);
   const qOn = !!state.q_fixed;
+  const span = state.zoomSpan ?? 1;
+  const isCost = state.view === "cost";
 
   return (
     <div className={"qctl-root ipad-root" + (dark ? " dark" : "")}>
@@ -126,6 +130,21 @@ export function IpadControl() {
           </button>
         </div>
       </header>
+
+      <div className="ipad-views">
+        <div className="curve-view-toggle" role="tablist" aria-label="Chart view">
+          <button className={isCost ? "on" : ""} onClick={() => setView("cost")} aria-pressed={isCost}>
+            Cost curve
+          </button>
+          <button className={!isCost && span !== 5 ? "on" : ""} onClick={() => setZoomSpan(1)} aria-pressed={!isCost && span !== 5}>
+            1-year
+          </button>
+          <button className={!isCost && span === 5 ? "on" : ""} onClick={() => setZoomSpan(5)} aria-pressed={!isCost && span === 5}>
+            5-year
+          </button>
+        </div>
+        <span className="ipad-views-hint">drives the web display →</span>
+      </div>
 
       <main className="ipad-main">
         <div className="ipad-col ipad-col-levers">

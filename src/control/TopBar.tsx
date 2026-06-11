@@ -33,9 +33,12 @@ type TopBarProps = {
   onToggleDark: () => void;
   /** Lets the embedded mic flip the theme by voice ("dark mode"). */
   onSetDark: (dark: boolean) => void;
+  /** Hide the Levers panel — drive them from the iPad console instead. */
+  leversHidden?: boolean;
+  onToggleLevers?: () => void;
 };
 
-export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
+export function TopBar({ dark, onToggleDark, onSetDark, leversHidden, onToggleLevers }: TopBarProps) {
   const state = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<Toast>(null);
@@ -303,6 +306,22 @@ export function TopBar({ dark, onToggleDark, onSetDark }: TopBarProps) {
 
         <div className="tb-field tb-field-right">
           <div className="tb-right-actions">
+          {onToggleLevers && (
+            <button
+              type="button"
+              className={"tb-upload tb-hide-levers" + (leversHidden ? " on" : "")}
+              onClick={onToggleLevers}
+              title={leversHidden ? "Show the Levers panel" : "Hide the Levers panel (drive them from the iPad)"}
+              aria-label={leversHidden ? "Show levers" : "Hide levers"}
+              aria-pressed={!!leversHidden}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M2 5h12M2 11h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <circle cx="6" cy="5" r="2" fill="var(--panel)" stroke="currentColor" strokeWidth="1.4" />
+                <circle cx="10" cy="11" r="2" fill="var(--panel)" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             className="tb-upload"

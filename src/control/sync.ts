@@ -18,6 +18,7 @@ import {
 const ENDPOINT = "/api/sync";
 const POLL_MS = 1200;
 const PUSH_DEBOUNCE_MS = 200;
+const HEARTBEAT_MS = 6000;
 
 function makeId(): string {
   try {
@@ -39,6 +40,7 @@ export function startSync(): void {
   let lastPushedVersion = getStoreVersion();
   let lastRev = -1;
   let applying = false;
+  let isOwner = false; // true when we made the last change → safe to re-assert
   let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
   async function push() {
@@ -53,6 +55,7 @@ export function startSync(): void {
       });
       const j = await r.json();
       if (typeof j?.rev === "number") lastRev = j.rev; // our push is now the latest
+      isOwner = true; // we hold the current shared state
     } catch {
       /* offline / endpoint missing — stay local */
     }
@@ -80,6 +83,7 @@ export function startSync(): void {
         applySyncedState(j.data);
         lastPushedVersion = getStoreVersion(); // adopt — don't echo it back
         applying = false;
+        isOwner = false; // the other screen now holds the current state
       }
     } catch {
       /* ignore */
@@ -95,7 +99,17 @@ export function startSync(): void {
     }
   });
 
-  // Adopt whatever the shared state already is, then keep polling.
+  // Heartbeat: re-assert our snapshot every few seconds. If a serverless cold
+  // start wiped the in-memory relay, this restores the shared state within one
+  // beat (the server ignores an unchanged payload, so it's a silent no-op
+  // otherwise). Skipped while we're applying a remote change.
+  function heartbeat() {
+    if (applying || !isOwner) return; // only the owner re-asserts (no clobber)
+    void push();
+  }
+
+  // Adopt whatever the shared state already is, then keep polling + beating.
   void poll();
   setInterval(poll, POLL_MS);
+  setInterval(heartbeat, HEARTBEAT_MS);
 }
