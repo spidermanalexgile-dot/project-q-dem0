@@ -20,7 +20,7 @@ import {
   type DailyRow,
 } from "./state";
 import { setDate } from "./state";
-import { fmtEur, fmtNumber } from "./format";
+import { fmtEur, fmtNumber, fmtCompactNum } from "./format";
 
 function leverV(state: State, id: string): number {
   const l = state.levers.find((x) => x.id === id);
@@ -685,7 +685,7 @@ function YearCurve() {
   // Taller canvas than the cost view: with the explainer paragraph removed, the
   // zoom-out fills the freed vertical space (aspect closer to the stage's).
   const h = 760;
-  const padL = 56;
+  const padL = 66; // wider left margin: %-tick + visitor-count stacked beneath it
   const padR = 28;
   const padT = 30;
   const padB = 52;
@@ -838,12 +838,16 @@ function YearCurve() {
           <tspan style={{ fontWeight: 600 }}>▬ with Q</tspan>
         </text>
 
-        {/* Horizontal gridlines + %-axis ticks */}
+        {/* Horizontal gridlines — labelled with BOTH the capacity % and the actual
+            visitor count it maps to (count = target capacity × %/100). */}
         {yGrid.map((v) => (
           <g key={"yg-" + v}>
             <line x1={padL} y1={yS(v)} x2={w - padR} y2={yS(v)} stroke="currentColor" opacity={v === 0 ? 0.18 : 0.07} />
-            <text x={padL - 10} y={yS(v) + 4} textAnchor="end" className="curve-tick-label">
+            <text x={padL - 9} y={yS(v) - 1} textAnchor="end" className="curve-tick-label">
               {v}%
+            </text>
+            <text x={padL - 9} y={yS(v) + 9} textAnchor="end" className="curve-tick-count">
+              {fmtCompactNum(Math.round((targetCapacity(state) * v) / 100))}
             </text>
           </g>
         ))}
@@ -941,7 +945,7 @@ function YearCurve() {
             className="year-band-label"
             style={{ fontWeight: 600 }}
           >
-            {span === 5 ? `${baseYear + pts[peakI].year} · ` : `${pts[peakI].name} · `}
+            {span === 5 ? `${pts[peakI].year} · ` : `${pts[peakI].name} · `}
             {Math.round(dispM(peakI))}% · {fmtEur(pts[peakI].fee)}
           </text>
         )}

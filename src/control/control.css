@@ -411,6 +411,13 @@
   font-size: 11px;
   fill: var(--ink-mute);
 }
+/* Visitor-count line under each %-axis tick on the year/5-year graphs. */
+.qctl-root .curve-tick-count {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  fill: var(--ink-soft);
+  opacity: 0.8;
+}
 .qctl-root .curve-marker-label {
   font-family: var(--font-mono);
   font-size: 10.5px;
