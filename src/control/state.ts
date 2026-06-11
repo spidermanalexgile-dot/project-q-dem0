@@ -192,6 +192,58 @@ export function getStoreVersion(): number {
   return version;
 }
 
+/* ─── Cross-device sync (web ↔ iPad lever console) ───────────────────────── */
+
+export type SyncState = {
+  levers: { id: string; value: number }[];
+  occupancy_target: number;
+  day_targets: Record<string, number> | null;
+  customDate: string | null;
+  customDemand: number | null;
+  q_fixed: boolean;
+  pricing_off: boolean;
+  view: "cost" | "year";
+  zoomSpan: number;
+};
+
+/** Serialise the control surface (lever values + steering) for cross-device
+ *  sync — what a second screen needs to mirror the model exactly. */
+export function snapshotForSync(): SyncState | null {
+  if (!state) return null;
+  return {
+    levers: state.levers.map((l) => ({ id: l.id, value: l.value })),
+    occupancy_target: state.occupancy_target ?? 100,
+    day_targets: state.day_targets ?? null,
+    customDate: state.customDate ?? null,
+    customDemand: state.customDemand ?? null,
+    q_fixed: !!state.q_fixed,
+    pricing_off: !!state.pricing_off,
+    view: state.view,
+    zoomSpan: state.zoomSpan ?? 1,
+  };
+}
+
+/** Apply a control surface pushed from another device, then notify listeners so
+ *  every chart re-renders. Mutates in place like the regular setters. */
+export function applySyncedState(d: SyncState): void {
+  if (!state || !d) return;
+  if (Array.isArray(d.levers)) {
+    for (const ls of d.levers) {
+      const l = state.levers.find((x) => x.id === ls.id);
+      if (l && typeof ls.value === "number") l.value = ls.value;
+    }
+  }
+  if (typeof d.occupancy_target === "number") state.occupancy_target = d.occupancy_target;
+  state.day_targets = d.day_targets ?? undefined;
+  state.customDate = d.customDate ?? null;
+  state.customDemand = d.customDemand ?? null;
+  state.q_fixed = !!d.q_fixed;
+  state.pricing_off = !!d.pricing_off;
+  if (d.view === "cost" || d.view === "year") state.view = d.view;
+  if (typeof d.zoomSpan === "number") state.zoomSpan = d.zoomSpan === 5 ? 5 : 1;
+  notify();
+}
+
 function requireState(): State {
   if (!state) throw new Error("ProjectQ: no payload loaded yet");
   return state;

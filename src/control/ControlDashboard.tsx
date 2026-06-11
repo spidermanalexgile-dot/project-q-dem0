@@ -4,6 +4,7 @@ import { CurvePanel } from "./CurvePanel";
 import { RevenuePanel } from "./RevenuePanel";
 import { LeversPanel } from "./LeversPanel";
 import { installGlobalApi, loadPayload, loadBundle, getState } from "./state";
+import { startSync } from "./sync";
 import { initServerVoice } from "./speech";
 import { PAYLOAD_VENICE } from "./payload-venice";
 import { VENICE_5YR_BUNDLE } from "./payload-venice-5yr";
@@ -29,6 +30,7 @@ export function ControlDashboard() {
   useEffect(() => {
     installGlobalApi();
     initServerVoice(); // detect the secure /api/tts proxy (production)
+    startSync(); // mirror lever changes to/from the iPad console
     if (!getState()) {
       // v1 payload sets the curve + lever defaults; the 5-year bundle layers the
       // 2024–2028 daily/monthly/shock/assumption data (and locked actuals) on top.

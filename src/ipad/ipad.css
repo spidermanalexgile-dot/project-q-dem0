@@ -1,0 +1,125 @@
+/* iPad lever console — fills an iPad-mini screen (landscape or portrait), reuses
+   the qctl theme tokens from control.css. */
+.qctl-root.ipad-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(10px, 1.6vw, 18px);
+  gap: clamp(10px, 1.4vw, 16px);
+  box-sizing: border-box;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.qctl-root .ipad-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.qctl-root .ipad-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qctl-root .ipad-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Date stepper */
+.qctl-root .ipad-dayselect {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel-strong);
+}
+.qctl-root .ipad-day-step {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 20px;
+  width: 42px;
+  cursor: pointer;
+}
+.qctl-root .ipad-day-step:disabled {
+  opacity: 0.3;
+}
+.qctl-root .ipad-day-main {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  border-left: 1px solid var(--hairline);
+  border-right: 1px solid var(--hairline);
+}
+.qctl-root .ipad-day-native {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.qctl-root .ipad-q {
+  font-size: 15px;
+  padding: 10px 16px;
+}
+.qctl-root .ipad-theme {
+  border: 1px solid var(--hairline-strong);
+  background: var(--panel-strong);
+  color: var(--ink);
+  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* Two-column body that collapses to one on a narrow (portrait) screen. */
+.qctl-root .ipad-main {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: clamp(10px, 1.4vw, 16px);
+  min-height: 0;
+}
+@media (max-width: 840px) {
+  .qctl-root .ipad-main {
+    grid-template-columns: 1fr;
+  }
+}
+.qctl-root .ipad-col {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The reused panels already carry their own card chrome. */
+.qctl-root .ipad-col .levers-panel,
+.qctl-root .ipad-col .revenue-panel {
+  flex: 1 1 auto;
+}
+
+.qctl-root .ipad-sync-note {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+
+/* Bigger touch targets for the sliders on a tablet. */
+.qctl-root.ipad-root .slider-row input[type="range"] {
+  height: 30px;
+}
+.qctl-root.ipad-root .slider-row input[type="range"]::-webkit-slider-thumb {
+  width: 26px;
+  height: 26px;
+}
