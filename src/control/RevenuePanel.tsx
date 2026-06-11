@@ -34,12 +34,12 @@ function StrainOdometer({ saved }: { saved: number }) {
   const shown = useCountUp(saved);
   const digits = fmtNumber(Math.round(shown));
   return (
-    <div className={"strain-odo" + (saved > 0 ? " active" : "")}>
-      <div className="strain-odo-head">
-        <span className="strain-odo-label">Sustainability dividend</span>
-        <span className="strain-odo-sub">infrastructure strain avoided · this year</span>
+    <div className={"rev-row dividend" + (saved > 0 ? " active" : "")}>
+      <div className="rev-row-left">
+        <div className="rev-row-title">Sustainability dividend</div>
+        <div className="rev-row-sub">strain avoided · year</div>
       </div>
-      <div className="strain-odo-figure" aria-label={`€${digits} of strain cost avoided`}>
+      <div className="rev-row-value odo" aria-label={`€${digits} of strain cost avoided`}>
         <span className="currency">€</span>
         <span className="strain-odo-digits">
           {digits.split("").map((c, i) =>
@@ -54,11 +54,6 @@ function StrainOdometer({ saved }: { saved: number }) {
             ),
           )}
         </span>
-      </div>
-      <div className="strain-odo-foot">
-        {saved > 0
-          ? "overuse cost saved as Q flattens the peaks"
-          : "engage Q to relieve over-capacity strain"}
       </div>
     </div>
   );
@@ -107,45 +102,37 @@ export function RevenuePanel() {
 
   return (
     <section className="panel panel-pad revenue-panel">
-      <div className="sustain-fee">
-        <div className="sustain-fee-label">Sustainability fee if booked today</div>
-        <div className="sustain-fee-figure">{fmtEur(todayFee)}</div>
-        <div className="sustain-fee-note">
-          per visitor · {activeDay.demand_pct}% of a normal day · {activeDay.date}
+      {/* Per-visitor fee */}
+      <div className="rev-row fee">
+        <div className="rev-row-left">
+          <div className="rev-row-title">Sustainability fee</div>
+          <div className="rev-row-sub">per visitor · today</div>
+        </div>
+        <div className="rev-row-value">{fmtEur(todayFee)}</div>
+      </div>
+
+      {/* Total day revenue */}
+      <div className="rev-row">
+        <div className="rev-row-left">
+          <div className="rev-row-title">Total day revenue</div>
+          <DeltaChip value={dayDelta} />
+        </div>
+        <div className={"rev-row-value" + trendClass(dayDelta)}>
+          {fmtEur(Math.abs(d.dayRevenue))}
+          {d.dayRevenue < 0 && <span className="net-credit">NET CREDIT</span>}
         </div>
       </div>
 
-      <div className="revenue-grid">
-        <div className="rev-card">
-          <div className="rev-label">Total day revenue</div>
-          <div className={"rev-figure day" + trendClass(dayDelta)}>
-            {fmtEur(Math.abs(d.dayRevenue))}
-            {d.dayRevenue < 0 && (
-              <span
-                style={{ color: "var(--penalty)", fontSize: "0.4em", marginLeft: 8 }}
-              >
-                NET CREDIT
-              </span>
-            )}
-          </div>
-          <div className="rev-foot">
-            <span className="rev-note">{activeDay.date}</span>
-            <DeltaChip value={dayDelta} />
-          </div>
+      {/* Annual revenue */}
+      <div className="rev-row">
+        <div className="rev-row-left">
+          <div className="rev-row-title">{multiYear ? `${yr} annual revenue` : "Annual revenue"}</div>
+          <DeltaChip value={annualDelta} />
         </div>
-
-        <div className="rev-card annual">
-          <div className="rev-label">{multiYear ? `${yr} annual revenue` : "Projected annual revenue"}</div>
-          <div className={"rev-figure annual" + trendClass(annualDelta)}>
-            {fmtEur(d.annualRevenue)}
-          </div>
-          <div className="rev-foot">
-            <span className="rev-note">{multiYear ? `${yr} full year` : "365-day rollup"}</span>
-            <DeltaChip value={annualDelta} />
-          </div>
-        </div>
+        <div className={"rev-row-value" + trendClass(annualDelta)}>{fmtEur(d.annualRevenue)}</div>
       </div>
 
+      {/* Sustainability dividend (odometer) */}
       <StrainOdometer saved={d.strainSaved} />
     </section>
   );

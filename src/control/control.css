@@ -500,7 +500,91 @@
 .qctl-root .revenue-panel {
   display: flex;
   flex-direction: column;
-  gap: clamp(10px, 1.2vh, 14px);
+  gap: clamp(8px, 1vh, 12px);
+}
+
+/* Each revenue figure is a horizontal row — label (+ a small delta) on the
+   left, the big number on the right — so the numbers get room to breathe
+   instead of stacking on top of their labels. */
+.qctl-root .rev-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--panel-strong);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: clamp(10px, 1.3vh, 15px) clamp(13px, 1.2vw, 17px);
+}
+.qctl-root .rev-row-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+.qctl-root .rev-row-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  line-height: 1.25;
+}
+.qctl-root .rev-row-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  opacity: 0.75;
+}
+.qctl-root .rev-row-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(16px, 1.75vw, 22px);
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+  transition: color 0.4s ease;
+}
+.qctl-root .rev-row-value.up { color: #2c8b52; }
+.qctl-root .rev-row-value.down { color: #c0461d; }
+.qctl-root.dark .rev-row-value.up { color: #5fd398; }
+.qctl-root.dark .rev-row-value.down { color: #f0936a; }
+.qctl-root .net-credit {
+  font-size: 0.4em;
+  margin-left: 8px;
+  color: var(--penalty);
+  letter-spacing: 0.1em;
+}
+/* Sustainability dividend row — green accent + odometer count-up. */
+.qctl-root .rev-row.dividend {
+  background: linear-gradient(180deg, rgba(63, 185, 122, 0.10), rgba(63, 185, 122, 0.02));
+}
+.qctl-root .rev-row.dividend.active {
+  border-color: rgba(47, 168, 102, 0.45);
+}
+.qctl-root .rev-row.dividend .rev-row-title {
+  color: #2c8b52;
+  font-weight: 600;
+}
+.qctl-root.dark .rev-row.dividend .rev-row-title {
+  color: #5fd398;
+}
+.qctl-root .rev-row-value.odo {
+  display: inline-flex;
+  align-items: baseline;
+  color: #2c8b52;
+}
+.qctl-root.dark .rev-row-value.odo {
+  color: #5fd398;
+}
+.qctl-root .rev-row-value.odo .currency {
+  font-weight: 400;
+  opacity: 0.7;
+  margin-right: 0.04em;
 }
 .qctl-root .revenue-grid {
   display: flex;
