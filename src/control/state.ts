@@ -308,9 +308,11 @@ export const DEMAND_REF_EUR = 30;
 
 /** The fee Q charges a day to steer it toward the flatten target — a credit
  *  (negative) below target to fill the off-season, a premium (positive) above it
- *  to deter the peaks, scaled by how far the day sits from target. */
+ *  to deter the peaks, scaled by how far the day sits from target. The 1.6×
+ *  slope means a typical summer peak (~185%+ of sustainable) hits the €150
+ *  congestion ceiling — the curve skyrockets to the max fee above capacity. */
 function optimalDayFee(demand: number, target: number): number {
-  return Math.max(-45, Math.min(150, 1.2 * (demand - target)));
+  return Math.max(-45, Math.min(150, 1.6 * (demand - target)));
 }
 
 /**
