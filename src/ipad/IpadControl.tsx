@@ -64,6 +64,17 @@ export function IpadControl() {
     } catch {
       /* storage unavailable */
     }
+    // Match the page background to the theme so the iOS standalone safe-area
+    // (home-indicator strip) doesn't show a light bar behind the dark app.
+    const bg = dark ? "#0b0d12" : "#eee7db";
+    document.documentElement.style.background = bg;
+    document.body.style.background = bg;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", bg);
+    return () => {
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    };
   }, [dark]);
 
   const state = useStore();

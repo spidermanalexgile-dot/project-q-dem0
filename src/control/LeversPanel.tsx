@@ -49,16 +49,14 @@ function TargetCapacityRow() {
   const state = useStore();
   if (!state) return null;
   const base = targetCapacity(state); // the 100% capacity anchor (operating assumption)
-  const pct = activeOccupancyTarget(state); // where Q steers (100% by default)
-  const people = Math.round((base * pct) / 100); // absolute target for the day
-  const perDay = !!state.customDate && pct !== (state.occupancy_target ?? 100);
+  const pct = activeOccupancyTarget(state); // the level Q steers demand to
+  const people = Math.round((base * pct) / 100); // absolute target headcount
+  const off = pct !== 100; // steering away from capacity
   return (
-    <div className={"lever lever-input target-cap" + (perDay ? " custom" : "")}>
+    <div className={"lever lever-input target-cap" + (off ? " custom" : "")}>
       <div className="lever-label">
         Target capacity
-        <div className="lever-sub">
-          {state.customDate ? "this day · Q steers here" : "base · 100% = capacity"}
-        </div>
+        <div className="lever-sub">Q steers demand here · 100% = capacity</div>
       </div>
       <div className="target-cap-boxes">
         <div className="lever-input-box">

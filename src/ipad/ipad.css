@@ -6,9 +6,12 @@
   display: flex;
   flex-direction: column;
   padding: clamp(10px, 1.6vw, 18px);
+  /* Extend into the iOS home-indicator safe area so no light strip shows. */
+  padding-bottom: max(clamp(10px, 1.6vw, 18px), env(safe-area-inset-bottom));
   gap: clamp(10px, 1.4vw, 16px);
   box-sizing: border-box;
   overflow-y: auto;
+  overscroll-behavior: none;
 }
 
 .qctl-root .ipad-head {

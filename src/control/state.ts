@@ -1097,26 +1097,21 @@ export function setOccupancyTarget(pct: number | null): void {
   const next = pct == null ? 100 : Math.max(0, Math.min(300, Math.round(pct)));
   bumpDeltas();
   s.pricing_off = false; // steering to a target re-engages pricing
+  s.occupancy_target = next; // the level Q steers the WHOLE demand curve to
 
-  // A calendar day is selected → this is a PER-DAY target (e.g. "invite 150% in
-  // for this event"). Store the override and re-price just this day under Q; the
-  // whole-year base target is left untouched.
-  if (s.customDate) {
-    if (!s.day_targets) s.day_targets = {};
-    if (next === (s.occupancy_target ?? 100)) {
-      delete s.day_targets[s.customDate]; // back to base → drop the override
-    } else {
-      s.day_targets[s.customDate] = next;
-    }
-    if (s.q_fixed) retuneForDay(s);
+  // Under Q, the year demand curve flattens toward occupancy_target on its own
+  // (managedDemandPct prices every day toward it — lowering fees to lift demand
+  // up to a high target, raising them to push a busy year down). Just re-price
+  // the active day's lever display for the new target.
+  if (s.q_fixed) {
+    retuneForDay(s);
     commitDeltas();
     notify();
     return;
   }
 
-  s.occupancy_target = next;
-
-  // Auto-tune: find the fee the busiest day needs so it settles AT the target.
+  // Manual mode — auto-tune: find the fee the busiest day needs so it settles AT
+  // the target.
   const peakRaw = Math.max(100, ...s.seasonal.map((b) => b.demand_pct), activeDayType(s).demand_pct);
   if (peakRaw > next) {
     // managed = target + (raw−target)·e^(−fee/REF) ⇒ to reach exactly `target`
