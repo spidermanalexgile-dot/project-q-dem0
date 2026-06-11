@@ -609,7 +609,7 @@ const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 /** Group a 5-year daily dataset into per-year, per-month average CPI (% of
  *  capacity). Returns Map<year, number[12]> — the real demand profile each year. */
-function deriveYearlyMonthlyProfiles(daily: DailyRow[]): Map<number, number[]> {
+function deriveYearlyMonthlyProfiles(daily: DailyRow[], target: number): Map<number, number[]> {
   const acc = new Map<number, { s: number; c: number }[]>();
   for (const d of daily) {
     const y = Number(d.date.slice(0, 4));
@@ -617,7 +617,9 @@ function deriveYearlyMonthlyProfiles(daily: DailyRow[]): Map<number, number[]> {
     if (!Number.isFinite(y) || m < 1 || m > 12) continue;
     if (!acc.has(y)) acc.set(y, Array.from({ length: 12 }, () => ({ s: 0, c: 0 })));
     const cell = acc.get(y)![m - 1];
-    cell.s += d.cpi;
+    // Demand as a % of the TARGET capacity (100% = the operating-assumption
+    // target, e.g. 55k), from the real visitor count.
+    cell.s += target > 0 ? (d.adjusted_visitors / target) * 100 : d.cpi;
     cell.c++;
   }
   const out = new Map<number, number[]>();
@@ -648,7 +650,7 @@ function buildYearData(state: State) {
   const fiveYr = !!state.daily && state.daily.length > 400;
   const firstYear = state.daily && state.daily[0] ? Number(state.daily[0].date.slice(0, 4)) : 2026;
   const cutoff = state.locked_cutoff;
-  const yearly = fiveYr ? deriveYearlyMonthlyProfiles(state.daily!) : null;
+  const yearly = fiveYr ? deriveYearlyMonthlyProfiles(state.daily!, targetCapacity(state)) : null;
   // Calendar years on the x-axis: the 5 fixed bundle years, else the active year.
   const years = span === 5 ? Array.from({ length: 5 }, (_, i) => firstYear + i) : [activeYear(state)];
   const n = years.length * 12;

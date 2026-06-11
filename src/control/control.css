@@ -1727,6 +1727,13 @@
   font-family: var(--font-mono);
 }
 .qctl-root .lever-input.custom .lever-input-box { border-color: var(--ochre); }
+/* Two linked boxes (visitors + %) that move in parallel. */
+.qctl-root .target-cap-boxes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qctl-root .target-cap-boxes .lever-input-box.pct input { width: 42px; }
 .qctl-root .lever-input-box input {
   width: 70px;
   appearance: none;

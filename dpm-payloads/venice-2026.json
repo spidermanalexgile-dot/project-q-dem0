@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "location": { "id": "venice", "label": "Venice", "currency": "EUR" },
-  "capacity": { "target": 52111, "baseline": 52111, "unit": "visitors/day" },
+  "capacity": { "target": 55000, "baseline": 55000, "unit": "visitors/day" },
   "confidence": 42,
   "curve": {
     "base_fee_at_target": 10,

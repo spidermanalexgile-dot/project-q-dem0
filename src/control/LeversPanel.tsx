@@ -2,8 +2,9 @@ import { useRef, useState } from "react";
 import { useStore } from "./useStore";
 import {
   setLever,
-  setTargetCapacity,
   targetCapacity,
+  activeOccupancyTarget,
+  setOccupancyTarget,
   resetLevers,
   activeDayType,
   liveDemandPct,
@@ -40,32 +41,56 @@ function DayFeeRow() {
   );
 }
 
-/** Target capacity is an operator INPUT (visitors/day), shown at the top of the
- *  Levers panel — lowering it rebases the whole demand model to a higher %. */
+/** The target Q steers a day toward, as BOTH an absolute headcount and a % of
+ *  the capacity (55k base = 100%). The two boxes move in parallel; raising the
+ *  % above 100 lets the operator invite more in for a big event that day. When a
+ *  calendar day is selected it sets a per-day override, else the base target. */
 function TargetCapacityRow() {
   const state = useStore();
   if (!state) return null;
-  const target = targetCapacity(state);
-  const baseline = state.capacity.baseline || target;
+  const base = targetCapacity(state); // the 100% capacity anchor (operating assumption)
+  const pct = activeOccupancyTarget(state); // where Q steers (100% by default)
+  const people = Math.round((base * pct) / 100); // absolute target for the day
+  const perDay = !!state.customDate && pct !== (state.occupancy_target ?? 100);
   return (
-    <div className={"lever lever-input" + (target !== baseline ? " custom" : "")}>
+    <div className={"lever lever-input target-cap" + (perDay ? " custom" : "")}>
       <div className="lever-label">
         Target capacity
-        <div className="lever-sub">Visitors/day · rebases demand</div>
+        <div className="lever-sub">
+          {state.customDate ? "this day · Q steers here" : "base · 100% = capacity"}
+        </div>
       </div>
-      <div className="lever-input-box">
-        <input
-          type="number"
-          min={5000}
-          max={120000}
-          step={1000}
-          value={target}
-          onChange={(e) => {
-            if (e.target.value !== "") setTargetCapacity(Number(e.target.value));
-          }}
-          aria-label="Target capacity in visitors per day"
-        />
-        <span>/day</span>
+      <div className="target-cap-boxes">
+        <div className="lever-input-box">
+          <input
+            type="number"
+            min={0}
+            max={Math.round(base * 3)}
+            step={1000}
+            value={people}
+            onChange={(e) => {
+              if (e.target.value !== "" && base > 0) {
+                setOccupancyTarget((Number(e.target.value) / base) * 100);
+              }
+            }}
+            aria-label="Target visitors for this day"
+          />
+          <span>/day</span>
+        </div>
+        <div className="lever-input-box pct">
+          <input
+            type="number"
+            min={0}
+            max={300}
+            step={5}
+            value={pct}
+            onChange={(e) => {
+              if (e.target.value !== "") setOccupancyTarget(Number(e.target.value));
+            }}
+            aria-label="Target as a percentage of capacity"
+          />
+          <span>%</span>
+        </div>
       </div>
     </div>
   );

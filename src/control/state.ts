@@ -150,6 +150,9 @@ export type State = {
   // Desired occupancy the authority is steering toward (% of capacity). Pricing
   // deters crowds above it and the curve flattens toward it. Default 100%.
   occupancy_target: number;
+  // Per-DAY occupancy-target overrides (ISO date → %). Lets the operator set a
+  // different target for a specific day — e.g. invite 150% in for a big event.
+  day_targets?: Record<string, number>;
 
   // delta-tracking internals
   __lastDayRev: number;
@@ -328,16 +331,30 @@ function optimalDayFee(demand: number, target: number): number {
  * Raising base_fee / max_fee_cap, or lowering ceiling_pct, all raise the fees and
  * therefore pull the curve toward the target. Pure + deterministic.
  */
+/** The whole-year base steer target % — where Q flattens the year to (100% of
+ *  the target capacity, by default). Per-DAY overrides live in `day_targets`. */
 export function occupancyTarget(snap: State = requireState()): number {
   return snap.occupancy_target ?? 100;
 }
 
-export function managedDemandPct(raw_pct: number, snap: State = requireState()): number {
+/** The steer target % for the ACTIVE day — its per-day override (set via the
+ *  Levers panel for, say, an event the city wants more people at) or the base. */
+export function activeOccupancyTarget(snap: State = requireState()): number {
+  if (snap.customDate && snap.day_targets && typeof snap.day_targets[snap.customDate] === "number") {
+    return snap.day_targets[snap.customDate];
+  }
+  return occupancyTarget(snap);
+}
+
+export function managedDemandPct(
+  raw_pct: number,
+  snap: State = requireState(),
+  target: number = occupancyTarget(snap),
+): number {
   // Reset / "no pricing" state: the managed crowd IS the raw forecast crowd.
   if (snap.pricing_off) return raw_pct;
   // Status quo (before Q, no lever moved): no pricing yet → raw forecast crowd.
   if (isStatusQuo(snap)) return raw_pct;
-  const target = occupancyTarget(snap);
   if (snap.q_fixed) {
     // "Let Q fix this": each day is priced OPTIMALLY for that day, so the whole
     // year flattens BOTH ways — off-season pulled up, peaks pushed down — toward
@@ -541,11 +558,13 @@ export function activeAdjustedVisitors(snap: State = requireState()): number {
  *  fees bite, so it reflects "Suggest levers". */
 export function activeManagedVisitors(snap: State = requireState()): number {
   const live = liveDemandPct(effectiveActiveDemandPct(snap), snap);
-  return (managedDemandPct(live, snap) / 100) * targetCapacity(snap);
+  // The active day uses ITS target (per-day override when set) so the headcount
+  // reflects an operator inviting more in for an event, etc.
+  return (managedDemandPct(live, snap, activeOccupancyTarget(snap)) / 100) * targetCapacity(snap);
 }
 
 /** Flatten target for "Let Q fix this" — the level the whole year is steered to. */
-export const FLATTEN_TARGET_PCT = 90;
+export const FLATTEN_TARGET_PCT = 100;
 
 function clampLever(l: Lever, v: number): number {
   return Math.max(l.min, Math.min(l.max, Math.round(v / (l.step || 1)) * (l.step || 1)));
@@ -560,7 +579,9 @@ function clampLever(l: Lever, v: number): number {
  */
 function retuneForDay(s: State): void {
   const D = effectiveActiveDemandPct(s);
-  const T = occupancyTarget(s) || FLATTEN_TARGET_PCT;
+  // The active day's target — its per-day override (e.g. invite 150% in for an
+  // event) when set, else the base. Q prices this day toward that level.
+  const T = activeOccupancyTarget(s) || FLATTEN_TARGET_PCT;
   const fee = optimalDayFee(D, T);
   const base = s.levers.find((l) => l.id === "base_fee");
   const cap = s.levers.find((l) => l.id === "max_fee_cap");
@@ -915,10 +936,13 @@ export function setDemand(pct: number | null): void {
  *  same 'normal-day' scale as the curve) — falls back to the coarse day_type
  *  anchors when no monthly profile is loaded. Deterministic. */
 function demandForDate(iso: string, snap: State): number | null {
-  // Exact daily row (5-year bundle) wins — its CPI is the real % of capacity.
+  // Exact daily row (5-year bundle) wins — demand as a % of the TARGET capacity
+  // (so 100% = the operating-assumption target, e.g. 55k), from the real count.
   if (snap.daily && snap.daily.length) {
     const row = snap.daily.find((d) => d.date === iso);
-    if (row && row.cpi > 0) return Math.round(row.cpi);
+    if (row && row.adjusted_visitors > 0) {
+      return Math.round((row.adjusted_visitors / targetCapacity(snap)) * 100);
+    }
   }
   if (snap.monthly && snap.monthly.length === 12) {
     const parts = iso.split("-").map(Number);
@@ -1020,8 +1044,25 @@ export function setOccupancyTarget(pct: number | null): void {
   const s = requireState();
   const next = pct == null ? 100 : Math.max(0, Math.min(300, Math.round(pct)));
   bumpDeltas();
-  s.occupancy_target = next;
   s.pricing_off = false; // steering to a target re-engages pricing
+
+  // A calendar day is selected → this is a PER-DAY target (e.g. "invite 150% in
+  // for this event"). Store the override and re-price just this day under Q; the
+  // whole-year base target is left untouched.
+  if (s.customDate) {
+    if (!s.day_targets) s.day_targets = {};
+    if (next === (s.occupancy_target ?? 100)) {
+      delete s.day_targets[s.customDate]; // back to base → drop the override
+    } else {
+      s.day_targets[s.customDate] = next;
+    }
+    if (s.q_fixed) retuneForDay(s);
+    commitDeltas();
+    notify();
+    return;
+  }
+
+  s.occupancy_target = next;
 
   // Auto-tune: find the fee the busiest day needs so it settles AT the target.
   const peakRaw = Math.max(100, ...s.seasonal.map((b) => b.demand_pct), activeDayType(s).demand_pct);
