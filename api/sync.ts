@@ -2,55 +2,50 @@
  * Shared control-state relay for the web ↔ iPad lever console.
  *
  *   GET  /api/sync                  → { rev, clientId, data, ts }
- *   POST /api/sync {clientId,data}  → { rev }   (rev increments on every write)
+ *   POST /api/sync {clientId,data}  → { rev }
  *
- * Storage: Vercel KV / Upstash Redis when its env vars are present (durable,
- * survives cold starts + multiple regions); otherwise an in-process fallback
- * that is good enough for a single-region live demo. To make it rock-solid,
- * provision Vercel KV (Project → Storage → KV) and redeploy — no code change.
+ * Durable storage via Vercel Blob (store "projectq-sync"): survives cold starts
+ * and works across serverless instances/regions, so the two screens stay in
+ * lockstep for real. `rev` is a server timestamp (monotonic across writes); the
+ * blob is written with cacheControlMaxAge:0 and read with a cache-buster so polls
+ * always see the latest. An in-process copy is kept only as an offline fallback.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { put, head } from "@vercel/blob";
 
 type Req = IncomingMessage & { method?: string; body?: unknown };
 type Snap = { rev: number; clientId: string | null; data: unknown; ts: number };
 
-const KEY = "projectq:sync";
-const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const kvOn = !!(KV_URL && KV_TOKEN);
+const PATH = "projectq-sync.json";
+const TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+const EMPTY: Snap = { rev: 0, clientId: null, data: null, ts: 0 };
 
-// In-process fallback (per warm serverless instance).
-let mem: Snap = { rev: 0, clientId: null, data: null, ts: 0 };
+let mem: Snap = EMPTY; // offline fallback only
 
-async function kvCmd(cmd: unknown[]): Promise<unknown> {
-  const r = await fetch(KV_URL as string, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${KV_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify(cmd),
-  });
-  const j = (await r.json()) as { result?: unknown };
-  return j.result;
-}
-
-async function read(): Promise<Snap> {
-  if (!kvOn) return mem;
+async function readSnap(): Promise<Snap> {
+  if (!TOKEN) return mem;
   try {
-    const raw = (await kvCmd(["GET", KEY])) as string | null;
-    return raw ? (JSON.parse(raw) as Snap) : { rev: 0, clientId: null, data: null, ts: 0 };
+    const h = await head(PATH, { token: TOKEN });
+    const bust = (h.url.includes("?") ? "&" : "?") + "_=" + Date.now();
+    const r = await fetch(h.url + bust, { cache: "no-store" });
+    if (!r.ok) return mem;
+    return (await r.json()) as Snap;
   } catch {
-    return mem;
+    return mem; // blob not created yet (no writes), or transient error
   }
 }
 
-async function write(next: Snap): Promise<void> {
+async function writeSnap(next: Snap): Promise<void> {
   mem = next;
-  if (kvOn) {
-    try {
-      await kvCmd(["SET", KEY, JSON.stringify(next)]);
-    } catch {
-      /* keep the in-memory copy */
-    }
-  }
+  if (!TOKEN) return;
+  await put(PATH, JSON.stringify(next), {
+    access: "public",
+    allowOverwrite: true,
+    addRandomSuffix: false,
+    cacheControlMaxAge: 0,
+    contentType: "application/json",
+    token: TOKEN,
+  });
 }
 
 function readJsonBody(req: Req): Promise<{ clientId?: string; data?: unknown }> {
@@ -77,18 +72,17 @@ function send(res: ServerResponse, status: number, body: unknown): void {
 }
 
 export default async function handler(req: Req, res: ServerResponse): Promise<void> {
-  if (req.method === "POST") {
-    const body = await readJsonBody(req);
-    const cur = await read();
-    const next: Snap = {
-      rev: cur.rev + 1,
-      clientId: body?.clientId ?? null,
-      data: body?.data ?? null,
-      ts: Date.now(),
-    };
-    await write(next);
-    send(res, 200, { rev: next.rev });
-    return;
+  try {
+    if (req.method === "POST") {
+      const body = await readJsonBody(req);
+      const now = Date.now();
+      const next: Snap = { rev: now, clientId: body?.clientId ?? null, data: body?.data ?? null, ts: now };
+      await writeSnap(next);
+      send(res, 200, { rev: next.rev });
+      return;
+    }
+    send(res, 200, await readSnap());
+  } catch (e) {
+    send(res, 200, { ...EMPTY, error: e instanceof Error ? e.message : "sync_error" });
   }
-  send(res, 200, await read());
 }
