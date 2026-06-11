@@ -4,44 +4,45 @@
  *   GET  /api/sync                  → { rev, clientId, data, ts }
  *   POST /api/sync {clientId,data}  → { rev }
  *
- * Storage:
- *  • Upstash/Vercel Redis when its REST env vars are present (KV_REST_API_URL +
- *    KV_REST_API_TOKEN, or UPSTASH_REDIS_REST_URL/TOKEN) — strongly consistent
- *    and durable across cold starts/instances. Provision once (Vercel → Storage
- *    → Redis) and it upgrades automatically; no code change.
- *  • Otherwise an in-process store. The clients send a heartbeat re-assert every
- *    few seconds, so even if a cold start wipes it, the shared state is restored
- *    within one heartbeat. `rev` is a server timestamp; an unchanged payload does
- *    NOT bump it, so heartbeats are silent no-ops.
+ * Durable storage via Redis (REDIS_URL, provisioned through the Vercel Redis
+ * integration): strongly consistent, survives cold starts and works across
+ * instances/regions, so the two screens stay in lockstep for real. `rev` is a
+ * server timestamp; an unchanged payload (a heartbeat re-assert) does NOT bump
+ * it. Falls back to an in-process copy if Redis is unreachable.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
+import Redis from "ioredis";
 
 type Req = IncomingMessage & { method?: string; body?: unknown };
 type Snap = { rev: number; clientId: string | null; data: unknown; ts: number };
 
 const KEY = "projectq:sync";
-const R_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const R_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const redisOn = !!(R_URL && R_TOKEN);
+const REDIS_URL = process.env.REDIS_URL;
 const EMPTY: Snap = { rev: 0, clientId: null, data: null, ts: 0 };
 
-let mem: Snap = EMPTY;
+let mem: Snap = EMPTY; // fallback if Redis is unreachable
+let client: Redis | null = null;
 
-async function redis(cmd: unknown[]): Promise<unknown> {
-  const r = await fetch(R_URL as string, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${R_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify(cmd),
-    cache: "no-store",
-  });
-  const j = (await r.json()) as { result?: unknown };
-  return j.result;
+function getClient(): Redis | null {
+  if (!REDIS_URL) return null;
+  if (!client) {
+    client = new Redis(REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      connectTimeout: 4000,
+      enableReadyCheck: false,
+    });
+    client.on("error", () => {
+      /* swallow so a transient blip never crashes the function */
+    });
+  }
+  return client;
 }
 
 async function read(): Promise<Snap> {
-  if (!redisOn) return mem;
+  const c = getClient();
+  if (!c) return mem;
   try {
-    const raw = (await redis(["GET", KEY])) as string | null;
+    const raw = await c.get(KEY);
     return raw ? (JSON.parse(raw) as Snap) : EMPTY;
   } catch {
     return mem;
@@ -50,9 +51,10 @@ async function read(): Promise<Snap> {
 
 async function write(next: Snap): Promise<void> {
   mem = next;
-  if (redisOn) {
+  const c = getClient();
+  if (c) {
     try {
-      await redis(["SET", KEY, JSON.stringify(next)]);
+      await c.set(KEY, JSON.stringify(next));
     } catch {
       /* keep in-memory copy */
     }
@@ -88,8 +90,8 @@ export default async function handler(req: Req, res: ServerResponse): Promise<vo
       const body = await readJsonBody(req);
       const cur = await read();
       const incoming = JSON.stringify(body?.data ?? null);
-      // Unchanged payload (a heartbeat re-assert) → keep the existing rev so the
-      // other screen doesn't needlessly re-adopt identical state.
+      // Unchanged payload (a heartbeat) → keep the existing rev so the other
+      // screen doesn't needlessly re-adopt identical state.
       if (incoming === JSON.stringify(cur.data) && cur.rev > 0) {
         send(res, 200, { rev: cur.rev });
         return;
