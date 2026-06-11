@@ -197,7 +197,6 @@ export function getStoreVersion(): number {
 export type SyncState = {
   levers: { id: string; value: number }[];
   occupancy_target: number;
-  day_targets: Record<string, number> | null;
   customDate: string | null;
   customDemand: number | null;
   q_fixed: boolean;
@@ -213,7 +212,6 @@ export function snapshotForSync(): SyncState | null {
   return {
     levers: state.levers.map((l) => ({ id: l.id, value: l.value })),
     occupancy_target: state.occupancy_target ?? 100,
-    day_targets: state.day_targets ?? null,
     customDate: state.customDate ?? null,
     customDemand: state.customDemand ?? null,
     q_fixed: !!state.q_fixed,
@@ -234,7 +232,6 @@ export function applySyncedState(d: SyncState): void {
     }
   }
   if (typeof d.occupancy_target === "number") state.occupancy_target = d.occupancy_target;
-  state.day_targets = d.day_targets ?? undefined;
   state.customDate = d.customDate ?? null;
   state.customDemand = d.customDemand ?? null;
   state.q_fixed = !!d.q_fixed;
@@ -389,12 +386,9 @@ export function occupancyTarget(snap: State = requireState()): number {
   return snap.occupancy_target ?? 100;
 }
 
-/** The steer target % for the ACTIVE day — its per-day override (set via the
- *  Levers panel for, say, an event the city wants more people at) or the base. */
+/** The steer target % — the single global level Q drives the whole demand curve
+ *  to (kept as a named export for the call sites that reference it). */
 export function activeOccupancyTarget(snap: State = requireState()): number {
-  if (snap.customDate && snap.day_targets && typeof snap.day_targets[snap.customDate] === "number") {
-    return snap.day_targets[snap.customDate];
-  }
   return occupancyTarget(snap);
 }
 
